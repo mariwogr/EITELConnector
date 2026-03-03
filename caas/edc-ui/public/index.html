@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EITEL EDC UI</title>
+    <style>
+      body{font-family:Arial,sans-serif;background:#0c1222;color:#e8edff;margin:0}
+      .wrap{max-width:1000px;margin:24px auto;padding:0 16px}
+      .card{background:#131b33;border:1px solid #2e3b6a;border-radius:12px;padding:14px;margin-bottom:14px}
+      input,textarea,select{width:100%;box-sizing:border-box;margin-top:6px;padding:10px;border-radius:8px;border:1px solid #445693;background:#0f1630;color:#e8edff}
+      button{margin-top:10px;background:#4f6fff;color:#fff;border:0;border-radius:8px;padding:10px 14px;cursor:pointer}
+      pre{background:#0f1630;border:1px solid #2e3b6a;padding:12px;border-radius:8px;white-space:pre-wrap;overflow:auto}
+      .muted{color:#a8b3df}
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>EITEL EDC UI</h1>
+      <p class="muted" id="cfg"></p>
+
+      <div class="card">
+        <h2>Prueba rápida wrapper</h2>
+        <button id="btnConfig">GET /wrapper/ui/config</button>
+        <button id="btnBuildInfo">GET /wrapper/ui/build-info</button>
+        <pre id="outQuick"></pre>
+      </div>
+
+      <div class="card">
+        <h2>API Console</h2>
+        <label>Método</label>
+        <select id="method"><option>GET</option><option>POST</option></select>
+        <label>Path (sobre management API)</label>
+        <input id="path" value="/wrapper/ui/config" />
+        <label>Body JSON (solo POST)</label>
+        <textarea id="body" rows="6">{}</textarea>
+        <button id="send">Enviar</button>
+        <pre id="out"></pre>
+      </div>
+    </div>
+
+    <script src="/config.js"></script>
+    <script>
+      const cfg = window.EITEL_UI_CONFIG;
+      document.getElementById('cfg').textContent = `Connector: ${cfg.connectorName} | API: ${cfg.managementApiUrl}`;
+
+      async function callApi(method, path, body){
+        const url = `${cfg.managementApiUrl}${path}`;
+        const headers = {'x-api-key': cfg.apiKey, 'content-type':'application/json'};
+        const opts = {method, headers};
+        if(method === 'POST') opts.body = body;
+        const res = await fetch(url, opts);
+        const text = await res.text();
+        let data = text;
+        try{ data = JSON.parse(text);}catch{}
+        return {status: res.status, data};
+      }
+
+      document.getElementById('btnConfig').onclick = async () => {
+        const r = await callApi('GET', '/wrapper/ui/config');
+        document.getElementById('outQuick').textContent = JSON.stringify(r, null, 2);
+      };
+
+      document.getElementById('btnBuildInfo').onclick = async () => {
+        const r = await callApi('GET', '/wrapper/ui/build-info');
+        document.getElementById('outQuick').textContent = JSON.stringify(r, null, 2);
+      };
+
+      document.getElementById('send').onclick = async () => {
+        const method = document.getElementById('method').value;
+        const path = document.getElementById('path').value;
+        const body = document.getElementById('body').value;
+        const r = await callApi(method, path, body);
+        document.getElementById('out').textContent = JSON.stringify(r, null, 2);
+      };
+    </script>
+  </body>
+</html>

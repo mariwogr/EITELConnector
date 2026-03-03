@@ -1,0 +1,5 @@
+window.EITEL_UI_CONFIG = {
+  managementApiUrl: "${NEXT_PUBLIC_MANAGEMENT_API_URL}",
+  apiKey: "${NEXT_PUBLIC_MANAGEMENT_API_AUTH_KEY}",
+  connectorName: "${NEXT_PUBLIC_CONNECTOR_NAME}"
+};

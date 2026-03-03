@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EITEL CaaS Control Plane</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>EITEL Connector as a Service</h1>
+      <p class="muted">Fase 2 · Control Plane + UI + persistencia</p>
+
+      <section class="card">
+        <h2>Crear tenant</h2>
+        <form id="tenantForm">
+          <label>Tenant slug</label>
+          <input id="tenant" placeholder="uc3m" required pattern="^[a-z0-9-]+$" />
+          <label>Nombre</label>
+          <input id="displayName" placeholder="UC3M Connector" required />
+          <button type="submit">Crear</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Generar plan de conector (Eclipse EDC runtime)</h2>
+        <form id="planForm">
+          <label>Tenant</label>
+          <input id="planTenant" placeholder="uc3m" required />
+          <label>Participant ID (opcional)</label>
+          <input id="participantId" placeholder="uc3m-connector" />
+          <button type="submit">Generar plan</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Exportar compose de un plan</h2>
+        <form id="exportForm">
+          <label>Plan ID</label>
+          <input id="planId" type="number" min="1" required />
+          <button type="submit">Exportar</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Tenants</h2>
+        <button id="refreshTenants">Refrescar</button>
+        <pre id="tenantsOut"></pre>
+      </section>
+
+      <section class="card">
+        <h2>Resultado</h2>
+        <pre id="result"></pre>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
