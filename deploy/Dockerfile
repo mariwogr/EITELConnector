@@ -2,7 +2,7 @@
 
 ARG EDC_REF=v0.16.0
 
-FROM gradle:8.10.2-jdk21 AS builder
+FROM gradle:8.10.2-jdk17 AS builder
 ARG EDC_REF
 WORKDIR /workspace
 
@@ -12,7 +12,7 @@ WORKDIR /workspace/connector
 # Build a runnable EDC runtime distribution used in DSP TCK tests.
 RUN ./gradlew --no-daemon :system-tests:tck:dsp-tck-connector-under-test:installDist
 
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:17-jre
 WORKDIR /opt/edc
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
