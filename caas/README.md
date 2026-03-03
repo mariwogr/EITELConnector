@@ -57,6 +57,19 @@ El `docker-compose.generated.yaml` incluirá `build` para el runtime del conecto
 
 > Importante: el repositorio `eclipse-edc/Connector` es el código fuente base de Eclipse EDC. Para despliegue directo en Docker normalmente necesitas **un runtime propio** (fork o repo wrapper) que incluya un `Dockerfile` de arranque del conector con los módulos y configuración que quieras usar.
 
+En este workspace se incluye un runtime wrapper en [deploy/Dockerfile](deploy/Dockerfile).
+
+Para usarlo con Opción B:
+
+1. Sube este repo a GitHub (incluyendo `deploy/Dockerfile`).
+2. Configura:
+  - `CAAS_EDC_CONNECTOR_SOURCE=git`
+  - `CAAS_EDC_CONNECTOR_GIT_URL=https://github.com/<tu-usuario>/<tu-repo>.git`
+  - `CAAS_EDC_CONNECTOR_GIT_REF=main`
+  - `CAAS_EDC_CONNECTOR_GIT_DOCKERFILE=deploy/Dockerfile`
+
+Si el repo es privado, usa autenticación en la URL (`https://<user>:<token>@github.com/...`) o haz el repo público para que Docker pueda descargar el contexto remoto sin prompt interactivo.
+
 ## UI propia EITEL
 
 Se incluye una UI mínima en `edc-ui/`.

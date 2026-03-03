@@ -1,0 +1,28 @@
+# syntax=docker/dockerfile:1.7
+
+ARG EDC_REF=v0.16.0
+
+FROM gradle:8.10.2-jdk21 AS builder
+ARG EDC_REF
+WORKDIR /workspace
+
+RUN git clone --depth 1 --branch "${EDC_REF}" https://github.com/eclipse-edc/Connector.git connector
+WORKDIR /workspace/connector
+
+# Build a runnable EDC runtime distribution used in DSP TCK tests.
+RUN ./gradlew --no-daemon :system-tests:tck:dsp-tck-connector-under-test:installDist
+
+FROM eclipse-temurin:21-jre
+WORKDIR /opt/edc
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /workspace/connector/system-tests/tck/dsp-tck-connector-under-test/build/install/dsp-tck-connector-under-test/ /opt/edc/
+
+# Common internal ports used by this runtime profile.
+EXPOSE 11000 11001 11002 11003
+
+# Simple healthcheck against the main API context.
+HEALTHCHECK --interval=15s --timeout=5s --retries=20 CMD curl --fail -X GET http://localhost:11000/api/check/health || exit 1
+
+CMD ["/opt/edc/bin/dsp-tck-connector-under-test"]
