@@ -6,6 +6,7 @@ from typing import Literal
 
 import yaml
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -38,6 +39,14 @@ class Settings(BaseSettings):
 
 settings = Settings()
 app = FastAPI(title='EITEL Connector CaaS Control Plane', version='0.2.0')
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*'],
+)
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / 'templates'))
 app.mount('/static', StaticFiles(directory=str(Path(__file__).parent / 'static')), name='static')
@@ -102,6 +111,10 @@ class ConnectorPlanRequest(BaseModel):
     db_password: str | None = None
 
 
+dummy_sink_records: list[dict] = []
+MAX_DUMMY_RECORDS = 200
+
+
 def _prefix_for(tenant: str) -> str:
     return settings.path_prefix_template.format(tenant=tenant)
 
@@ -153,6 +166,8 @@ def _compose_for_tenant(tenant: str, participant_id: str, api_key: str, db_passw
             'WEB_HTTP_PROTOCOL_PATH': '/api/v1/dsp',
             'EDC_DSP_CALLBACK_ADDRESS': f'https://{settings.base_domain}{prefix}/api/v1/dsp',
             'EDC_MANAGEMENT_CONTEXT_ENABLED': 'true',
+            'EDC_TRANSFER_PROXY_TOKEN_SIGNER_PRIVATEKEY_ALIAS': 'private-key',
+            'EDC_TRANSFER_PROXY_TOKEN_VERIFIER_PUBLICKEY_ALIAS': 'public-key',
             'EDC_JDBC_URL': f'jdbc:postgresql://{tenant}-postgres:5432/{db_name}',
             'EDC_JDBC_USER': 'postgres',
             'EDC_JDBC_PASSWORD': db_password,
@@ -221,6 +236,51 @@ def ui_home(request: Request):
 @app.get('/health')
 def health():
     return {'ok': True, 'service': 'eitel-caas-control-plane'}
+
+
+@app.api_route('/v1/dummy-sink/ingest', methods=['POST', 'PUT'])
+async def dummy_sink_ingest(request: Request):
+    content_type = request.headers.get('content-type', '')
+    payload: object
+    try:
+        if 'application/json' in content_type:
+            payload = await request.json()
+        else:
+            raw = await request.body()
+            payload = raw.decode('utf-8', errors='replace')
+    except Exception:
+        payload = '<unreadable payload>'
+
+    record = {
+        'received_at': datetime.now(UTC).isoformat(),
+        'method': request.method,
+        'path': str(request.url.path),
+        'query': str(request.url.query),
+        'content_type': content_type,
+        'headers': {
+            k: v
+            for k, v in request.headers.items()
+            if k.lower() in {'content-type', 'authorization', 'x-api-key'}
+        },
+        'payload': payload,
+    }
+    dummy_sink_records.append(record)
+    if len(dummy_sink_records) > MAX_DUMMY_RECORDS:
+        del dummy_sink_records[: len(dummy_sink_records) - MAX_DUMMY_RECORDS]
+
+    return {'ok': True, 'stored': len(dummy_sink_records)}
+
+
+@app.get('/v1/dummy-sink/records')
+def dummy_sink_list_records():
+    return {'count': len(dummy_sink_records), 'items': list(reversed(dummy_sink_records))}
+
+
+@app.delete('/v1/dummy-sink/records')
+def dummy_sink_clear_records():
+    cleared = len(dummy_sink_records)
+    dummy_sink_records.clear()
+    return {'ok': True, 'cleared': cleared}
 
 
 @app.get('/v1/config')

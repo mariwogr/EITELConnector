@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EITEL Connector Console</title>
+    <style>
+      :root {
+        --bg: #f4f7fc;
+        --surface: #ffffff;
+        --line: #dce5f3;
+        --ink: #1d2b45;
+        --muted: #63748f;
+        --brand: #0f4ea8;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: "Segoe UI", Inter, Arial, sans-serif; color: var(--ink); background: var(--bg); }
+      .app { min-height: 100vh; display: grid; grid-template-columns: 220px 1fr 360px; }
+      .side { border-right: 1px solid var(--line); background: #eff4fb; padding: 14px; }
+      .brand { background: #e6efff; border: 1px solid #c7dafc; border-radius: 12px; padding: 12px; font-weight: 700; color: #0f4ea8; margin-bottom: 12px; }
+      .nav { display: flex; flex-direction: column; gap: 8px; }
+      .nav button { border: 0; background: transparent; border-radius: 10px; padding: 10px; text-align: left; cursor: pointer; color: var(--ink); }
+      .nav button.active { background: #d8e7ff; color: #0c438f; font-weight: 600; }
+      .main { padding: 16px; }
+      .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+      .top h1 { margin: 0; font-size: 22px; }
+      .badge { border: 1px solid #bfd3f8; background: #eaf2ff; color: #0f4ea8; border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 600; }
+      .panel { display: none; }
+      .panel.active { display: block; }
+      .grid { display: grid; grid-template-columns: repeat(2, minmax(260px, 1fr)); gap: 12px; }
+      .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+      .wide { grid-column: 1 / -1; }
+      h2, h3 { margin: 0 0 8px; }
+      .muted { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+      .row { display: flex; gap: 8px; flex-wrap: wrap; }
+      .kpis { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 10px; }
+      .kpi { background: #f9fbff; border: 1px solid #dde7f8; border-radius: 10px; padding: 10px; }
+      .kpi .label { font-size: 12px; color: var(--muted); }
+      .kpi .value { font-size: 24px; font-weight: 700; color: #0e468f; }
+      label { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
+      input, textarea, select { width: 100%; margin-top: 4px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 9px; background: #fff; color: var(--ink); font-family: inherit; }
+      button.action, button.secondary { border-radius: 10px; padding: 8px 11px; cursor: pointer; }
+      button.action { border: 0; background: var(--brand); color: #fff; }
+      button.secondary { border: 1px solid #bfd3f8; background: #fff; color: #0f4ea8; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border-bottom: 1px solid #e4ecf9; text-align: left; padding: 8px; font-size: 13px; vertical-align: top; }
+      .output { border-left: 1px solid var(--line); background: #0f1a30; color: #dce7ff; display: flex; flex-direction: column; min-width: 0; }
+      .output-head { padding: 10px; border-bottom: 1px solid #21355d; display: flex; justify-content: space-between; align-items: center; }
+      .output pre { margin: 0; padding: 12px; overflow: auto; flex: 1; }
+      .app.output-collapsed { grid-template-columns: 220px 1fr 0; }
+      .app.output-collapsed .output { border-left: 0; overflow: hidden; }
+      .app.output-wide { grid-template-columns: 220px 1fr 520px; }
+      .mono { font-family: Consolas, monospace; font-size: 12px; }
+      @media (max-width: 1200px) {
+        .app, .app.output-wide, .app.output-collapsed { grid-template-columns: 200px 1fr; }
+        .output { position: fixed; right: 0; top: 0; bottom: 0; width: min(88vw, 520px); z-index: 20; box-shadow: -8px 0 30px rgba(0,0,0,.2); }
+        .app.output-collapsed .output { display: none; }
+      }
+      @media (max-width: 900px) {
+        .app, .app.output-wide, .app.output-collapsed { grid-template-columns: 1fr; }
+        .side { border-right: 0; border-bottom: 1px solid var(--line); }
+        .nav { flex-direction: row; overflow-x: auto; }
+        .nav button { white-space: nowrap; }
+        .grid { grid-template-columns: 1fr; }
+        .kpis { grid-template-columns: 1fr 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app" id="app">
+      <aside class="side">
+        <div class="brand">EITEL Connector Console</div>
+        <div class="nav">
+          <button class="active" data-view="dashboard">Dashboard</button>
+          <button data-view="publish">Publish</button>
+          <button data-view="exchange">Exchange</button>
+          <button data-view="explorer">API Explorer</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="top">
+          <h1 id="title">Connector</h1>
+          <span class="badge" id="badge">Runtime</span>
+        </div>
+
+        <section class="panel active" id="panel-dashboard">
+          <div class="grid">
+            <section class="card wide">
+              <h2>Overview</h2>
+              <p class="muted">Flujo: Publish → Buscar por connector id → Seleccionar offer → Negotiation → Transfer.</p>
+              <div class="kpis">
+                <div class="kpi"><div class="label">Assets</div><div class="value" id="kpiAssets">-</div></div>
+                <div class="kpi"><div class="label">Policies</div><div class="value" id="kpiPolicies">-</div></div>
+                <div class="kpi"><div class="label">Negotiations</div><div class="value" id="kpiNegotiations">-</div></div>
+                <div class="kpi"><div class="label">Transfers</div><div class="value" id="kpiTransfers">-</div></div>
+              </div>
+              <div class="row" style="margin-top:10px">
+                <button class="action" id="btnRefreshOverview">Refresh</button>
+                <button class="secondary" id="gotoPublish">Go Publish</button>
+                <button class="secondary" id="gotoExchange">Go Exchange</button>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-publish">
+          <div class="grid">
+            <section class="card wide">
+              <h2>Publish</h2>
+              <p class="muted">Personalización amplia para el Asset.</p>
+              <div class="grid">
+                <div><label>Asset key (humano)</label><input id="assetKey" value="dataset-clima-uc3m" /></div>
+                <div><label>Asset ID interno</label><input id="assetIdPreview" class="mono" readonly /></div>
+              </div>
+              <label>Display name</label><input id="assetName" value="Dataset Clima UC3M" />
+              <div class="grid">
+                <div><label>Data type</label><select id="assetDataType"><option>HttpData</option><option>AmazonS3</option><option>AzureStorage</option><option>CustomDataType</option></select></div>
+                <div><label>Content-Type</label><input id="assetContentType" value="application/json" /></div>
+              </div>
+              <div class="grid">
+                <div><label>baseUrl</label><input id="assetBaseUrl" value="https://example.org/data" /></div>
+                <div><label>method</label><input id="assetMethod" value="GET" /></div>
+              </div>
+              <div class="grid">
+                <div><label>path</label><input id="assetPath" value="/api/items" /></div>
+                <div><label>queryParams</label><input id="assetQueryParams" value="limit=10" /></div>
+              </div>
+              <label>Headers JSON</label><textarea id="assetHeadersJson" rows="4">{
+  "Authorization": "Bearer replace-me"
+}</textarea>
+              <label>Asset properties JSON</label><textarea id="assetPropsJson" rows="4">{
+  "category": "weather",
+  "owner": "uc3m"
+}</textarea>
+              <label>Asset privateProperties JSON</label><textarea id="assetPrivatePropsJson" rows="4">{
+  "internalTag": "demo"
+}</textarea>
+              <label>DataAddress extra JSON (merge)</label><textarea id="assetDataAddressExtraJson" rows="4">{
+  "proxyMethod": true,
+  "proxyPath": true,
+  "proxyQueryParams": true
+}</textarea>
+              <div class="row" style="margin-top:8px">
+                <button class="action" id="btnCreateAsset">Create/Update Asset</button>
+                <button class="secondary" id="btnListAssets">List Assets</button>
+                <button class="secondary" id="btnDeleteAsset">Delete Asset</button>
+              </div>
+            </section>
+            <section class="card">
+              <h3>Policy</h3>
+              <label>Policy name</label><input id="policyName" value="policy-clima" />
+              <label>Policy JSON (ODRL Set)</label><textarea id="policyJson" rows="6">{
+  "@context": "http://www.w3.org/ns/odrl.jsonld",
+  "@type": "Set",
+  "permission": [{ "action": "use" }]
+}</textarea>
+              <div class="row" style="margin-top:8px">
+                <button class="action" id="btnCreatePolicy">Create/Update Policy</button>
+                <button class="secondary" id="btnListPolicies">List Policies</button>
+                <button class="secondary" id="btnDeletePolicy">Delete Policy</button>
+              </div>
+            </section>
+            <section class="card">
+              <h3>Contract Definition</h3>
+              <label>Contract name</label><input id="contractName" value="contract-clima" />
+              <p class="muted">Vinculado al asset/policy actuales.</p>
+              <div class="row" style="margin-top:8px">
+                <button class="action" id="btnCreateContractDef">Create/Update Contract</button>
+                <button class="secondary" id="btnListContractDefs">List Contracts</button>
+                <button class="secondary" id="btnDeleteContractDef">Delete Contract</button>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-exchange">
+          <div class="grid">
+            <section class="card wide">
+              <h2>Find connector offers</h2>
+              <p class="muted">Solo pide connector id (ej: provider) y muestra todas sus offers para seleccionar.</p>
+              <div class="grid">
+                <div><label>Connector ID</label><input id="searchConnectorId" value="provider" /></div>
+                <div><label>Resolved DSP URL</label><input id="resolvedAddress" class="mono" readonly /></div>
+              </div>
+              <div class="row" style="margin-top:8px"><button class="action" id="btnSearchOffers">Search offers</button></div>
+              <table><thead><tr><th>Offer</th><th>Asset</th><th>Assigner</th><th></th></tr></thead><tbody id="tblOffers"></tbody></table>
+            </section>
+            <section class="card wide">
+              <h2>Negotiation</h2>
+              <div class="grid">
+                <div><label>Counter party address</label><input id="negAddress" /></div>
+                <div><label>Assigner</label><input id="offerAssigner" value="provider" /></div>
+              </div>
+              <div class="grid">
+                <div><label>Offer ID</label><input id="offerId" /></div>
+                <div><label>Offer target (asset id)</label><input id="offerTarget" /></div>
+              </div>
+              <div class="row" style="margin-top:8px"><button class="action" id="btnStartNegotiation">Start Negotiation</button><button class="secondary" id="btnListNegotiations">List Negotiations</button></div>
+              <table><thead><tr><th>Negotiation</th><th>State</th><th>Agreement</th><th></th></tr></thead><tbody id="tblNegotiations"></tbody></table>
+            </section>
+            <section class="card wide">
+              <h2>Transfer + Data</h2>
+              <p class="muted">Tras iniciar la transferencia puedes pedir el dato transferido (EDR).</p>
+              <div class="grid">
+                <div><label>Counter party address</label><input id="transferAddress" /></div>
+                <div><label>Transfer type</label><input id="transferType" value="HttpData-PULL" /></div>
+              </div>
+              <label>Agreement or negotiation ID</label><input id="agreementId" />
+              <div class="row" style="margin-top:8px"><button class="action" id="btnStartTransfer">Start Transfer</button><button class="secondary" id="btnListTransfers">List Transfers</button></div>
+              <table><thead><tr><th>Transfer</th><th>State</th><th>Contract</th><th></th></tr></thead><tbody id="tblTransfers"></tbody></table>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-explorer">
+          <div class="grid"><section class="card wide">
+            <h2>API Explorer</h2>
+            <div class="grid">
+              <div><label>Method</label><select id="explMethod"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select></div>
+              <div><label>Path</label><input id="explPath" value="/v3/assets/request" /></div>
+            </div>
+            <label>Body JSON</label>
+            <textarea id="explBody" rows="8">{
+  "@context": {"@vocab": "https://w3id.org/edc/v0.0.1/ns/"},
+  "@type": "QuerySpec",
+  "offset": 0,
+  "limit": 20
+}</textarea>
+            <div class="row" style="margin-top:8px"><button class="action" id="btnExplorerSend">Send</button></div>
+          </section></div>
+        </section>
+      </main>
+
+      <aside class="output" id="outputPane">
+        <div class="output-head"><strong>Output</strong><div class="row"><button class="secondary" id="btnOutputWide">Expand</button><button class="secondary" id="btnOutputToggle">Hide</button></div></div>
+        <pre id="out">{ "status": "ready" }</pre>
+      </aside>
+    </div>
+
+    <script src="/config.js"></script>
+    <script>
+      const cfg = window.EITEL_UI_CONFIG;
+      const connectorName = cfg.connectorName || 'CONNECTOR';
+      const role = connectorName.toLowerCase().includes('provider') ? 'Provider' : (connectorName.toLowerCase().includes('consumer') ? 'Consumer' : 'Connector');
+      const app = document.getElementById('app');
+      document.getElementById('title').textContent = `${connectorName} Console`;
+      document.getElementById('badge').textContent = `${role} · ${cfg.managementApiUrl}`;
+      const defaultCp = role === 'Consumer' ? { address: 'http://provider-connector:19103/api/v1/dsp/2025-1', id: 'provider' } : { address: 'http://consumer-connector:19203/api/v1/dsp/2025-1', id: 'consumer' };
+      document.getElementById('searchConnectorId').value = defaultCp.id;
+      document.getElementById('negAddress').value = defaultCp.address;
+      document.getElementById('transferAddress').value = defaultCp.address;
+      const writeOut = (payload) => { document.getElementById('out').textContent = JSON.stringify(payload, null, 2); };
+      const toId = (prefix, value) => `${prefix}-${(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'default'}`;
+      const q = () => JSON.stringify({ '@context': { '@vocab': 'https://w3id.org/edc/v0.0.1/ns/' }, '@type': 'QuerySpec', offset: 0, limit: 50, sortOrder: 'DESC' });
+      const unwrap = (payload) => Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload?.data?.value) ? payload.data.value : (Array.isArray(payload?.data?.content) ? payload.data.content : []));
+      const parseJson = (value, fallback) => { try { const t = (value || '').trim(); if (!t) return fallback; return JSON.parse(t); } catch { return null; } };
+      async function callApi(method, path, body) { const res = await fetch(`${cfg.managementApiUrl}${path}`, { method, headers: { 'x-api-key': cfg.apiKey, 'content-type': 'application/json' }, body: method === 'GET' || method === 'DELETE' ? undefined : body }); const text = await res.text(); let data = text; try { data = JSON.parse(text); } catch {} return { status: res.status, data }; }
+      function activateView(view) { document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active')); document.querySelectorAll('.panel').forEach(p => p.classList.remove('active')); const nav = document.querySelector(`.nav button[data-view="${view}"]`); const panel = document.getElementById(`panel-${view}`); if (nav) nav.classList.add('active'); if (panel) panel.classList.add('active'); }
+      document.querySelectorAll('.nav button[data-view]').forEach(btn => btn.onclick = () => activateView(btn.dataset.view));
+      document.getElementById('gotoPublish').onclick = () => activateView('publish');
+      document.getElementById('gotoExchange').onclick = () => activateView('exchange');
+      let outputWide = false, outputHidden = false;
+      document.getElementById('btnOutputWide').onclick = () => { outputWide = !outputWide; app.classList.toggle('output-wide', outputWide); document.getElementById('btnOutputWide').textContent = outputWide ? 'Normal' : 'Expand'; };
+      document.getElementById('btnOutputToggle').onclick = () => { outputHidden = !outputHidden; app.classList.toggle('output-collapsed', outputHidden); document.getElementById('btnOutputToggle').textContent = outputHidden ? 'Show' : 'Hide'; };
+      function resolveConnectorAddress(connectorId) { const id = (connectorId || '').trim().toLowerCase(); if (!id) return defaultCp.address; if (id === 'provider') return 'http://provider-connector:19103/api/v1/dsp/2025-1'; if (id === 'consumer') return 'http://consumer-connector:19203/api/v1/dsp/2025-1'; return `http://${id}-connector:19103/api/v1/dsp/2025-1`; }
+      function updateAssetPreview() { document.getElementById('assetIdPreview').value = toId('asset', document.getElementById('assetKey').value.trim()); }
+      document.getElementById('assetKey').oninput = updateAssetPreview; updateAssetPreview();
+      const looksLikeUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value || '');
+      async function resolveAgreement(rawValue) { const value = (rawValue || '').trim(); if (!value) return ''; if (!looksLikeUuid(value)) return value; const r = await callApi('GET', `/v3/contractnegotiations/${encodeURIComponent(value)}`); const agreement = r?.data?.contractAgreementId || r?.data?.['edc:contractAgreementId'] || ''; if (!agreement) { writeOut({ status: 400, data: 'La negociación no tiene contractAgreementId todavía (espera FINALIZED).' }); return ''; } document.getElementById('agreementId').value = agreement; return agreement; }
+      async function refreshOverview() { const [a, p, n, t] = await Promise.all([callApi('POST', '/v3/assets/request', q()), callApi('POST', '/v3/policydefinitions/request', q()), callApi('POST', '/v3/contractnegotiations/request', q()), callApi('POST', '/v3/transferprocesses/request', q())]); document.getElementById('kpiAssets').textContent = unwrap(a).length; document.getElementById('kpiPolicies').textContent = unwrap(p).length; document.getElementById('kpiNegotiations').textContent = unwrap(n).length; document.getElementById('kpiTransfers').textContent = unwrap(t).length; }
+      document.getElementById('btnRefreshOverview').onclick = refreshOverview;
+      document.getElementById('btnCreateAsset').onclick = async () => { const id = toId('asset', document.getElementById('assetKey').value.trim()); const headers = parseJson(document.getElementById('assetHeadersJson').value, {}); const propsExtra = parseJson(document.getElementById('assetPropsJson').value, {}); const privateProps = parseJson(document.getElementById('assetPrivatePropsJson').value, {}); const dataAddressExtra = parseJson(document.getElementById('assetDataAddressExtraJson').value, {}); if ([headers, propsExtra, privateProps, dataAddressExtra].some(v => v === null)) { writeOut({ status: 400, data: 'JSON inválido en la personalización de asset.' }); return; } const bodyObj = { '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' }, '@id': id, '@type': 'Asset', properties: { name: document.getElementById('assetName').value.trim(), contenttype: document.getElementById('assetContentType').value.trim(), ...propsExtra }, dataAddress: { '@type': 'DataAddress', type: document.getElementById('assetDataType').value.trim(), baseUrl: document.getElementById('assetBaseUrl').value.trim(), method: document.getElementById('assetMethod').value.trim(), path: document.getElementById('assetPath').value.trim(), queryParams: document.getElementById('assetQueryParams').value.trim(), headers, ...dataAddressExtra } }; if (Object.keys(privateProps).length) bodyObj.privateProperties = privateProps; writeOut(await callApi('POST', '/v3/assets', JSON.stringify(bodyObj))); refreshOverview(); };
+      document.getElementById('btnListAssets').onclick = async () => writeOut(await callApi('POST', '/v3/assets/request', q()));
+      document.getElementById('btnDeleteAsset').onclick = async () => { const id = toId('asset', document.getElementById('assetKey').value.trim()); writeOut(await callApi('DELETE', `/v3/assets/${encodeURIComponent(id)}`)); refreshOverview(); };
+      document.getElementById('btnCreatePolicy').onclick = async () => { const id = toId('policy', document.getElementById('policyName').value.trim()); const policy = parseJson(document.getElementById('policyJson').value, null); if (!policy) { writeOut({ status: 400, data: 'Policy JSON inválido.' }); return; } const body = { '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' }, '@id': id, '@type': 'PolicyDefinition', policy }; writeOut(await callApi('POST', '/v3/policydefinitions', JSON.stringify(body))); refreshOverview(); };
+      document.getElementById('btnListPolicies').onclick = async () => writeOut(await callApi('POST', '/v3/policydefinitions/request', q()));
+      document.getElementById('btnDeletePolicy').onclick = async () => { const id = toId('policy', document.getElementById('policyName').value.trim()); writeOut(await callApi('DELETE', `/v3/policydefinitions/${encodeURIComponent(id)}`)); refreshOverview(); };
+      document.getElementById('btnCreateContractDef').onclick = async () => { const id = toId('contract', document.getElementById('contractName').value.trim()); const assetId = toId('asset', document.getElementById('assetKey').value.trim()); const policyId = toId('policy', document.getElementById('policyName').value.trim()); const body = { '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' }, '@id': id, '@type': 'ContractDefinition', accessPolicyId: policyId, contractPolicyId: policyId, assetsSelector: [{ '@type': 'Criterion', operandLeft: 'https://w3id.org/edc/v0.0.1/ns/id', operator: '=', operandRight: assetId }] }; writeOut(await callApi('POST', '/v3/contractdefinitions', JSON.stringify(body))); };
+      document.getElementById('btnListContractDefs').onclick = async () => writeOut(await callApi('POST', '/v3/contractdefinitions/request', q()));
+      document.getElementById('btnDeleteContractDef').onclick = async () => { const id = toId('contract', document.getElementById('contractName').value.trim()); writeOut(await callApi('DELETE', `/v3/contractdefinitions/${encodeURIComponent(id)}`)); };
+      function renderOffers(catalogResponse) { const root = catalogResponse?.data || {}; const datasets = root?.['dcat:dataset'] || root?.dataset || []; const list = Array.isArray(datasets) ? datasets : [datasets]; const rows = list.map(ds => { const pol = ds?.['odrl:hasPolicy'] || {}; const perm = pol?.['odrl:permission'] || {}; return { offerId: pol?.['@id'] || '', assetId: perm?.['odrl:target'] || ds?.['@id'] || '', assigner: pol?.assigner || pol?.['odrl:assigner'] || document.getElementById('offerAssigner').value || 'provider' }; }).filter(x => x.offerId || x.assetId); const tbody = document.getElementById('tblOffers'); if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" class="muted">No offers found.</td></tr>'; return; } tbody.innerHTML = rows.map((r, i) => `<tr><td>${r.offerId}</td><td>${r.assetId}</td><td>${r.assigner}</td><td><button class="secondary" data-offer="${i}">Use</button></td></tr>`).join(''); tbody.querySelectorAll('button[data-offer]').forEach(btn => { btn.onclick = () => { const r = rows[Number(btn.dataset.offer)]; document.getElementById('offerId').value = r.offerId; document.getElementById('offerTarget').value = r.assetId; document.getElementById('offerAssigner').value = r.assigner; }; }); }
+      function renderNegotiations(payload) { const rows = unwrap(payload); const tbody = document.getElementById('tblNegotiations'); if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" class="muted">No negotiations.</td></tr>'; return; } tbody.innerHTML = rows.map((n, i) => { const id = n['@id'] || '-'; const state = n.state || n['edc:state'] || '-'; const agreement = n.contractAgreementId || n['edc:contractAgreementId'] || '-'; return `<tr><td>${id}</td><td>${state}</td><td>${agreement}</td><td>${agreement !== '-' ? `<button class="secondary" data-neg="${i}">Use agreement</button>` : ''}</td></tr>`; }).join(''); tbody.querySelectorAll('button[data-neg]').forEach(btn => { btn.onclick = () => { const row = rows[Number(btn.dataset.neg)]; const agreement = row.contractAgreementId || row['edc:contractAgreementId'] || ''; if (agreement) document.getElementById('agreementId').value = agreement; }; }); }
+      async function fetchTransferData(transferId) { const edr = await callApi('GET', `/v3/edrs/${encodeURIComponent(transferId)}/dataaddress`); const edrData = edr?.data || {}; const endpoint = edrData.endpoint || edrData['dspace:endpoint'] || ''; const authCode = edrData.authCode || edrData['dspace:authorization'] || ''; const authKey = edrData.authKey || edrData['dspace:authorizationKey'] || 'Authorization'; if (!endpoint) { writeOut({ step: 'EDR lookup', transferId, edr }); return; } const headers = {}; if (authCode) { headers[authKey] = authCode; if (!headers.Authorization && authKey !== 'Authorization') headers.Authorization = `Bearer ${authCode}`; } try { const res = await fetch(endpoint, { method: 'GET', headers }); const text = await res.text(); let data = text; try { data = JSON.parse(text); } catch {} writeOut({ step: 'Transfer data fetched', transferId, endpoint, status: res.status, data }); } catch (e) { writeOut({ step: 'Transfer data fetch failed', transferId, endpoint, error: String(e), tip: 'Puede fallar por CORS/autenticación del endpoint remoto.' }); } }
+      function renderTransfers(payload) { const rows = unwrap(payload); const tbody = document.getElementById('tblTransfers'); if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" class="muted">No transfers.</td></tr>'; return; } tbody.innerHTML = rows.map((t, i) => { const id = t['@id'] || t.id || '-'; const state = t.state || t['edc:state'] || '-'; const contract = t.contractId || t['edc:contractId'] || '-'; return `<tr><td>${id}</td><td>${state}</td><td>${contract}</td><td>${id !== '-' ? `<button class="secondary" data-tp="${i}">View data</button>` : ''}</td></tr>`; }).join(''); tbody.querySelectorAll('button[data-tp]').forEach(btn => { btn.onclick = async () => { const row = rows[Number(btn.dataset.tp)]; const transferId = row['@id'] || row.id || ''; if (transferId) await fetchTransferData(transferId); }; }); }
+      document.getElementById('btnSearchOffers').onclick = async () => { const connectorId = document.getElementById('searchConnectorId').value.trim(); const address = resolveConnectorAddress(connectorId); document.getElementById('resolvedAddress').value = address; document.getElementById('negAddress').value = address; document.getElementById('transferAddress').value = address; const body = { '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' }, '@type': 'CatalogRequest', counterPartyId: connectorId, counterPartyAddress: address, protocol: 'dataspace-protocol-http:2025-1' }; const r = await callApi('POST', '/v3/catalog/request', JSON.stringify(body)); writeOut(r); renderOffers(r); };
+      document.getElementById('btnStartNegotiation').onclick = async () => { const body = { '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' }, '@type': 'ContractRequest', protocol: 'dataspace-protocol-http:2025-1', counterPartyAddress: document.getElementById('negAddress').value.trim(), policy: { '@context': 'http://www.w3.org/ns/odrl.jsonld', '@type': 'odrl:Offer', '@id': document.getElementById('offerId').value.trim(), assigner: document.getElementById('offerAssigner').value.trim(), target: document.getElementById('offerTarget').value.trim(), permission: [], prohibition: [], obligation: [] } }; const r = await callApi('POST', '/v3/contractnegotiations', JSON.stringify(body)); writeOut(r); refreshOverview(); };
+      document.getElementById('btnListNegotiations').onclick = async () => { const r = await callApi('POST', '/v3/contractnegotiations/request', q()); writeOut(r); renderNegotiations(r); };
+      document.getElementById('btnStartTransfer').onclick = async () => { const contractId = await resolveAgreement(document.getElementById('agreementId').value.trim()); if (!contractId) return; const body = { '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' }, '@type': 'TransferRequest', protocol: 'dataspace-protocol-http:2025-1', counterPartyAddress: document.getElementById('transferAddress').value.trim(), contractId, transferType: document.getElementById('transferType').value.trim(), dataDestination: { type: 'HttpData' } }; const r = await callApi('POST', '/v3/transferprocesses', JSON.stringify(body)); writeOut(r); refreshOverview(); const transferId = r?.data?.['@id'] || r?.data?.id || ''; if (transferId) await fetchTransferData(transferId); };
+      document.getElementById('btnListTransfers').onclick = async () => { const r = await callApi('POST', '/v3/transferprocesses/request', q()); writeOut(r); renderTransfers(r); };
+      document.getElementById('btnExplorerSend').onclick = async () => { const r = await callApi(document.getElementById('explMethod').value, document.getElementById('explPath').value.trim(), document.getElementById('explBody').value); writeOut(r); };
+      activateView('dashboard');
+      document.getElementById('resolvedAddress').value = resolveConnectorAddress(document.getElementById('searchConnectorId').value);
+      refreshOverview();
+    </script>
+  </body>
++</html>

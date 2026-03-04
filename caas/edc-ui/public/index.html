@@ -3,67 +3,3050 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EITEL EDC UI</title>
+    <title>EITEL Connector Console</title>
+    <script>
+      window.location.replace('/index.final.html');
+    </script>
     <style>
-      body{font-family:Arial,sans-serif;background:#0c1222;color:#e8edff;margin:0}
-      .wrap{max-width:1000px;margin:24px auto;padding:0 16px}
-      .card{background:#131b33;border:1px solid #2e3b6a;border-radius:12px;padding:14px;margin-bottom:14px}
-      input,textarea,select{width:100%;box-sizing:border-box;margin-top:6px;padding:10px;border-radius:8px;border:1px solid #445693;background:#0f1630;color:#e8edff}
-      button{margin-top:10px;background:#4f6fff;color:#fff;border:0;border-radius:8px;padding:10px 14px;cursor:pointer}
-      pre{background:#0f1630;border:1px solid #2e3b6a;padding:12px;border-radius:8px;white-space:pre-wrap;overflow:auto}
-      .muted{color:#a8b3df}
+      :root {
+        --bg: #f4f7fc;
+        --surface: #ffffff;
+        --line: #dce5f3;
+        --ink: #1d2b45;
+        --muted: #63748f;
+        --brand: #0f4ea8;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Inter, Arial, sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+      }
+
+      .app {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 220px 1fr 360px;
+      }
+
+      .side {
+        border-right: 1px solid var(--line);
+        background: #eff4fb;
+        padding: 14px;
+      }
+
+      .brand {
+        background: #e6efff;
+        border: 1px solid #c7dafc;
+        border-radius: 12px;
+        padding: 12px;
+        font-weight: 700;
+        color: #0f4ea8;
+        margin-bottom: 12px;
+      }
+
+      .nav {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .nav button {
+        border: 0;
+        background: transparent;
+        border-radius: 10px;
+        padding: 10px;
+        text-align: left;
+        cursor: pointer;
+        color: var(--ink);
+      }
+
+      .nav button.active {
+        background: #d8e7ff;
+        color: #0c438f;
+        font-weight: 600;
+      }
+
+      .main {
+        padding: 16px;
+      }
+
+      .top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .top h1 {
+        margin: 0;
+        font-size: 22px;
+      }
+
+      .badge {
+        border: 1px solid #bfd3f8;
+        background: #eaf2ff;
+        color: #0f4ea8;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .panel { display: none; }
+      .panel.active { display: block; }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(260px, 1fr));
+        gap: 12px;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+      }
+
+      .wide { grid-column: 1 / -1; }
+
+      h2, h3 {
+        margin: 0 0 8px;
+      }
+
+      .muted {
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(120px, 1fr));
+        gap: 10px;
+      }
+
+      .kpi {
+        background: #f9fbff;
+        border: 1px solid #dde7f8;
+        border-radius: 10px;
+        padding: 10px;
+      }
+
+      .kpi .label { font-size: 12px; color: var(--muted); }
+      .kpi .value { font-size: 24px; font-weight: 700; color: #0e468f; }
+
+      label {
+        display: block;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      input, textarea, select {
+        width: 100%;
+        margin-top: 4px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 9px;
+        background: #fff;
+        color: var(--ink);
+        font-family: inherit;
+      }
+
+      button.action, button.secondary {
+        border-radius: 10px;
+        padding: 8px 11px;
+        cursor: pointer;
+      }
+
+      button.action {
+        border: 0;
+        background: var(--brand);
+        color: #fff;
+      }
+
+      button.secondary {
+        border: 1px solid #bfd3f8;
+        background: #fff;
+        color: #0f4ea8;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th, td {
+        border-bottom: 1px solid #e4ecf9;
+        text-align: left;
+        padding: 8px;
+        font-size: 13px;
+        vertical-align: top;
+      }
+
+      .output {
+        border-left: 1px solid var(--line);
+        background: #0f1a30;
+        color: #dce7ff;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+
+      .output-head {
+        padding: 10px;
+        border-bottom: 1px solid #21355d;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .output-head strong {
+        color: #cfe0ff;
+      }
+
+      .output pre {
+        margin: 0;
+        padding: 12px;
+        overflow: auto;
+        flex: 1;
+      }
+
+      .app.output-collapsed {
+        grid-template-columns: 220px 1fr 0;
+      }
+
+      .app.output-collapsed .output {
+        border-left: 0;
+        overflow: hidden;
+      }
+
+      .app.output-wide {
+        grid-template-columns: 220px 1fr 520px;
+      }
+
+      .mono { font-family: Consolas, monospace; font-size: 12px; }
+
+      @media (max-width: 1200px) {
+        .app,
+        .app.output-wide,
+        .app.output-collapsed {
+          grid-template-columns: 200px 1fr;
+        }
+        .output {
+          position: fixed;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          width: min(88vw, 520px);
+          z-index: 20;
+          box-shadow: -8px 0 30px rgba(0,0,0,.2);
+        }
+        .app.output-collapsed .output {
+          display: none;
+        }
+      }
+
+      @media (max-width: 900px) {
+        .app,
+        .app.output-wide,
+        .app.output-collapsed {
+          grid-template-columns: 1fr;
+        }
+        .side {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        .nav {
+          flex-direction: row;
+          overflow-x: auto;
+        }
+        .nav button { white-space: nowrap; }
+        .grid { grid-template-columns: 1fr; }
+        .kpis { grid-template-columns: 1fr 1fr; }
+      }
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <h1>EITEL EDC UI</h1>
-      <p class="muted" id="cfg"></p>
+    <div class="app" id="app">
+      <aside class="side">
+        <div class="brand">EITEL Connector Console</div>
+        <div class="nav">
+          <button class="active" data-view="dashboard">Dashboard</button>
+          <button data-view="publish">Publish</button>
+          <button data-view="exchange">Exchange</button>
+          <button data-view="explorer">API Explorer</button>
+        </div>
+      </aside>
 
-      <div class="card">
-        <h2>Prueba rápida wrapper</h2>
-        <button id="btnConfig">GET /wrapper/ui/config</button>
-        <button id="btnBuildInfo">GET /wrapper/ui/build-info</button>
-        <pre id="outQuick"></pre>
-      </div>
+      <main class="main">
+        <div class="top">
+          <h1 id="title">Connector</h1>
+          <span class="badge" id="badge">Runtime</span>
+        </div>
 
-      <div class="card">
-        <h2>API Console</h2>
-        <label>Método</label>
-        <select id="method"><option>GET</option><option>POST</option></select>
-        <label>Path (sobre management API)</label>
-        <input id="path" value="/wrapper/ui/config" />
-        <label>Body JSON (solo POST)</label>
-        <textarea id="body" rows="6">{}</textarea>
-        <button id="send">Enviar</button>
-        <pre id="out"></pre>
-      </div>
+        <section class="panel active" id="panel-dashboard">
+          <div class="grid">
+            <section class="card wide">
+              <h2>Overview</h2>
+              <p class="muted">Flujo: Publish → Buscar por connector id → Seleccionar offer → Negotiation → Transfer.</p>
+              <div class="kpis">
+                <div class="kpi"><div class="label">Assets</div><div class="value" id="kpiAssets">-</div></div>
+                <div class="kpi"><div class="label">Policies</div><div class="value" id="kpiPolicies">-</div></div>
+                <div class="kpi"><div class="label">Negotiations</div><div class="value" id="kpiNegotiations">-</div></div>
+                <div class="kpi"><div class="label">Transfers</div><div class="value" id="kpiTransfers">-</div></div>
+              </div>
+              <div class="row" style="margin-top:10px">
+                <button class="action" id="btnRefreshOverview">Refresh</button>
+                <button class="secondary" id="gotoPublish">Go Publish</button>
+                <button class="secondary" id="gotoExchange">Go Exchange</button>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-publish">
+          <div class="grid">
+            <section class="card wide">
+              <h2>Publish</h2>
+              <p class="muted">Personalización amplia para el `Asset`.</p>
+
+              <div class="grid">
+                <div>
+                  <label>Asset key (humano)</label>
+                  <input id="assetKey" value="dataset-clima-uc3m" />
+                </div>
+                <div>
+                  <label>Asset ID interno</label>
+                  <input id="assetIdPreview" class="mono" readonly />
+                </div>
+              </div>
+
+              <label>Display name</label>
+              <input id="assetName" value="Dataset Clima UC3M" />
+
+              <div class="grid">
+                <div>
+                  <label>Data type</label>
+                  <select id="assetDataType">
+                    <option>HttpData</option>
+                    <option>AmazonS3</option>
+                    <option>AzureStorage</option>
+                    <option>CustomDataType</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Content-Type</label>
+                  <input id="assetContentType" value="application/json" />
+                </div>
+              </div>
+
+              <div class="grid">
+                <div>
+                  <label>baseUrl</label>
+                  <input id="assetBaseUrl" value="https://example.org/data" />
+                </div>
+                <div>
+                  <label>method</label>
+                  <input id="assetMethod" value="GET" />
+                </div>
+              </div>
+
+              <div class="grid">
+                <div>
+                  <label>path</label>
+                  <input id="assetPath" value="/api/items" />
+                </div>
+                <div>
+                  <label>queryParams</label>
+                  <input id="assetQueryParams" value="limit=10" />
+                </div>
+              </div>
+
+              <label>Headers JSON</label>
+              <textarea id="assetHeadersJson" rows="4">{
+  "Authorization": "Bearer replace-me"
+}</textarea>
+
+              <label>Asset properties JSON</label>
+              <textarea id="assetPropsJson" rows="4">{
+  "category": "weather",
+  "owner": "uc3m"
+}</textarea>
+
+              <label>Asset privateProperties JSON</label>
+              <textarea id="assetPrivatePropsJson" rows="4">{
+  "internalTag": "demo"
+}</textarea>
+
+              <label>DataAddress extra JSON (merge)</label>
+              <textarea id="assetDataAddressExtraJson" rows="4">{
+  "proxyMethod": true,
+  "proxyPath": true,
+  "proxyQueryParams": true
+}</textarea>
+
+              <div class="row" style="margin-top:8px">
+                <button class="action" id="btnCreateAsset">Create/Update Asset</button>
+                <button class="secondary" id="btnListAssets">List Assets</button>
+                <button class="secondary" id="btnDeleteAsset">Delete Asset</button>
+              </div>
+            </section>
+
+            <section class="card">
+              <h3>Policy</h3>
+              <label>Policy name</label>
+              <input id="policyName" value="policy-clima" />
+              <label>Policy JSON (ODRL Set)</label>
+              <textarea id="policyJson" rows="6">{
+  "@context": "http://www.w3.org/ns/odrl.jsonld",
+  "@type": "Set",
+  "permission": [{ "action": "use" }]
+}</textarea>
+              <div class="row" style="margin-top:8px">
+                <button class="action" id="btnCreatePolicy">Create/Update Policy</button>
+                <button class="secondary" id="btnListPolicies">List Policies</button>
+                <button class="secondary" id="btnDeletePolicy">Delete Policy</button>
+              </div>
+            </section>
+
+            <section class="card">
+              <h3>Contract Definition</h3>
+              <label>Contract name</label>
+              <input id="contractName" value="contract-clima" />
+              <p class="muted">Vinculado al asset/policy actuales.</p>
+              <div class="row" style="margin-top:8px">
+                <button class="action" id="btnCreateContractDef">Create/Update Contract</button>
+                <button class="secondary" id="btnListContractDefs">List Contracts</button>
+                <button class="secondary" id="btnDeleteContractDef">Delete Contract</button>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-exchange">
+          <div class="grid">
+            <section class="card wide">
+              <h2>Find connector offers</h2>
+              <p class="muted">Solo pide `connector id` (ej: `provider`) y muestra todas sus offers para seleccionar.</p>
+              <div class="grid">
+                <div>
+                  <label>Connector ID</label>
+                  <input id="searchConnectorId" value="provider" />
+                </div>
+                <div>
+                  <label>Resolved DSP URL</label>
+                  <input id="resolvedAddress" class="mono" readonly />
+                </div>
+              </div>
+              <div class="row" style="margin-top:8px">
+                <button class="action" id="btnSearchOffers">Search offers</button>
+              </div>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>Offer</th>
+                    <th>Asset</th>
+                    <th>Assigner</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="tblOffers"></tbody>
+              </table>
+            </section>
+
+            <section class="card wide">
+              <h2>Negotiation</h2>
+              <div class="grid">
+                <div>
+                  <label>Counter party address</label>
+                  <input id="negAddress" />
+                </div>
+                <div>
+                  <label>Assigner</label>
+                  <input id="offerAssigner" value="provider" />
+                </div>
+              </div>
+              <div class="grid">
+                <div>
+                  <label>Offer ID</label>
+                  <input id="offerId" />
+                </div>
+                <div>
+                  <label>Offer target (asset id)</label>
+                  <input id="offerTarget" />
+                </div>
+              </div>
+              <div class="row" style="margin-top:8px">
+                <button class="action" id="btnStartNegotiation">Start Negotiation</button>
+                <button class="secondary" id="btnListNegotiations">List Negotiations</button>
+              </div>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>Negotiation</th>
+                    <th>State</th>
+                    <th>Agreement</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="tblNegotiations"></tbody>
+              </table>
+            </section>
+
+            <section class="card wide">
+              <h2>Transfer + Data</h2>
+              <p class="muted">Tras iniciar la transferencia puedes pedir el dato transferido (`EDR`).</p>
+              <div class="grid">
+                <div>
+                  <label>Counter party address</label>
+                  <input id="transferAddress" />
+                </div>
+                <div>
+                  <label>Transfer type</label>
+                  <input id="transferType" value="HttpData-PULL" />
+                </div>
+              </div>
+              <label>Agreement or negotiation ID</label>
+              <input id="agreementId" />
+              <div class="row" style="margin-top:8px">
+                <button class="action" id="btnStartTransfer">Start Transfer</button>
+                <button class="secondary" id="btnListTransfers">List Transfers</button>
+              </div>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>Transfer</th>
+                    <th>State</th>
+                    <th>Contract</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="tblTransfers"></tbody>
+              </table>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-explorer">
+          <div class="grid">
+            <section class="card wide">
+              <h2>API Explorer</h2>
+              <div class="grid">
+                <div>
+                  <label>Method</label>
+                  <select id="explMethod"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select>
+                </div>
+                <div>
+                  <label>Path</label>
+                  <input id="explPath" value="/v3/assets/request" />
+                </div>
+              </div>
+              <label>Body JSON</label>
+              <textarea id="explBody" rows="8">{
+  "@context": {"@vocab": "https://w3id.org/edc/v0.0.1/ns/"},
+  "@type": "QuerySpec",
+  "offset": 0,
+  "limit": 20
+}</textarea>
+              <div class="row" style="margin-top:8px">
+                <button class="action" id="btnExplorerSend">Send</button>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+
+      <aside class="output" id="outputPane">
+        <div class="output-head">
+          <strong>Output</strong>
+          <div class="row">
+            <button class="secondary" id="btnOutputWide">Expand</button>
+            <button class="secondary" id="btnOutputToggle">Hide</button>
+          </div>
+        </div>
+        <pre id="out">{ "status": "ready" }</pre>
+      </aside>
     </div>
 
     <script src="/config.js"></script>
     <script>
       const cfg = window.EITEL_UI_CONFIG;
-      document.getElementById('cfg').textContent = `Connector: ${cfg.connectorName} | API: ${cfg.managementApiUrl}`;
+      const connectorName = cfg.connectorName || 'CONNECTOR';
+      const role = connectorName.toLowerCase().includes('provider') ? 'Provider' : (connectorName.toLowerCase().includes('consumer') ? 'Consumer' : 'Connector');
+      const app = document.getElementById('app');
+
+      document.getElementById('title').textContent = `${connectorName} Console`;
+      document.getElementById('badge').textContent = `${role} · ${cfg.managementApiUrl}`;
+
+      const defaultCp = role === 'Consumer'
+        ? { address: 'http://provider-connector:19103/api/v1/dsp/2025-1', id: 'provider' }
+        : { address: 'http://consumer-connector:19203/api/v1/dsp/2025-1', id: 'consumer' };
+
+      document.getElementById('searchConnectorId').value = defaultCp.id;
+      document.getElementById('negAddress').value = defaultCp.address;
+      document.getElementById('transferAddress').value = defaultCp.address;
+
+      const writeOut = (payload) => {
+        document.getElementById('out').textContent = JSON.stringify(payload, null, 2);
+      };
+
+      const toId = (prefix, value) => {
+        const normalized = (value || '')
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+        return `${prefix}-${normalized || 'default'}`;
+      };
+
+      const q = () => JSON.stringify({
+        '@context': { '@vocab': 'https://w3id.org/edc/v0.0.1/ns/' },
+        '@type': 'QuerySpec',
+        offset: 0,
+        limit: 50,
+        sortOrder: 'DESC'
+      });
+
+      const unwrap = (payload) => {
+        const d = payload?.data;
+        if (Array.isArray(d)) return d;
+        if (Array.isArray(d?.value)) return d.value;
+        if (Array.isArray(d?.content)) return d.content;
+        return [];
+      };
+
+      const parseJson = (value, fallback) => {
+        try {
+          const t = (value || '').trim();
+          if (!t) return fallback;
+          return JSON.parse(t);
+        } catch {
+          return null;
+        }
+      };
+
+      async function callApi(method, path, body) {
+        const res = await fetch(`${cfg.managementApiUrl}${path}`, {
+          method,
+          headers: { 'x-api-key': cfg.apiKey, 'content-type': 'application/json' },
+          body: method === 'GET' || method === 'DELETE' ? undefined : body
+        });
+        const text = await res.text();
+        let data = text;
+        try { data = JSON.parse(text); } catch {}
+        return { status: res.status, data };
+      }
+
+      function activateView(view) {
+        document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        const nav = document.querySelector(`.nav button[data-view="${view}"]`);
+        const panel = document.getElementById(`panel-${view}`);
+        if (nav) nav.classList.add('active');
+        if (panel) panel.classList.add('active');
+      }
+
+      document.querySelectorAll('.nav button[data-view]').forEach(btn => {
+        btn.onclick = () => activateView(btn.dataset.view);
+      });
+
+      document.getElementById('gotoPublish').onclick = () => activateView('publish');
+      document.getElementById('gotoExchange').onclick = () => activateView('exchange');
+
+      let outputWide = false;
+      let outputHidden = false;
+
+      document.getElementById('btnOutputWide').onclick = () => {
+        outputWide = !outputWide;
+        app.classList.toggle('output-wide', outputWide);
+        document.getElementById('btnOutputWide').textContent = outputWide ? 'Normal' : 'Expand';
+      };
+
+      document.getElementById('btnOutputToggle').onclick = () => {
+        outputHidden = !outputHidden;
+        app.classList.toggle('output-collapsed', outputHidden);
+        document.getElementById('btnOutputToggle').textContent = outputHidden ? 'Show' : 'Hide';
+      };
+
+      function resolveConnectorAddress(connectorId) {
+        const id = (connectorId || '').trim().toLowerCase();
+        if (!id) return defaultCp.address;
+        if (id === 'provider') return 'http://provider-connector:19103/api/v1/dsp/2025-1';
+        if (id === 'consumer') return 'http://consumer-connector:19203/api/v1/dsp/2025-1';
+        return `http://${id}-connector:19103/api/v1/dsp/2025-1`;
+      }
+
+      function updateAssetPreview() {
+        document.getElementById('assetIdPreview').value = toId('asset', document.getElementById('assetKey').value.trim());
+      }
+      document.getElementById('assetKey').oninput = updateAssetPreview;
+      updateAssetPreview();
+
+      const looksLikeUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value || '');
+
+      async function resolveAgreement(rawValue) {
+        const value = (rawValue || '').trim();
+        if (!value) return '';
+        if (!looksLikeUuid(value)) return value;
+        const r = await callApi('GET', `/v3/contractnegotiations/${encodeURIComponent(value)}`);
+        const agreement = r?.data?.contractAgreementId || r?.data?.['edc:contractAgreementId'] || '';
+        if (!agreement) {
+          writeOut({ status: 400, data: 'La negociación no tiene contractAgreementId todavía (espera FINALIZED).' });
+          return '';
+        }
+        document.getElementById('agreementId').value = agreement;
+        return agreement;
+      }
+
+      async function refreshOverview() {
+        const [a, p, n, t] = await Promise.all([
+          callApi('POST', '/v3/assets/request', q()),
+          callApi('POST', '/v3/policydefinitions/request', q()),
+          callApi('POST', '/v3/contractnegotiations/request', q()),
+          callApi('POST', '/v3/transferprocesses/request', q())
+        ]);
+
+        document.getElementById('kpiAssets').textContent = unwrap(a).length;
+        document.getElementById('kpiPolicies').textContent = unwrap(p).length;
+        document.getElementById('kpiNegotiations').textContent = unwrap(n).length;
+        document.getElementById('kpiTransfers').textContent = unwrap(t).length;
+      }
+
+      document.getElementById('btnRefreshOverview').onclick = refreshOverview;
+
+      document.getElementById('btnCreateAsset').onclick = async () => {
+        const id = toId('asset', document.getElementById('assetKey').value.trim());
+
+        const headers = parseJson(document.getElementById('assetHeadersJson').value, {});
+        const propsExtra = parseJson(document.getElementById('assetPropsJson').value, {});
+        const privateProps = parseJson(document.getElementById('assetPrivatePropsJson').value, {});
+        const dataAddressExtra = parseJson(document.getElementById('assetDataAddressExtraJson').value, {});
+
+        if ([headers, propsExtra, privateProps, dataAddressExtra].some(v => v === null)) {
+          writeOut({ status: 400, data: 'JSON inválido en la personalización de asset.' });
+          return;
+        }
+
+        const bodyObj = {
+          '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@id': id,
+          '@type': 'Asset',
+          properties: {
+            name: document.getElementById('assetName').value.trim(),
+            contenttype: document.getElementById('assetContentType').value.trim(),
+            ...propsExtra
+          },
+          dataAddress: {
+            '@type': 'DataAddress',
+            type: document.getElementById('assetDataType').value.trim(),
+            baseUrl: document.getElementById('assetBaseUrl').value.trim(),
+            method: document.getElementById('assetMethod').value.trim(),
+            path: document.getElementById('assetPath').value.trim(),
+            queryParams: document.getElementById('assetQueryParams').value.trim(),
+            headers,
+            ...dataAddressExtra
+          }
+        };
+
+        if (Object.keys(privateProps).length) {
+          bodyObj.privateProperties = privateProps;
+        }
+
+        writeOut(await callApi('POST', '/v3/assets', JSON.stringify(bodyObj)));
+        refreshOverview();
+      };
+
+      document.getElementById('btnListAssets').onclick = async () => writeOut(await callApi('POST', '/v3/assets/request', q()));
+      document.getElementById('btnDeleteAsset').onclick = async () => {
+        const id = toId('asset', document.getElementById('assetKey').value.trim());
+        writeOut(await callApi('DELETE', `/v3/assets/${encodeURIComponent(id)}`));
+        refreshOverview();
+      };
+
+      document.getElementById('btnCreatePolicy').onclick = async () => {
+        const id = toId('policy', document.getElementById('policyName').value.trim());
+        const policy = parseJson(document.getElementById('policyJson').value, null);
+        if (!policy) {
+          writeOut({ status: 400, data: 'Policy JSON inválido.' });
+          return;
+        }
+        const body = {
+          '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@id': id,
+          '@type': 'PolicyDefinition',
+          policy
+        };
+        writeOut(await callApi('POST', '/v3/policydefinitions', JSON.stringify(body)));
+        refreshOverview();
+      };
+
+      document.getElementById('btnListPolicies').onclick = async () => writeOut(await callApi('POST', '/v3/policydefinitions/request', q()));
+      document.getElementById('btnDeletePolicy').onclick = async () => {
+        const id = toId('policy', document.getElementById('policyName').value.trim());
+        writeOut(await callApi('DELETE', `/v3/policydefinitions/${encodeURIComponent(id)}`));
+        refreshOverview();
+      };
+
+      document.getElementById('btnCreateContractDef').onclick = async () => {
+        const id = toId('contract', document.getElementById('contractName').value.trim());
+        const assetId = toId('asset', document.getElementById('assetKey').value.trim());
+        const policyId = toId('policy', document.getElementById('policyName').value.trim());
+        const body = {
+          '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@id': id,
+          '@type': 'ContractDefinition',
+          accessPolicyId: policyId,
+          contractPolicyId: policyId,
+          assetsSelector: [{
+            '@type': 'Criterion',
+            operandLeft: 'https://w3id.org/edc/v0.0.1/ns/id',
+            operator: '=',
+            operandRight: assetId
+          }]
+        };
+        writeOut(await callApi('POST', '/v3/contractdefinitions', JSON.stringify(body)));
+      };
+
+      document.getElementById('btnListContractDefs').onclick = async () => writeOut(await callApi('POST', '/v3/contractdefinitions/request', q()));
+      document.getElementById('btnDeleteContractDef').onclick = async () => {
+        const id = toId('contract', document.getElementById('contractName').value.trim());
+        writeOut(await callApi('DELETE', `/v3/contractdefinitions/${encodeURIComponent(id)}`));
+      };
+
+      function renderOffers(catalogResponse) {
+        const root = catalogResponse?.data || {};
+        const datasets = root?.['dcat:dataset'] || root?.dataset || [];
+        const list = Array.isArray(datasets) ? datasets : [datasets];
+
+        const rows = list.map(ds => {
+          const pol = ds?.['odrl:hasPolicy'] || {};
+          const perm = pol?.['odrl:permission'] || {};
+          return {
+            offerId: pol?.['@id'] || '',
+            assetId: perm?.['odrl:target'] || ds?.['@id'] || '',
+            assigner: pol?.assigner || pol?.['odrl:assigner'] || document.getElementById('offerAssigner').value || 'provider'
+          };
+        }).filter(x => x.offerId || x.assetId);
+
+        const tbody = document.getElementById('tblOffers');
+        if (!rows.length) {
+          tbody.innerHTML = '<tr><td colspan="4" class="muted">No offers found.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = rows.map((r, i) => `
+          <tr>
+            <td>${r.offerId}</td>
+            <td>${r.assetId}</td>
+            <td>${r.assigner}</td>
+            <td><button class="secondary" data-offer="${i}">Use</button></td>
+          </tr>
+        `).join('');
+
+        tbody.querySelectorAll('button[data-offer]').forEach(btn => {
+          btn.onclick = () => {
+            const r = rows[Number(btn.dataset.offer)];
+            document.getElementById('offerId').value = r.offerId;
+            document.getElementById('offerTarget').value = r.assetId;
+            document.getElementById('offerAssigner').value = r.assigner;
+          };
+        });
+      }
+
+      function renderNegotiations(payload) {
+        const rows = unwrap(payload);
+        const tbody = document.getElementById('tblNegotiations');
+        if (!rows.length) {
+          tbody.innerHTML = '<tr><td colspan="4" class="muted">No negotiations.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = rows.map((n, i) => {
+          const id = n['@id'] || '-';
+          const state = n.state || n['edc:state'] || '-';
+          const agreement = n.contractAgreementId || n['edc:contractAgreementId'] || '-';
+          return `<tr><td>${id}</td><td>${state}</td><td>${agreement}</td><td>${agreement !== '-' ? `<button class="secondary" data-neg="${i}">Use agreement</button>` : ''}</td></tr>`;
+        }).join('');
+
+        tbody.querySelectorAll('button[data-neg]').forEach(btn => {
+          btn.onclick = () => {
+            const row = rows[Number(btn.dataset.neg)];
+            const agreement = row.contractAgreementId || row['edc:contractAgreementId'] || '';
+            if (agreement) document.getElementById('agreementId').value = agreement;
+          };
+        });
+      }
+
+      async function fetchTransferData(transferId) {
+        const edr = await callApi('GET', `/v3/edrs/${encodeURIComponent(transferId)}/dataaddress`);
+        const edrData = edr?.data || {};
+
+        const endpoint = edrData.endpoint || edrData['dspace:endpoint'] || '';
+        const authCode = edrData.authCode || edrData['dspace:authorization'] || '';
+        const authKey = edrData.authKey || edrData['dspace:authorizationKey'] || 'Authorization';
+
+        if (!endpoint) {
+          writeOut({ step: 'EDR lookup', transferId, edr });
+          return;
+        }
+
+        const headers = {};
+        if (authCode) {
+          headers[authKey] = authCode;
+          if (!headers.Authorization && authKey !== 'Authorization') {
+            headers.Authorization = `Bearer ${authCode}`;
+          }
+        }
+
+        try {
+          const res = await fetch(endpoint, { method: 'GET', headers });
+          const text = await res.text();
+          let data = text;
+          try { data = JSON.parse(text); } catch {}
+          writeOut({
+            step: 'Transfer data fetched',
+            transferId,
+            endpoint,
+            status: res.status,
+            data
+          });
+        } catch (e) {
+          writeOut({
+            step: 'Transfer data fetch failed',
+            transferId,
+            endpoint,
+            error: String(e),
+            tip: 'Puede fallar por CORS/autenticación del endpoint remoto.'
+          });
+        }
+      }
+
+      function renderTransfers(payload) {
+        const rows = unwrap(payload);
+        const tbody = document.getElementById('tblTransfers');
+        if (!rows.length) {
+          tbody.innerHTML = '<tr><td colspan="4" class="muted">No transfers.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = rows.map((t, i) => {
+          const id = t['@id'] || t.id || '-';
+          const state = t.state || t['edc:state'] || '-';
+          const contract = t.contractId || t['edc:contractId'] || '-';
+          return `<tr><td>${id}</td><td>${state}</td><td>${contract}</td><td>${id !== '-' ? `<button class="secondary" data-tp="${i}">View data</button>` : ''}</td></tr>`;
+        }).join('');
+
+        tbody.querySelectorAll('button[data-tp]').forEach(btn => {
+          btn.onclick = async () => {
+            const row = rows[Number(btn.dataset.tp)];
+            const transferId = row['@id'] || row.id || '';
+            if (transferId) await fetchTransferData(transferId);
+          };
+        });
+      }
+
+      document.getElementById('btnSearchOffers').onclick = async () => {
+        const connectorId = document.getElementById('searchConnectorId').value.trim();
+        const address = resolveConnectorAddress(connectorId);
+        document.getElementById('resolvedAddress').value = address;
+        document.getElementById('negAddress').value = address;
+        document.getElementById('transferAddress').value = address;
+
+        const body = {
+          '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@type': 'CatalogRequest',
+          counterPartyId: connectorId,
+          counterPartyAddress: address,
+          protocol: 'dataspace-protocol-http:2025-1'
+        };
+
+        const r = await callApi('POST', '/v3/catalog/request', JSON.stringify(body));
+        writeOut(r);
+        renderOffers(r);
+      };
+
+      document.getElementById('btnStartNegotiation').onclick = async () => {
+        const body = {
+          '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@type': 'ContractRequest',
+          protocol: 'dataspace-protocol-http:2025-1',
+          counterPartyAddress: document.getElementById('negAddress').value.trim(),
+          policy: {
+            '@context': 'http://www.w3.org/ns/odrl.jsonld',
+            '@type': 'odrl:Offer',
+            '@id': document.getElementById('offerId').value.trim(),
+            assigner: document.getElementById('offerAssigner').value.trim(),
+            target: document.getElementById('offerTarget').value.trim(),
+            permission: [],
+            prohibition: [],
+            obligation: []
+          }
+        };
+        const r = await callApi('POST', '/v3/contractnegotiations', JSON.stringify(body));
+        writeOut(r);
+        refreshOverview();
+      };
+
+      document.getElementById('btnListNegotiations').onclick = async () => {
+        const r = await callApi('POST', '/v3/contractnegotiations/request', q());
+        writeOut(r);
+        renderNegotiations(r);
+      };
+
+      document.getElementById('btnStartTransfer').onclick = async () => {
+        const contractId = await resolveAgreement(document.getElementById('agreementId').value.trim());
+        if (!contractId) return;
+
+        const body = {
+          '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@type': 'TransferRequest',
+          protocol: 'dataspace-protocol-http:2025-1',
+          counterPartyAddress: document.getElementById('transferAddress').value.trim(),
+          contractId,
+          transferType: document.getElementById('transferType').value.trim(),
+          dataDestination: { type: 'HttpData' }
+        };
+
+        const r = await callApi('POST', '/v3/transferprocesses', JSON.stringify(body));
+        writeOut(r);
+        refreshOverview();
+
+        const transferId = r?.data?.['@id'] || r?.data?.id || '';
+        if (transferId) {
+          await fetchTransferData(transferId);
+        }
+      };
+
+      document.getElementById('btnListTransfers').onclick = async () => {
+        const r = await callApi('POST', '/v3/transferprocesses/request', q());
+        writeOut(r);
+        renderTransfers(r);
+      };
+
+      document.getElementById('btnExplorerSend').onclick = async () => {
+        const r = await callApi(
+          document.getElementById('explMethod').value,
+          document.getElementById('explPath').value.trim(),
+          document.getElementById('explBody').value
+        );
+        writeOut(r);
+      };
+
+      activateView('dashboard');
+      document.getElementById('resolvedAddress').value = resolveConnectorAddress(document.getElementById('searchConnectorId').value);
+      refreshOverview();
+    </script>
+  </body>
+</html>
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EITEL Connector Console</title>
+    <style>
+      :root {
+        --bg: #f4f6fb;
+        --surface: #ffffff;
+        --line: #d9e2f0;
+        --ink: #1c2a44;
+        --muted: #64748b;
+        --brand: #0f4ea8;
+        --brand-soft: #e9f1ff;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "Segoe UI", Inter, Arial, sans-serif;
+      }
+
+      .app {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 240px 1fr;
+      }
+
+      .side {
+        border-right: 1px solid var(--line);
+        background: #f0f4fb;
+        padding: 14px;
+      }
+
+      .brand {
+        background: var(--brand-soft);
+        border: 1px solid #c8dafc;
+        border-radius: 14px;
+        padding: 12px;
+        font-weight: 700;
+        color: #0d418b;
+        margin-bottom: 12px;
+      }
+
+      .nav {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .nav button {
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        text-align: left;
+        padding: 10px;
+        color: var(--ink);
+        cursor: pointer;
+      }
+
+      .nav button.active {
+        background: #dce9ff;
+        color: #0f4ea8;
+        font-weight: 600;
+      }
+
+      .main {
+        padding: 16px;
+      }
+
+      .top {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .top h1 {
+        margin: 0;
+        font-size: 22px;
+      }
+
+      .badge {
+        font-size: 12px;
+        border: 1px solid #bfd4fa;
+        background: #ebf3ff;
+        color: #104a9a;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-weight: 600;
+      }
+
+      .panel { display: none; }
+      .panel.active { display: block; }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(260px, 1fr));
+        gap: 12px;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+      }
+
+      .wide { grid-column: 1 / -1; }
+
+      h2, h3 {
+        margin: 0 0 8px;
+      }
+
+      .muted {
+        color: var(--muted);
+        margin: 0 0 10px;
+        font-size: 13px;
+      }
+
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(120px, 1fr));
+        gap: 10px;
+      }
+
+      .kpi {
+        border: 1px solid #dbe6f8;
+        border-radius: 10px;
+        padding: 10px;
+        background: #f8fbff;
+      }
+
+      .kpi .label { font-size: 12px; color: var(--muted); }
+      .kpi .value { font-size: 24px; font-weight: 700; color: #124a96; }
+
+      label { display: block; margin-top: 8px; font-size: 12px; color: var(--muted); }
+      input, textarea, select {
+        width: 100%;
+        margin-top: 4px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 9px;
+        background: #fff;
+        color: var(--ink);
+        font-family: inherit;
+      }
+
+      button.action, button.secondary {
+        border-radius: 10px;
+        padding: 8px 11px;
+        cursor: pointer;
+      }
+
+      button.action {
+        border: 0;
+        background: var(--brand);
+        color: #fff;
+      }
+
+      button.secondary {
+        border: 1px solid #bfd3f5;
+        background: #fff;
+        color: #0f4ea8;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th, td {
+        border-bottom: 1px solid #e3ebf8;
+        text-align: left;
+        padding: 8px;
+        font-size: 13px;
+        vertical-align: top;
+      }
+
+      pre {
+        margin: 0;
+        min-height: 120px;
+        background: #0f1a30;
+        color: #dce7ff;
+        border-radius: 10px;
+        padding: 10px;
+        overflow: auto;
+      }
+
+      .mono {
+        font-family: Consolas, monospace;
+        font-size: 12px;
+      }
+
+      @media (max-width: 980px) {
+        .app {
+          grid-template-columns: 1fr;
+        }
+        .side {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+          padding-bottom: 10px;
+        }
+        .nav {
+          flex-direction: row;
+          overflow-x: auto;
+        }
+        .nav button {
+          white-space: nowrap;
+        }
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        .kpis {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="side">
+        <div class="brand">EITEL Connector Console</div>
+        <div class="nav">
+          <button class="active" data-view="dashboard">Dashboard</button>
+          <button data-view="publish">Publish</button>
+          <button data-view="exchange">Exchange</button>
+          <button data-view="explorer">API Explorer</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="top">
+          <h1 id="title">Connector</h1>
+          <span class="badge" id="badge">Runtime</span>
+        </div>
+
+        <section class="panel active" id="panel-dashboard">
+          <div class="grid">
+            <section class="card wide">
+              <h2>Overview</h2>
+              <p class="muted">Vista simple del estado operativo.</p>
+              <div class="kpis">
+                <div class="kpi"><div class="label">Assets</div><div class="value" id="kpiAssets">-</div></div>
+                <div class="kpi"><div class="label">Policies</div><div class="value" id="kpiPolicies">-</div></div>
+                <div class="kpi"><div class="label">Negotiations</div><div class="value" id="kpiNegotiations">-</div></div>
+                <div class="kpi"><div class="label">Transfers</div><div class="value" id="kpiTransfers">-</div></div>
+              </div>
+              <div class="row" style="margin-top:10px">
+                <button class="action" id="btnRefreshOverview">Refresh</button>
+                <button class="secondary" id="gotoPublish">Go Publish</button>
+                <button class="secondary" id="gotoExchange">Go Exchange</button>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-publish">
+          <div class="grid">
+            <section class="card wide">
+              <h2>Asset Customization</h2>
+              <p class="muted">Más margen de personalización para `Asset` y `DataAddress`.</p>
+
+              <div class="grid">
+                <div>
+                  <label>Asset key (humano)</label>
+                  <input id="assetKey" value="dataset-clima-uc3m" />
+                </div>
+                <div>
+                  <label>Asset ID interno generado</label>
+                  <input id="assetIdPreview" readonly class="mono" />
+                </div>
+              </div>
+
+              <label>Display name</label>
+              <input id="assetName" value="Dataset Clima UC3M" />
+
+              <div class="grid">
+                <div>
+                  <label>Data type</label>
+                  <select id="assetDataType">
+                    <option>HttpData</option>
+                    <option>AmazonS3</option>
+                    <option>AzureStorage</option>
+                    <option>CustomDataType</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Content-Type</label>
+                  <input id="assetContentType" value="application/json" />
+                </div>
+              </div>
+
+              <div class="grid">
+                <div>
+                  <label>baseUrl</label>
+                  <input id="assetBaseUrl" value="https://example.org/data" />
+                </div>
+                <div>
+                  <label>method</label>
+                  <input id="assetMethod" value="GET" />
+                </div>
+              </div>
+
+              <div class="grid">
+                <div>
+                  <label>path</label>
+                  <input id="assetPath" value="/api/items" />
+                </div>
+                <div>
+                  <label>queryParams</label>
+                  <input id="assetQueryParams" value="limit=10" />
+                </div>
+              </div>
+
+              <label>Headers JSON</label>
+              <textarea id="assetHeadersJson" rows="4">{
+  "Authorization": "Bearer replace-me"
+}</textarea>
+
+              <label>Asset properties JSON</label>
+              <textarea id="assetPropsJson" rows="4">{
+  "category": "weather",
+  "owner": "uc3m"
+}</textarea>
+
+              <label>Asset privateProperties JSON</label>
+              <textarea id="assetPrivatePropsJson" rows="4">{
+  "internalTag": "demo"
+}</textarea>
+
+              <label>DataAddress extra JSON (merge)</label>
+              <textarea id="assetDataAddressExtraJson" rows="4">{
+  "proxyMethod": true,
+  "proxyPath": true,
+  "proxyQueryParams": true
+}</textarea>
+
+              <div class="row" style="margin-top:8px">
+                <button class="action" id="btnCreateAsset">Create/Update Asset</button>
+                <button class="secondary" id="btnListAssets">List Assets</button>
+                <button class="secondary" id="btnDeleteAsset">Delete Asset</button>
+              </div>
+            </section>
+
+            <section class="card">
+              <h3>Policy</h3>
+              <label>Policy name</label>
+              <input id="policyName" value="policy-clima" />
+              <label>Policy JSON (ODRL Set)</label>
+              <textarea id="policyJson" rows="6">{
+  "@context": "http://www.w3.org/ns/odrl.jsonld",
+  "@type": "Set",
+  "permission": [{ "action": "use" }]
+}</textarea>
+              <div class="row" style="margin-top:8px">
+                <button class="action" id="btnCreatePolicy">Create/Update Policy</button>
+                <button class="secondary" id="btnListPolicies">List Policies</button>
+                <button class="secondary" id="btnDeletePolicy">Delete Policy</button>
+              </div>
+            </section>
+
+            <section class="card">
+              <h3>Contract Definition</h3>
+              <label>Contract name</label>
+              <input id="contractName" value="contract-clima" />
+              <p class="muted">Usa el asset/policy actuales del formulario.</p>
+              <div class="row" style="margin-top:8px">
+                <button class="action" id="btnCreateContractDef">Create/Update Contract</button>
+                <button class="secondary" id="btnListContractDefs">List Contracts</button>
+                <button class="secondary" id="btnDeleteContractDef">Delete Contract</button>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-exchange">
+          <div class="grid">
+            <section class="card wide">
+              <h2>Catalog</h2>
+              <div class="grid">
+                <div>
+                  <label>Counter party address</label>
+                  <input id="catalogAddress" />
+                </div>
+                <div>
+                  <label>Counter party id</label>
+                  <input id="catalogParty" />
+                </div>
+              </div>
+              <div class="row" style="margin-top:8px">
+                <button class="action" id="btnCatalog">Run Catalog</button>
+              </div>
+              <table>
+                <thead>
+                  <tr><th>Offer</th><th>Asset</th><th>Assigner</th><th></th></tr>
+                </thead>
+                <tbody id="tblOffers"></tbody>
+              </table>
+            </section>
+
+            <section class="card wide">
+              <h2>Negotiation</h2>
+              <div class="grid">
+                <div>
+                  <label>Counter party address</label>
+                  <input id="negAddress" />
+                </div>
+                <div>
+                  <label>Assigner</label>
+                  <input id="offerAssigner" value="provider" />
+                </div>
+              </div>
+              <div class="grid">
+                <div>
+                  <label>Offer ID</label>
+                  <input id="offerId" />
+                </div>
+                <div>
+                  <label>Offer target (asset id)</label>
+                  <input id="offerTarget" />
+                </div>
+              </div>
+              <div class="row" style="margin-top:8px">
+                <button class="action" id="btnStartNegotiation">Start Negotiation</button>
+                <button class="secondary" id="btnListNegotiations">List Negotiations</button>
+              </div>
+              <table>
+                <thead>
+                  <tr><th>Negotiation</th><th>State</th><th>Agreement</th><th></th></tr>
+                </thead>
+                <tbody id="tblNegotiations"></tbody>
+              </table>
+            </section>
+
+            <section class="card wide">
+              <h2>Transfer</h2>
+              <p class="muted">Acepta `contractAgreementId` o `negotiation UUID` y lo resuelve.</p>
+              <div class="grid">
+                <div>
+                  <label>Counter party address</label>
+                  <input id="transferAddress" />
+                </div>
+                <div>
+                  <label>Transfer type</label>
+                  <input id="transferType" value="HttpData-PULL" />
+                </div>
+              </div>
+              <label>Agreement or negotiation ID</label>
+              <input id="agreementId" />
+              <div class="row" style="margin-top:8px">
+                <button class="action" id="btnStartTransfer">Start Transfer</button>
+                <button class="secondary" id="btnListTransfers">List Transfers</button>
+              </div>
+              <table>
+                <thead>
+                  <tr><th>Transfer</th><th>State</th><th>Contract</th></tr>
+                </thead>
+                <tbody id="tblTransfers"></tbody>
+              </table>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-explorer">
+          <div class="grid">
+            <section class="card wide">
+              <h2>API Explorer</h2>
+              <div class="grid">
+                <div>
+                  <label>Method</label>
+                  <select id="explMethod"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select>
+                </div>
+                <div>
+                  <label>Path</label>
+                  <input id="explPath" value="/v3/assets/request" />
+                </div>
+              </div>
+              <label>Body JSON</label>
+              <textarea id="explBody" rows="8">{
+  "@context": {"@vocab": "https://w3id.org/edc/v0.0.1/ns/"},
+  "@type": "QuerySpec",
+  "offset": 0,
+  "limit": 20
+}</textarea>
+              <div class="row" style="margin-top:8px">
+                <button class="action" id="btnExplorerSend">Send</button>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top:12px">
+          <h3>Operation Output</h3>
+          <pre id="out"></pre>
+        </section>
+      </main>
+    </div>
+
+    <script src="/config.js"></script>
+    <script>
+      const cfg = window.EITEL_UI_CONFIG;
+      const connectorName = cfg.connectorName || 'CONNECTOR';
+      const role = connectorName.toLowerCase().includes('provider') ? 'Provider' : (connectorName.toLowerCase().includes('consumer') ? 'Consumer' : 'Connector');
+
+      document.getElementById('title').textContent = `${connectorName} Console`;
+      document.getElementById('badge').textContent = `${role} · ${cfg.managementApiUrl}`;
+
+      const defaultCp = role === 'Consumer'
+        ? { address: 'http://provider-connector:19103/api/v1/dsp/2025-1', id: 'provider' }
+        : { address: 'http://consumer-connector:19203/api/v1/dsp/2025-1', id: 'consumer' };
+
+      document.getElementById('catalogAddress').value = defaultCp.address;
+      document.getElementById('catalogParty').value = defaultCp.id;
+      document.getElementById('negAddress').value = defaultCp.address;
+      document.getElementById('transferAddress').value = defaultCp.address;
+
+      const out = (payload) => {
+        document.getElementById('out').textContent = JSON.stringify(payload, null, 2);
+      };
+
+      const toId = (prefix, value) => {
+        const normalized = (value || '')
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+        return `${prefix}-${normalized || 'default'}`;
+      };
+
+      const looksLikeUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value || '');
+
+      const q = () => JSON.stringify({
+        '@context': { '@vocab': 'https://w3id.org/edc/v0.0.1/ns/' },
+        '@type': 'QuerySpec',
+        offset: 0,
+        limit: 50,
+        sortOrder: 'DESC'
+      });
+
+      const unwrap = (payload) => {
+        const d = payload?.data;
+        if (Array.isArray(d)) return d;
+        if (Array.isArray(d?.value)) return d.value;
+        if (Array.isArray(d?.content)) return d.content;
+        return [];
+      };
+
+      const parseJson = (text, fallback) => {
+        try {
+          const t = (text || '').trim();
+          if (!t) return fallback;
+          return JSON.parse(t);
+        } catch {
+          return null;
+        }
+      };
+
+      async function callApi(method, path, body){
+        const res = await fetch(`${cfg.managementApiUrl}${path}`, {
+          method,
+          headers: { 'x-api-key': cfg.apiKey, 'content-type': 'application/json' },
+          body: method === 'GET' || method === 'DELETE' ? undefined : body
+        });
+        const text = await res.text();
+        let data = text;
+        try { data = JSON.parse(text); } catch {}
+        return { status: res.status, data };
+      }
+
+      function activateView(view) {
+        document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        const nav = document.querySelector(`.nav button[data-view="${view}"]`);
+        const panel = document.getElementById(`panel-${view}`);
+        if (nav) nav.classList.add('active');
+        if (panel) panel.classList.add('active');
+      }
+
+      document.querySelectorAll('.nav button[data-view]').forEach(btn => {
+        btn.onclick = () => activateView(btn.dataset.view);
+      });
+
+      document.getElementById('gotoPublish').onclick = () => activateView('publish');
+      document.getElementById('gotoExchange').onclick = () => activateView('exchange');
+
+      function updateAssetPreview() {
+        document.getElementById('assetIdPreview').value = toId('asset', document.getElementById('assetKey').value.trim());
+      }
+      document.getElementById('assetKey').oninput = updateAssetPreview;
+      updateAssetPreview();
+
+      async function resolveAgreement(rawValue) {
+        const value = (rawValue || '').trim();
+        if (!value) return '';
+        if (!looksLikeUuid(value)) return value;
+
+        const r = await callApi('GET', `/v3/contractnegotiations/${encodeURIComponent(value)}`);
+        const agreement = r?.data?.contractAgreementId || r?.data?.['edc:contractAgreementId'] || '';
+        if (!agreement) {
+          out({ status: 400, data: 'La negociación aún no tiene contractAgreementId (espera FINALIZED).' });
+          return '';
+        }
+        document.getElementById('agreementId').value = agreement;
+        return agreement;
+      }
+
+      async function refreshOverview() {
+        const [a, p, n, t] = await Promise.all([
+          callApi('POST', '/v3/assets/request', q()),
+          callApi('POST', '/v3/policydefinitions/request', q()),
+          callApi('POST', '/v3/contractnegotiations/request', q()),
+          callApi('POST', '/v3/transferprocesses/request', q())
+        ]);
+        document.getElementById('kpiAssets').textContent = unwrap(a).length;
+        document.getElementById('kpiPolicies').textContent = unwrap(p).length;
+        document.getElementById('kpiNegotiations').textContent = unwrap(n).length;
+        document.getElementById('kpiTransfers').textContent = unwrap(t).length;
+      }
+
+      document.getElementById('btnRefreshOverview').onclick = refreshOverview;
+
+      document.getElementById('btnCreateAsset').onclick = async () => {
+        const assetKey = document.getElementById('assetKey').value.trim();
+        const id = toId('asset', assetKey);
+        const name = document.getElementById('assetName').value.trim();
+        const contenttype = document.getElementById('assetContentType').value.trim();
+        const type = document.getElementById('assetDataType').value.trim();
+        const baseUrl = document.getElementById('assetBaseUrl').value.trim();
+        const method = document.getElementById('assetMethod').value.trim();
+        const path = document.getElementById('assetPath').value.trim();
+        const queryParams = document.getElementById('assetQueryParams').value.trim();
+
+        const headers = parseJson(document.getElementById('assetHeadersJson').value, {});
+        const propertiesExtra = parseJson(document.getElementById('assetPropsJson').value, {});
+        const privateProps = parseJson(document.getElementById('assetPrivatePropsJson').value, {});
+        const dataAddressExtra = parseJson(document.getElementById('assetDataAddressExtraJson').value, {});
+
+        if ([headers, propertiesExtra, privateProps, dataAddressExtra].some(v => v === null)) {
+          out({ status: 400, data: 'JSON inválido en campos de personalización de asset.' });
+          return;
+        }
+
+        const dataAddress = {
+          '@type': 'DataAddress',
+          type,
+          baseUrl,
+          method,
+          path,
+          queryParams,
+          headers,
+          ...dataAddressExtra
+        };
+
+        const bodyObj = {
+          '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@id': id,
+          '@type': 'Asset',
+          properties: {
+            name,
+            contenttype,
+            ...propertiesExtra
+          },
+          dataAddress
+        };
+
+        if (Object.keys(privateProps).length) {
+          bodyObj.privateProperties = privateProps;
+        }
+
+        out(await callApi('POST', '/v3/assets', JSON.stringify(bodyObj)));
+        refreshOverview();
+      };
+
+      document.getElementById('btnListAssets').onclick = async () => out(await callApi('POST', '/v3/assets/request', q()));
+      document.getElementById('btnDeleteAsset').onclick = async () => {
+        const id = toId('asset', document.getElementById('assetKey').value.trim());
+        out(await callApi('DELETE', `/v3/assets/${encodeURIComponent(id)}`));
+        refreshOverview();
+      };
+
+      document.getElementById('btnCreatePolicy').onclick = async () => {
+        const id = toId('policy', document.getElementById('policyName').value.trim());
+        const policy = parseJson(document.getElementById('policyJson').value, null);
+        if (!policy) {
+          out({ status: 400, data: 'Policy JSON inválido.' });
+          return;
+        }
+        const body = {
+          '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@id': id,
+          '@type': 'PolicyDefinition',
+          policy
+        };
+        out(await callApi('POST', '/v3/policydefinitions', JSON.stringify(body)));
+        refreshOverview();
+      };
+
+      document.getElementById('btnListPolicies').onclick = async () => out(await callApi('POST', '/v3/policydefinitions/request', q()));
+      document.getElementById('btnDeletePolicy').onclick = async () => {
+        const id = toId('policy', document.getElementById('policyName').value.trim());
+        out(await callApi('DELETE', `/v3/policydefinitions/${encodeURIComponent(id)}`));
+        refreshOverview();
+      };
+
+      document.getElementById('btnCreateContractDef').onclick = async () => {
+        const id = toId('contract', document.getElementById('contractName').value.trim());
+        const assetId = toId('asset', document.getElementById('assetKey').value.trim());
+        const policyId = toId('policy', document.getElementById('policyName').value.trim());
+        const body = {
+          '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@id': id,
+          '@type': 'ContractDefinition',
+          accessPolicyId: policyId,
+          contractPolicyId: policyId,
+          assetsSelector: [{
+            '@type': 'Criterion',
+            operandLeft: 'https://w3id.org/edc/v0.0.1/ns/id',
+            operator: '=',
+            operandRight: assetId
+          }]
+        };
+        out(await callApi('POST', '/v3/contractdefinitions', JSON.stringify(body)));
+      };
+
+      document.getElementById('btnListContractDefs').onclick = async () => out(await callApi('POST', '/v3/contractdefinitions/request', q()));
+      document.getElementById('btnDeleteContractDef').onclick = async () => {
+        const id = toId('contract', document.getElementById('contractName').value.trim());
+        out(await callApi('DELETE', `/v3/contractdefinitions/${encodeURIComponent(id)}`));
+      };
+
+      const renderOffers = (catalogResponse) => {
+        const root = catalogResponse?.data || {};
+        const datasets = root?.['dcat:dataset'] || root?.dataset || [];
+        const list = Array.isArray(datasets) ? datasets : [datasets];
+        const rows = list.map(ds => {
+          const pol = ds?.['odrl:hasPolicy'] || {};
+          const perm = pol?.['odrl:permission'] || {};
+          return {
+            offerId: pol?.['@id'] || '',
+            assetId: perm?.['odrl:target'] || ds?.['@id'] || '',
+            assigner: pol?.assigner || pol?.['odrl:assigner'] || document.getElementById('offerAssigner').value || 'provider'
+          };
+        }).filter(x => x.offerId || x.assetId);
+
+        const tbody = document.getElementById('tblOffers');
+        if (!rows.length) {
+          tbody.innerHTML = '<tr><td colspan="4" class="muted">No offers</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = rows.map((r, i) => `
+          <tr>
+            <td>${r.offerId}</td>
+            <td>${r.assetId}</td>
+            <td>${r.assigner}</td>
+            <td><button class="secondary" data-offer="${i}">Use</button></td>
+          </tr>
+        `).join('');
+
+        tbody.querySelectorAll('button[data-offer]').forEach(btn => {
+          btn.onclick = () => {
+            const r = rows[Number(btn.dataset.offer)];
+            document.getElementById('offerId').value = r.offerId;
+            document.getElementById('offerTarget').value = r.assetId;
+            document.getElementById('offerAssigner').value = r.assigner;
+          };
+        });
+      };
+
+      const renderNegotiations = (payload) => {
+        const rows = unwrap(payload);
+        const tbody = document.getElementById('tblNegotiations');
+        if (!rows.length) {
+          tbody.innerHTML = '<tr><td colspan="4" class="muted">No negotiations</td></tr>';
+          return;
+        }
+        tbody.innerHTML = rows.map((n, i) => {
+          const id = n['@id'] || '-';
+          const state = n.state || n['edc:state'] || '-';
+          const agreement = n.contractAgreementId || n['edc:contractAgreementId'] || '-';
+          return `<tr><td>${id}</td><td>${state}</td><td>${agreement}</td><td>${agreement !== '-' ? `<button class="secondary" data-neg="${i}">Use</button>` : ''}</td></tr>`;
+        }).join('');
+
+        tbody.querySelectorAll('button[data-neg]').forEach(btn => {
+          btn.onclick = () => {
+            const n = rows[Number(btn.dataset.neg)];
+            const agreement = n.contractAgreementId || n['edc:contractAgreementId'] || '';
+            if (agreement) document.getElementById('agreementId').value = agreement;
+          };
+        });
+      };
+
+      const renderTransfers = (payload) => {
+        const rows = unwrap(payload);
+        const tbody = document.getElementById('tblTransfers');
+        if (!rows.length) {
+          tbody.innerHTML = '<tr><td colspan="3" class="muted">No transfers</td></tr>';
+          return;
+        }
+        tbody.innerHTML = rows.map(t => {
+          const id = t['@id'] || t.id || '-';
+          const state = t.state || t['edc:state'] || '-';
+          const contract = t.contractId || t['edc:contractId'] || '-';
+          return `<tr><td>${id}</td><td>${state}</td><td>${contract}</td></tr>`;
+        }).join('');
+      };
+
+      document.getElementById('btnCatalog').onclick = async () => {
+        const body = {
+          '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@type': 'CatalogRequest',
+          counterPartyId: document.getElementById('catalogParty').value.trim(),
+          counterPartyAddress: document.getElementById('catalogAddress').value.trim(),
+          protocol: 'dataspace-protocol-http:2025-1'
+        };
+        const r = await callApi('POST', '/v3/catalog/request', JSON.stringify(body));
+        out(r);
+        renderOffers(r);
+      };
+
+      document.getElementById('btnStartNegotiation').onclick = async () => {
+        const body = {
+          '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@type': 'ContractRequest',
+          protocol: 'dataspace-protocol-http:2025-1',
+          counterPartyAddress: document.getElementById('negAddress').value.trim(),
+          policy: {
+            '@context': 'http://www.w3.org/ns/odrl.jsonld',
+            '@type': 'odrl:Offer',
+            '@id': document.getElementById('offerId').value.trim(),
+            assigner: document.getElementById('offerAssigner').value.trim(),
+            target: document.getElementById('offerTarget').value.trim(),
+            permission: [],
+            prohibition: [],
+            obligation: []
+          }
+        };
+        out(await callApi('POST', '/v3/contractnegotiations', JSON.stringify(body)));
+        refreshOverview();
+      };
+
+      document.getElementById('btnListNegotiations').onclick = async () => {
+        const r = await callApi('POST', '/v3/contractnegotiations/request', q());
+        out(r);
+        renderNegotiations(r);
+      };
+
+      document.getElementById('btnStartTransfer').onclick = async () => {
+        const contractId = await resolveAgreement(document.getElementById('agreementId').value.trim());
+        if (!contractId) return;
+        const body = {
+          '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@type': 'TransferRequest',
+          protocol: 'dataspace-protocol-http:2025-1',
+          counterPartyAddress: document.getElementById('transferAddress').value.trim(),
+          contractId,
+          transferType: document.getElementById('transferType').value.trim(),
+          dataDestination: { type: 'HttpData' }
+        };
+        out(await callApi('POST', '/v3/transferprocesses', JSON.stringify(body)));
+        refreshOverview();
+      };
+
+      document.getElementById('btnListTransfers').onclick = async () => {
+        const r = await callApi('POST', '/v3/transferprocesses/request', q());
+        out(r);
+        renderTransfers(r);
+      };
+
+      document.getElementById('btnExplorerSend').onclick = async () => {
+        out(await callApi(
+          document.getElementById('explMethod').value,
+          document.getElementById('explPath').value.trim(),
+          document.getElementById('explBody').value
+        ));
+      };
+
+      activateView('dashboard');
+      refreshOverview();
+    </script>
+  </body>
+</html>
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EITEL Connector Workbench</title>
+    <style>
+      :root {
+        --bg: #f3f5f9;
+        --sidebar: #eef2f7;
+        --surface: #ffffff;
+        --ink: #1d2b45;
+        --ink-soft: #61708a;
+        --line: #d7dfec;
+        --brand: #0f4ea8;
+        --brand-soft: #dce9ff;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Inter, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        background: var(--sidebar);
+        border-right: 1px solid var(--line);
+        padding: 18px 14px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: var(--brand-soft);
+        border: 1px solid #c3d8ff;
+        border-radius: 16px;
+        padding: 14px;
+        margin-bottom: 16px;
+      }
+
+      .brand-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: var(--brand);
+        color: white;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 20px;
+        color: #0b3f84;
+      }
+
+      .section-title {
+        margin: 18px 10px 8px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: #7a889f;
+        font-weight: 700;
+      }
+
+      .section-block {
+        margin-bottom: 8px;
+      }
+
+      .nav-btn {
+        width: 100%;
+        border: 0;
+        text-align: left;
+        padding: 12px 12px;
+        border-radius: 12px;
+        background: transparent;
+        color: var(--ink);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 16px;
+      }
+
+      .nav-btn:hover { background: #e4eaf4; }
+      .nav-btn.active {
+        background: #d8e7ff;
+        color: #0b3f84;
+        font-weight: 600;
+      }
+
+      .icon {
+        width: 26px;
+        text-align: center;
+        color: #93a1b7;
+      }
+
+      .main {
+        padding: 22px;
+      }
+
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+
+      .top h2 {
+        margin: 0;
+        font-size: 24px;
+      }
+
+      .badge {
+        background: #e7f0ff;
+        color: #0c4ca6;
+        border: 1px solid #bed4ff;
+        padding: 7px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(260px, 1fr));
+        gap: 14px;
+      }
+
+      .panel { display: none; }
+      .panel.active { display: block; }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+      }
+
+      .card h3 {
+        margin: 0 0 6px;
+        font-size: 16px;
+      }
+
+      .muted { color: var(--ink-soft); font-size: 13px; margin: 0 0 10px; }
+
+      .row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+      button.action {
+        background: var(--brand);
+        color: white;
+        border: 0;
+        border-radius: 10px;
+        padding: 9px 12px;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        background: white;
+        color: var(--brand);
+        border: 1px solid #bcd1f7;
+        border-radius: 10px;
+        padding: 9px 12px;
+        cursor: pointer;
+      }
+
+      label { display: block; margin-top: 8px; font-size: 12px; color: var(--ink-soft); }
+      input, textarea, select {
+        width: 100%;
+        margin-top: 4px;
+        padding: 9px 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        color: var(--ink);
+      }
+
+      pre {
+        background: #0f1a30;
+        color: #dbe6ff;
+        border-radius: 12px;
+        padding: 10px;
+        min-height: 120px;
+        overflow: auto;
+      }
+
+      .wide { grid-column: 1 / -1; }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(180px, 1fr));
+        gap: 10px;
+      }
+
+      .flow-step {
+        border: 1px solid #d2def4;
+        border-radius: 12px;
+        background: #f7faff;
+        padding: 10px;
+      }
+
+      .flow-step h4 {
+        margin: 0 0 5px;
+        font-size: 13px;
+        color: #0d438f;
+      }
+
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(130px, 1fr));
+        gap: 10px;
+      }
+
+      .kpi {
+        border: 1px solid #d2def4;
+        border-radius: 12px;
+        background: #fff;
+        padding: 10px;
+      }
+
+      .kpi .kpi-label {
+        font-size: 12px;
+        color: #6f7d95;
+      }
+
+      .kpi .kpi-value {
+        margin-top: 4px;
+        font-size: 24px;
+        font-weight: 700;
+        color: #13488f;
+      }
+
+      table.data {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+        font-size: 13px;
+      }
+
+      table.data th, table.data td {
+        border-bottom: 1px solid #e4ebf7;
+        text-align: left;
+        padding: 8px;
+        vertical-align: top;
+      }
+
+      .chip {
+        display: inline-block;
+        border-radius: 999px;
+        border: 1px solid #cfe0ff;
+        background: #edf4ff;
+        color: #144a92;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .list {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      .mini {
+        font-size: 12px;
+        color: #6a7890;
+      }
+
+      .code {
+        font-family: Consolas, monospace;
+        background: #edf2fc;
+        border: 1px solid #d4def2;
+        border-radius: 8px;
+        padding: 2px 6px;
+      }
+
+      @media (max-width: 980px) {
+        .layout { grid-template-columns: 1fr; }
+        .sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
+        .grid { grid-template-columns: 1fr; }
+        .flow { grid-template-columns: 1fr 1fr; }
+        .kpi-grid { grid-template-columns: 1fr 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-icon">E</div>
+          <h1>Connector Console</h1>
+        </div>
+
+        <div class="section-block">
+          <button class="nav-btn active" data-view="dashboard"><span class="icon">◉</span>Dashboard</button>
+          <button class="nav-btn" data-view="agreements"><span class="icon">▣</span>Agreements</button>
+          <button class="nav-btn" data-view="transferlog"><span class="icon">🕘</span>Transfer Log</button>
+        </div>
+
+        <div class="section-title">Exchange</div>
+        <div class="section-block">
+          <button class="nav-btn" data-view="discover"><span class="icon">☍</span>Catalog Explorer</button>
+          <button class="nav-btn" data-view="negotiate"><span class="icon">⇄</span>Negotiations</button>
+          <button class="nav-btn" data-view="transfer"><span class="icon">⇩</span>Transfers</button>
+        </div>
+
+        <div class="section-title">Publish</div>
+        <div class="section-block">
+          <button class="nav-btn" data-view="publish"><span class="icon">＋</span>Assets / Policies / Offers</button>
+        </div>
+
+        <div class="section-title">Advanced</div>
+        <div class="section-block">
+          <button class="nav-btn" data-view="explorer"><span class="icon">⌘</span>API Explorer</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="top">
+          <h2 id="title">EITEL Connector Workbench</h2>
+          <span class="badge" id="badge">Runtime</span>
+        </div>
+
+        <section class="panel active" id="panel-dashboard">
+          <div class="grid">
+            <section class="card wide">
+              <h3>Flow Dashboard</h3>
+              <p class="muted">Flujo recomendado extremo a extremo desde el menú izquierdo.</p>
+              <div class="flow">
+                <div class="flow-step">
+                  <h4>1) Publish</h4>
+                  <div class="mini">Asset + Policy + Contract Definition</div>
+                </div>
+                <div class="flow-step">
+                  <h4>2) Discover</h4>
+                  <div class="mini">Consumer consulta catálogo del provider</div>
+                </div>
+                <div class="flow-step">
+                  <h4>3) Negotiate</h4>
+                  <div class="mini">Se crea negociación de contrato</div>
+                </div>
+                <div class="flow-step">
+                  <h4>4) Transfer</h4>
+                  <div class="mini">Inicia transferencia con el agreement</div>
+                </div>
+              </div>
+              <div class="row" style="margin-top:10px">
+                <button class="secondary" id="gotoPublish">Go to Publish</button>
+                <button class="secondary" id="gotoCatalog">Go to Catalog</button>
+                <button class="secondary" id="gotoNegotiate">Go to Negotiations</button>
+                <button class="secondary" id="gotoTransfer">Go to Transfers</button>
+              </div>
+            </section>
+
+            <section class="card">
+              <h3>Quick Checks</h3>
+              <p class="muted">Valida rápidamente el estado del conector.</p>
+              <div class="kpi-grid" style="margin-bottom:8px">
+                <div class="kpi"><div class="kpi-label">Assets</div><div class="kpi-value" id="kpiAssets">-</div></div>
+                <div class="kpi"><div class="kpi-label">Policies</div><div class="kpi-value" id="kpiPolicies">-</div></div>
+                <div class="kpi"><div class="kpi-label">Negotiations</div><div class="kpi-value" id="kpiNegotiations">-</div></div>
+                <div class="kpi"><div class="kpi-label">Transfers</div><div class="kpi-value" id="kpiTransfers">-</div></div>
+              </div>
+              <div class="row">
+                <button class="action" id="btnRefreshOverview">Refresh overview</button>
+                <button class="secondary" id="btnQuickAssets">Assets</button>
+                <button class="secondary" id="btnQuickPolicies">Policies</button>
+                <button class="secondary" id="btnQuickContractDefs">Contract defs</button>
+                <button class="secondary" id="btnQuickNegotiations">Negotiations</button>
+                <button class="secondary" id="btnQuickTransfers">Transfers</button>
+              </div>
+            </section>
+
+            <section class="card">
+              <h3>Autofill Helpers</h3>
+              <p class="muted">Reduce pasos manuales para que todo funcione.</p>
+              <div class="row">
+                <button class="secondary" id="btnAutofillOffer">Use latest catalog offer</button>
+                <button class="secondary" id="btnAutofillAgreement">Use latest agreement from negotiations</button>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-publish">
+          <div class="grid">
+            <section class="card">
+              <h3>Asset</h3>
+              <p class="muted">Crea un asset listo para publicar.</p>
+              <label>Asset name (se convierte a ID interno)</label>
+              <input id="assetId" value="demo-1" />
+              <label>Name</label>
+              <input id="assetName" value="Demo Dataset" />
+              <label>Base URL (HttpData)</label>
+              <input id="assetBaseUrl" value="https://example.org/data" />
+              <div class="row">
+                <button class="action" id="btnCreateAsset">Create asset</button>
+                <button class="secondary" id="btnListAssets">List assets</button>
+                <button class="secondary" id="btnDeleteAsset">Delete</button>
+              </div>
+            </section>
+
+            <section class="card">
+              <h3>Policy</h3>
+              <p class="muted">Policy mínima con permiso de uso.</p>
+              <label>Policy name (se convierte a ID interno)</label>
+              <input id="policyId" value="demo-1" />
+              <div class="row">
+                <button class="action" id="btnCreatePolicy">Create policy</button>
+                <button class="secondary" id="btnListPolicies">List policies</button>
+                <button class="secondary" id="btnDeletePolicy">Delete</button>
+              </div>
+            </section>
+
+            <section class="card wide">
+              <h3>Contract Definition</h3>
+              <p class="muted">Vincula asset + policy para exponer oferta de contrato.</p>
+              <label>Contract definition name (se convierte a ID interno)</label>
+              <input id="contractDefId" value="demo-1" />
+              <div class="mini">Usará <span class="code" id="refAsset">asset-demo-1</span> y <span class="code" id="refPolicy">policy-demo-1</span></div>
+              <div class="row" style="margin-top:8px">
+                <button class="action" id="btnCreateContractDef">Create contract definition</button>
+                <button class="secondary" id="btnListContractDefs">List contract definitions</button>
+                <button class="secondary" id="btnDeleteContractDef">Delete</button>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-agreements">
+          <div class="grid">
+            <section class="card wide">
+              <h3>Contract Agreements</h3>
+              <p class="muted">Consulta agreements y reaprovecha IDs para transferencias.</p>
+              <label>Agreement ID (optional)</label>
+              <input id="agreementLookupId" placeholder="agreement-id" />
+              <div class="row">
+                <button class="action" id="btnListAgreements">List agreements</button>
+                <button class="secondary" id="btnGetAgreement">Get agreement</button>
+                <button class="secondary" id="btnUseAgreementLookup">Use in transfer form</button>
+              </div>
+              <pre id="outAgreements"></pre>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-discover">
+          <div class="grid">
+            <section class="card wide">
+              <h3>Catalog request</h3>
+              <p class="muted">Consulta catálogo remoto vía DSP 2025-1.</p>
+              <label>Counter party address</label>
+              <input id="catalogAddress" placeholder="http://provider-connector:19103/api/v1/dsp/2025-1" />
+              <label>Counter party id</label>
+              <input id="catalogParty" value="provider" />
+              <div class="row">
+                <button class="action" id="btnCatalog">Run catalog request</button>
+              </div>
+              <pre id="outCatalog"></pre>
+            </section>
+
+            <section class="card wide">
+              <h3>Catalog Offers</h3>
+              <p class="muted">Vista operativa: selecciona una oferta y autocompleta negociación.</p>
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th>Offer</th>
+                    <th>Asset</th>
+                    <th>Assigner</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="catalogOffersTable"></tbody>
+              </table>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-negotiate">
+          <div class="grid">
+            <section class="card wide">
+              <h3>Contract negotiation</h3>
+              <p class="muted">Lanza negociación usando un dataset del catálogo (o manual).</p>
+              <label>Counter party address</label>
+              <input id="negAddress" placeholder="http://provider-connector:19103/api/v1/dsp/2025-1" />
+              <label>Offer ID</label>
+              <input id="offerId" placeholder="offer-id" />
+              <label>Offer target (asset id)</label>
+              <input id="offerTarget" placeholder="asset-id" />
+              <label>Assigner</label>
+              <input id="offerAssigner" value="provider" />
+              <div class="row">
+                <button class="action" id="btnStartNegotiation">Start negotiation</button>
+                <button class="secondary" id="btnListNegotiations">List negotiations</button>
+              </div>
+              <pre id="outNegotiation"></pre>
+            </section>
+
+            <section class="card wide">
+              <h3>Negotiation Monitor</h3>
+              <p class="muted">Estado de negociaciones y atajo a transfer con agreement.</p>
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th>Negotiation ID</th>
+                    <th>State</th>
+                    <th>Agreement</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="negotiationsTable"></tbody>
+              </table>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-transfer">
+          <div class="grid">
+            <section class="card wide">
+              <h3>Transfer process</h3>
+              <p class="muted">Inicia transferencia con el contract agreement id.</p>
+              <label>Counter party address</label>
+              <input id="transferAddress" placeholder="http://provider-connector:19103/api/v1/dsp/2025-1" />
+              <label>Contract agreement ID (o negotiation ID UUID)</label>
+              <input id="agreementId" placeholder="agreement-id" />
+              <label>Transfer type</label>
+              <input id="transferType" value="HttpData-PULL" />
+              <div class="row">
+                <button class="action" id="btnStartTransfer">Start transfer</button>
+                <button class="secondary" id="btnListTransfers">List transfers</button>
+              </div>
+              <pre id="outTransfer"></pre>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-transferlog">
+          <div class="grid">
+            <section class="card wide">
+              <h3>Transfer Log</h3>
+              <p class="muted">Histórico de procesos de transferencia del conector.</p>
+              <div class="row">
+                <button class="action" id="btnRefreshTransferLog">Refresh transfer log</button>
+              </div>
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th>Transfer ID</th>
+                    <th>State</th>
+                    <th>Type</th>
+                    <th>Contract</th>
+                  </tr>
+                </thead>
+                <tbody id="transferLogTable"></tbody>
+              </table>
+              <pre id="outTransferLog"></pre>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-explorer">
+          <div class="grid">
+            <section class="card wide">
+              <h3>Management API Explorer</h3>
+              <p class="muted">Consola técnica para probar cualquier endpoint.</p>
+              <label>Método</label>
+              <select id="method"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select>
+              <label>Path (sobre management API)</label>
+              <input id="path" value="/v3/catalog/request" />
+              <label>Body JSON</label>
+              <textarea id="body" rows="10">{
+  "@context": {"edc":"https://w3id.org/edc/v0.0.1/ns/"},
+  "@type": "CatalogRequest",
+  "counterPartyId": "provider",
+  "counterPartyAddress": "http://provider-connector:19103/api/v1/dsp/2025-1",
+  "protocol": "dataspace-protocol-http:2025-1"
+}</textarea>
+              <div class="row">
+                <button class="action" id="send">Enviar request</button>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top:14px">
+          <h3>Operation Output</h3>
+          <p class="muted">Resultado unificado de acciones para toda la consola.</p>
+          <pre id="out"></pre>
+        </section>
+      </main>
+    </div>
+
+    <script src="/config.js"></script>
+    <script>
+      const cfg = window.EITEL_UI_CONFIG;
+      const connectorName = cfg.connectorName || 'CONNECTOR';
+      const role = connectorName.toLowerCase().includes('provider') ? 'Provider' : (connectorName.toLowerCase().includes('consumer') ? 'Consumer' : 'Connector');
+
+      document.getElementById('title').textContent = `${connectorName} Console`;
+      document.getElementById('badge').textContent = `${role} · ${cfg.managementApiUrl}`;
+      const defaultCp = role === 'Consumer'
+        ? { address: 'http://provider-connector:19103/api/v1/dsp/2025-1', id: 'provider' }
+        : { address: 'http://consumer-connector:19203/api/v1/dsp/2025-1', id: 'consumer' };
+
+      document.getElementById('catalogAddress').value = defaultCp.address;
+      document.getElementById('catalogParty').value = defaultCp.id;
+      document.getElementById('negAddress').value = defaultCp.address;
+      document.getElementById('transferAddress').value = defaultCp.address;
+
+      const toId = (prefix, value) => {
+        const normalized = (value || '')
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+        return `${prefix}-${normalized || 'default'}`;
+      };
+
+      const updateRefs = () => {
+        const assetName = document.getElementById('assetId').value;
+        const policyName = document.getElementById('policyId').value;
+        document.getElementById('refAsset').textContent = toId('asset', assetName);
+        document.getElementById('refPolicy').textContent = toId('policy', policyName);
+      };
+      document.getElementById('assetId').oninput = updateRefs;
+      document.getElementById('policyId').oninput = updateRefs;
+      updateRefs();
+
+      const viewTitles = {
+        dashboard: 'Flow Dashboard',
+        publish: 'Publish Workspace',
+        discover: 'Catalog Explorer',
+        negotiate: 'Contract Negotiations',
+        agreements: 'Contract Agreements',
+        transfer: 'Transfers',
+        transferlog: 'Transfer Log',
+        explorer: 'Management API Explorer'
+      };
+
+      const activateView = (view) => {
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        const nav = document.querySelector(`.nav-btn[data-view="${view}"]`);
+        const panel = document.getElementById(`panel-${view}`);
+        if (nav) nav.classList.add('active');
+        if (panel) panel.classList.add('active');
+        document.getElementById('title').textContent = `${connectorName} · ${viewTitles[view] || 'Console'}`;
+      };
+
+      document.querySelectorAll('.nav-btn[data-view]').forEach(btn => {
+        btn.onclick = () => activateView(btn.dataset.view);
+      });
+
+      document.getElementById('gotoPublish').onclick = () => activateView('publish');
+      document.getElementById('gotoCatalog').onclick = () => activateView('discover');
+      document.getElementById('gotoNegotiate').onclick = () => activateView('negotiate');
+      document.getElementById('gotoTransfer').onclick = () => activateView('transfer');
 
       async function callApi(method, path, body){
         const url = `${cfg.managementApiUrl}${path}`;
         const headers = {'x-api-key': cfg.apiKey, 'content-type':'application/json'};
-        const opts = {method, headers};
-        if(method === 'POST') opts.body = body;
+        const opts = { method, headers };
+        if(method !== 'GET' && method !== 'DELETE') opts.body = body;
+
         const res = await fetch(url, opts);
         const text = await res.text();
         let data = text;
-        try{ data = JSON.parse(text);}catch{}
-        return {status: res.status, data};
+        try { data = JSON.parse(text); } catch {}
+        return { status: res.status, data };
       }
 
-      document.getElementById('btnConfig').onclick = async () => {
-        const r = await callApi('GET', '/wrapper/ui/config');
-        document.getElementById('outQuick').textContent = JSON.stringify(r, null, 2);
+      const print = (id, payload) => {
+        document.getElementById(id).textContent = JSON.stringify(payload, null, 2);
+        if (id !== 'out') {
+          document.getElementById('out').textContent = JSON.stringify(payload, null, 2);
+        }
       };
 
-      document.getElementById('btnBuildInfo').onclick = async () => {
-        const r = await callApi('GET', '/wrapper/ui/build-info');
-        document.getElementById('outQuick').textContent = JSON.stringify(r, null, 2);
+      const unwrap = (payload) => {
+        const d = payload?.data;
+        if (Array.isArray(d)) return d;
+        if (Array.isArray(d?.value)) return d.value;
+        if (Array.isArray(d?.content)) return d.content;
+        return [];
+      };
+
+      const setKpi = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = String(value);
+      };
+
+      const renderCatalogOffers = (catalogPayload) => {
+        const rows = [];
+        const data = catalogPayload?.data || {};
+        const datasets = data?.['dcat:dataset'] || data?.dataset || [];
+        const list = Array.isArray(datasets) ? datasets : [datasets];
+
+        for (const ds of list) {
+          const policy = ds?.['odrl:hasPolicy'] || {};
+          const permission = policy?.['odrl:permission'] || {};
+          const offerId = policy?.['@id'] || '-';
+          const assetId = permission?.['odrl:target'] || ds?.['@id'] || '-';
+          const assigner = policy?.assigner || policy?.['odrl:assigner'] || document.getElementById('offerAssigner').value || '-';
+          rows.push({ offerId, assetId, assigner });
+        }
+
+        const body = document.getElementById('catalogOffersTable');
+        if (!rows.length) {
+          body.innerHTML = '<tr><td colspan="4" class="mini">No offers found in catalog response.</td></tr>';
+          return;
+        }
+
+        body.innerHTML = rows.map((r, i) => `
+          <tr>
+            <td><span class="chip">${r.offerId}</span></td>
+            <td>${r.assetId}</td>
+            <td>${r.assigner}</td>
+            <td><button class="secondary" data-offer-index="${i}">Use offer</button></td>
+          </tr>
+        `).join('');
+
+        body.querySelectorAll('button[data-offer-index]').forEach(btn => {
+          btn.onclick = () => {
+            const item = rows[Number(btn.dataset.offerIndex)];
+            document.getElementById('offerId').value = item.offerId;
+            document.getElementById('offerTarget').value = item.assetId;
+            document.getElementById('offerAssigner').value = item.assigner;
+            activateView('negotiate');
+          };
+        });
+      };
+
+      const renderNegotiations = (payload) => {
+        const list = unwrap(payload);
+        const body = document.getElementById('negotiationsTable');
+        if (!list.length) {
+          body.innerHTML = '<tr><td colspan="4" class="mini">No negotiations.</td></tr>';
+          return;
+        }
+
+        body.innerHTML = list.map((n, i) => {
+          const id = n['@id'] || n.id || '-';
+          const state = n.state || n['edc:state'] || '-';
+          const agreement = n.contractAgreementId || n['edc:contractAgreementId'] || '-';
+          return `
+            <tr>
+              <td>${id}</td>
+              <td><span class="chip">${state}</span></td>
+              <td>${agreement}</td>
+              <td>${agreement !== '-' ? `<button class="secondary" data-neg-index="${i}">Use agreement</button>` : ''}</td>
+            </tr>
+          `;
+        }).join('');
+
+        body.querySelectorAll('button[data-neg-index]').forEach(btn => {
+          btn.onclick = () => {
+            const n = list[Number(btn.dataset.negIndex)];
+            const agreement = n.contractAgreementId || n['edc:contractAgreementId'];
+            if (!agreement) return;
+            document.getElementById('agreementId').value = agreement;
+            document.getElementById('agreementLookupId').value = agreement;
+            activateView('transfer');
+          };
+        });
+      };
+
+      const renderTransfers = (payload) => {
+        const list = unwrap(payload);
+        const body = document.getElementById('transferLogTable');
+        if (!list.length) {
+          body.innerHTML = '<tr><td colspan="4" class="mini">No transfers.</td></tr>';
+          return;
+        }
+
+        body.innerHTML = list.map(t => {
+          const id = t['@id'] || t.id || '-';
+          const state = t.state || t['edc:state'] || '-';
+          const type = t.type || t['@type'] || '-';
+          const contract = t.contractId || t['edc:contractId'] || '-';
+          return `
+            <tr>
+              <td>${id}</td>
+              <td><span class="chip">${state}</span></td>
+              <td>${type}</td>
+              <td>${contract}</td>
+            </tr>
+          `;
+        }).join('');
+      };
+
+      const refreshOverview = async () => {
+        const [a, p, n, t] = await Promise.all([
+          callApi('POST', '/v3/assets/request', q()),
+          callApi('POST', '/v3/policydefinitions/request', q()),
+          callApi('POST', '/v3/contractnegotiations/request', q()),
+          callApi('POST', '/v3/transferprocesses/request', q())
+        ]);
+        setKpi('kpiAssets', unwrap(a).length);
+        setKpi('kpiPolicies', unwrap(p).length);
+        setKpi('kpiNegotiations', unwrap(n).length);
+        setKpi('kpiTransfers', unwrap(t).length);
+      };
+
+      const q = () => JSON.stringify({
+        '@context': { '@vocab': 'https://w3id.org/edc/v0.0.1/ns/' },
+        '@type': 'QuerySpec',
+        offset: 0,
+        limit: 50,
+        sortOrder: 'DESC'
+      });
+
+      const looksLikeUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value || '');
+
+      async function resolveAgreementId(rawValue) {
+        const value = (rawValue || '').trim();
+        if (!value) return '';
+
+        if (!looksLikeUuid(value)) {
+          return value;
+        }
+
+        const negotiation = await callApi('GET', `/v3/contractnegotiations/${encodeURIComponent(value)}`);
+        const agreementId = negotiation?.data?.contractAgreementId || negotiation?.data?.['edc:contractAgreementId'] || '';
+
+        if (agreementId) {
+          document.getElementById('agreementId').value = agreementId;
+          document.getElementById('agreementLookupId').value = agreementId;
+          print('outTransfer', {
+            info: 'Negotiation ID detectado. Convertido automáticamente a contract agreement ID.',
+            negotiationId: value,
+            contractAgreementId: agreementId
+          });
+          return agreementId;
+        }
+
+        print('outTransfer', {
+          status: 400,
+          data: `El ID ${value} parece una negociación, pero no tiene contractAgreementId todavía. Espera a que esté FINALIZED.`
+        });
+        return '';
+      }
+
+      document.getElementById('btnCreateAsset').onclick = async () => {
+        const assetNameKey = document.getElementById('assetId').value.trim();
+        const id = toId('asset', assetNameKey);
+        const name = document.getElementById('assetName').value.trim();
+        const baseUrl = document.getElementById('assetBaseUrl').value.trim();
+        const body = JSON.stringify({
+          '@context': { 'edc': 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@id': id,
+          '@type': 'Asset',
+          properties: { name, contenttype: 'application/json' },
+          dataAddress: { '@type': 'DataAddress', type: 'HttpData', baseUrl }
+        });
+        print('out', await callApi('POST', '/v3/assets', body));
+      };
+
+      document.getElementById('btnListAssets').onclick = async () => {
+        print('out', await callApi('POST', '/v3/assets/request', q()));
+      };
+
+      document.getElementById('btnDeleteAsset').onclick = async () => {
+        const id = toId('asset', document.getElementById('assetId').value.trim());
+        print('out', await callApi('DELETE', `/v3/assets/${encodeURIComponent(id)}`));
+      };
+
+      document.getElementById('btnCreatePolicy').onclick = async () => {
+        const id = toId('policy', document.getElementById('policyId').value.trim());
+        const body = JSON.stringify({
+          '@context': { 'edc': 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@id': id,
+          '@type': 'PolicyDefinition',
+          policy: {
+            '@context': 'http://www.w3.org/ns/odrl.jsonld',
+            '@type': 'Set',
+            permission: [{ action: 'use' }]
+          }
+        });
+        print('out', await callApi('POST', '/v3/policydefinitions', body));
+      };
+
+      document.getElementById('btnListPolicies').onclick = async () => {
+        print('out', await callApi('POST', '/v3/policydefinitions/request', q()));
+      };
+
+      document.getElementById('btnDeletePolicy').onclick = async () => {
+        const id = toId('policy', document.getElementById('policyId').value.trim());
+        print('out', await callApi('DELETE', `/v3/policydefinitions/${encodeURIComponent(id)}`));
+      };
+
+      document.getElementById('btnCreateContractDef').onclick = async () => {
+        const id = toId('contract', document.getElementById('contractDefId').value.trim());
+        const assetId = toId('asset', document.getElementById('assetId').value.trim());
+        const policyId = toId('policy', document.getElementById('policyId').value.trim());
+        const body = JSON.stringify({
+          '@context': { 'edc': 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@id': id,
+          '@type': 'ContractDefinition',
+          accessPolicyId: policyId,
+          contractPolicyId: policyId,
+          assetsSelector: [{
+            '@type': 'Criterion',
+            operandLeft: 'https://w3id.org/edc/v0.0.1/ns/id',
+            operator: '=',
+            operandRight: assetId
+          }]
+        });
+        print('out', await callApi('POST', '/v3/contractdefinitions', body));
+      };
+
+      document.getElementById('btnListContractDefs').onclick = async () => {
+        print('out', await callApi('POST', '/v3/contractdefinitions/request', q()));
+      };
+
+      document.getElementById('btnDeleteContractDef').onclick = async () => {
+        const id = toId('contract', document.getElementById('contractDefId').value.trim());
+        print('out', await callApi('DELETE', `/v3/contractdefinitions/${encodeURIComponent(id)}`));
+      };
+
+      document.getElementById('btnCatalog').onclick = async () => {
+        const counterPartyAddress = document.getElementById('catalogAddress').value;
+        const counterPartyId = document.getElementById('catalogParty').value;
+        const body = JSON.stringify({
+          '@context': {'edc':'https://w3id.org/edc/v0.0.1/ns/'},
+          '@type': 'CatalogRequest',
+          counterPartyId,
+          counterPartyAddress,
+          protocol: 'dataspace-protocol-http:2025-1'
+        });
+
+        const r = await callApi('POST', '/v3/catalog/request', body);
+        print('outCatalog', r);
+        renderCatalogOffers(r);
+
+        try {
+          const d = r.data?.['dcat:dataset'] || r.data?.dataset || null;
+          const hasPolicy = Array.isArray(d) ? d[0]?.['odrl:hasPolicy'] : d?.['odrl:hasPolicy'];
+          const offerId = hasPolicy?.['@id'] || '';
+          const target = hasPolicy?.['odrl:permission']?.['odrl:target'] || '';
+          if (offerId) document.getElementById('offerId').value = offerId;
+          if (target) document.getElementById('offerTarget').value = target;
+        } catch {}
+      };
+
+      document.getElementById('btnStartNegotiation').onclick = async () => {
+        const counterPartyAddress = document.getElementById('negAddress').value.trim();
+        const offerId = document.getElementById('offerId').value.trim();
+        const offerTarget = document.getElementById('offerTarget').value.trim();
+        const offerAssigner = document.getElementById('offerAssigner').value.trim();
+
+        const body = JSON.stringify({
+          '@context': { 'edc': 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@type': 'ContractRequest',
+          protocol: 'dataspace-protocol-http:2025-1',
+          counterPartyAddress,
+          policy: {
+            '@context': 'http://www.w3.org/ns/odrl.jsonld',
+            '@type': 'odrl:Offer',
+            '@id': offerId,
+            assigner: offerAssigner,
+            target: offerTarget,
+            permission: [],
+            prohibition: [],
+            obligation: []
+          }
+        });
+
+        print('outNegotiation', await callApi('POST', '/v3/contractnegotiations', body));
+      };
+
+      document.getElementById('btnListNegotiations').onclick = async () => {
+        const r = await callApi('POST', '/v3/contractnegotiations/request', q());
+        print('outNegotiation', r);
+        renderNegotiations(r);
+      };
+
+      document.getElementById('btnListAgreements').onclick = async () => {
+        print('outAgreements', await callApi('POST', '/v3/contractagreements/request', q()));
+      };
+
+      document.getElementById('btnGetAgreement').onclick = async () => {
+        const id = document.getElementById('agreementLookupId').value.trim();
+        if (!id) {
+          print('outAgreements', { status: 400, data: 'agreement id is required' });
+          return;
+        }
+        print('outAgreements', await callApi('GET', `/v3/contractagreements/${encodeURIComponent(id)}`));
+      };
+
+      document.getElementById('btnUseAgreementLookup').onclick = () => {
+        const id = document.getElementById('agreementLookupId').value.trim();
+        if (id) document.getElementById('agreementId').value = id;
+      };
+
+      document.getElementById('btnStartTransfer').onclick = async () => {
+        const counterPartyAddress = document.getElementById('transferAddress').value.trim();
+        const typedId = document.getElementById('agreementId').value.trim();
+        const contractId = await resolveAgreementId(typedId);
+        if (!contractId) {
+          return;
+        }
+        const transferType = document.getElementById('transferType').value.trim();
+        const body = JSON.stringify({
+          '@context': { 'edc': 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@type': 'TransferRequest',
+          protocol: 'dataspace-protocol-http:2025-1',
+          counterPartyAddress,
+          contractId,
+          transferType,
+          dataDestination: { type: 'HttpData' }
+        });
+        print('outTransfer', await callApi('POST', '/v3/transferprocesses', body));
+      };
+
+      document.getElementById('btnListTransfers').onclick = async () => {
+        const r = await callApi('POST', '/v3/transferprocesses/request', q());
+        print('outTransfer', r);
+        renderTransfers(r);
+      };
+
+      document.getElementById('btnRefreshTransferLog').onclick = async () => {
+        const r = await callApi('POST', '/v3/transferprocesses/request', q());
+        print('outTransferLog', r);
+        renderTransfers(r);
+      };
+
+      document.getElementById('btnRefreshOverview').onclick = refreshOverview;
+
+      document.getElementById('btnQuickAssets').onclick = async () => {
+        print('out', await callApi('POST', '/v3/assets/request', q()));
+      };
+
+      document.getElementById('btnQuickPolicies').onclick = async () => {
+        print('out', await callApi('POST', '/v3/policydefinitions/request', q()));
+      };
+
+      document.getElementById('btnQuickContractDefs').onclick = async () => {
+        print('out', await callApi('POST', '/v3/contractdefinitions/request', q()));
+      };
+
+      document.getElementById('btnQuickNegotiations').onclick = async () => {
+        print('out', await callApi('POST', '/v3/contractnegotiations/request', q()));
+      };
+
+      document.getElementById('btnQuickTransfers').onclick = async () => {
+        print('out', await callApi('POST', '/v3/transferprocesses/request', q()));
+      };
+
+      document.getElementById('btnAutofillOffer').onclick = async () => {
+        const counterPartyAddress = document.getElementById('catalogAddress').value;
+        const counterPartyId = document.getElementById('catalogParty').value;
+        const body = JSON.stringify({
+          '@context': {'edc':'https://w3id.org/edc/v0.0.1/ns/'},
+          '@type': 'CatalogRequest',
+          counterPartyId,
+          counterPartyAddress,
+          protocol: 'dataspace-protocol-http:2025-1'
+        });
+        const r = await callApi('POST', '/v3/catalog/request', body);
+        print('out', r);
+        try {
+          const d = r.data?.['dcat:dataset'] || r.data?.dataset || null;
+          const hasPolicy = Array.isArray(d) ? d[0]?.['odrl:hasPolicy'] : d?.['odrl:hasPolicy'];
+          const offerId = hasPolicy?.['@id'] || '';
+          const target = hasPolicy?.['odrl:permission']?.['odrl:target'] || '';
+          if (offerId) document.getElementById('offerId').value = offerId;
+          if (target) document.getElementById('offerTarget').value = target;
+          activateView('negotiate');
+        } catch {}
+      };
+
+      document.getElementById('btnAutofillAgreement').onclick = async () => {
+        const r = await callApi('POST', '/v3/contractnegotiations/request', q());
+        print('out', r);
+        const list = Array.isArray(r.data) ? r.data : (r.data?.content || []);
+        const latestWithAgreement = list.find(n => {
+          const state = (n.state || n['edc:state'] || '').toUpperCase();
+          const type = (n.type || n['edc:type'] || '').toUpperCase();
+          const agreement = n.contractAgreementId || n['edc:contractAgreementId'];
+          return !!agreement && state === 'FINALIZED' && type === 'CONSUMER';
+        }) || list.find(n => n.contractAgreementId || n['edc:contractAgreementId']);
+        const agreement = latestWithAgreement?.contractAgreementId || latestWithAgreement?.['edc:contractAgreementId'] || '';
+        if (agreement) {
+          document.getElementById('agreementId').value = agreement;
+          document.getElementById('agreementLookupId').value = agreement;
+          activateView('transfer');
+        }
       };
 
       document.getElementById('send').onclick = async () => {
@@ -71,8 +3054,11 @@
         const path = document.getElementById('path').value;
         const body = document.getElementById('body').value;
         const r = await callApi(method, path, body);
-        document.getElementById('out').textContent = JSON.stringify(r, null, 2);
+        print('out', r);
       };
+
+      activateView('dashboard');
+      refreshOverview();
     </script>
   </body>
 </html>

@@ -1,0 +1,126 @@
+services:
+  provider-postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: change-me
+    command: >
+      sh -c "echo 'CREATE DATABASE provider_db;' > /docker-entrypoint-initdb.d/init.sql && docker-entrypoint.sh postgres"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - pc-net
+
+  consumer-postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: change-me
+    command: >
+      sh -c "echo 'CREATE DATABASE consumer_db;' > /docker-entrypoint-initdb.d/init.sql && docker-entrypoint.sh postgres"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - pc-net
+
+  provider-connector:
+    image: eitel/eclipse-edc-runtime:0.16.0
+    depends_on:
+      provider-postgres:
+        condition: service_healthy
+    environment:
+      EDC_PARTICIPANT_ID: provider
+      WEB_HTTP_PORT: 19100
+      WEB_HTTP_PATH: /api
+      WEB_HTTP_CONTROL_PORT: 19101
+      WEB_HTTP_CONTROL_PATH: /api/control
+      WEB_HTTP_MANAGEMENT_PORT: 19102
+      WEB_HTTP_MANAGEMENT_PATH: /api/management
+      WEB_HTTP_PROTOCOL_PORT: 19103
+      WEB_HTTP_PROTOCOL_PATH: /api/v1/dsp
+      EDC_DSP_CALLBACK_ADDRESS: http://provider-connector:19103/api/v1/dsp
+      EDC_MANAGEMENT_CONTEXT_ENABLED: "true"
+      EDC_TRANSFER_PROXY_TOKEN_SIGNER_PRIVATEKEY_ALIAS: private-key
+      EDC_TRANSFER_PROXY_TOKEN_VERIFIER_PUBLICKEY_ALIAS: public-key
+      EDC_JDBC_URL: jdbc:postgresql://provider-postgres:5432/provider_db
+      EDC_JDBC_USER: postgres
+      EDC_JDBC_PASSWORD: change-me
+      EDC_API_AUTH_KEY: change-me
+      EDC_WEB_REST_CORS_ENABLED: "true"
+      EDC_WEB_REST_CORS_HEADERS: "origin,content-type,accept,x-api-key,authorization"
+      EDC_WEB_REST_CORS_METHODS: "GET,POST,PUT,DELETE,OPTIONS"
+      EDC_WEB_REST_CORS_ORIGINS: "http://localhost:19120"
+    ports:
+      - "19102:19102"
+      - "19103:19103"
+    networks:
+      - pc-net
+
+  consumer-connector:
+    image: eitel/eclipse-edc-runtime:0.16.0
+    depends_on:
+      consumer-postgres:
+        condition: service_healthy
+    environment:
+      EDC_PARTICIPANT_ID: consumer
+      WEB_HTTP_PORT: 19200
+      WEB_HTTP_PATH: /api
+      WEB_HTTP_CONTROL_PORT: 19201
+      WEB_HTTP_CONTROL_PATH: /api/control
+      WEB_HTTP_MANAGEMENT_PORT: 19202
+      WEB_HTTP_MANAGEMENT_PATH: /api/management
+      WEB_HTTP_PROTOCOL_PORT: 19203
+      WEB_HTTP_PROTOCOL_PATH: /api/v1/dsp
+      EDC_DSP_CALLBACK_ADDRESS: http://consumer-connector:19203/api/v1/dsp
+      EDC_MANAGEMENT_CONTEXT_ENABLED: "true"
+      EDC_TRANSFER_PROXY_TOKEN_SIGNER_PRIVATEKEY_ALIAS: private-key
+      EDC_TRANSFER_PROXY_TOKEN_VERIFIER_PUBLICKEY_ALIAS: public-key
+      EDC_JDBC_URL: jdbc:postgresql://consumer-postgres:5432/consumer_db
+      EDC_JDBC_USER: postgres
+      EDC_JDBC_PASSWORD: change-me
+      EDC_API_AUTH_KEY: change-me
+      EDC_WEB_REST_CORS_ENABLED: "true"
+      EDC_WEB_REST_CORS_HEADERS: "origin,content-type,accept,x-api-key,authorization"
+      EDC_WEB_REST_CORS_METHODS: "GET,POST,PUT,DELETE,OPTIONS"
+      EDC_WEB_REST_CORS_ORIGINS: "http://localhost:19220"
+    ports:
+      - "19202:19202"
+      - "19203:19203"
+    networks:
+      - pc-net
+
+  provider-ui:
+    image: eitel/edc-ui:latest
+    depends_on:
+      - provider-connector
+    environment:
+      NEXT_PUBLIC_MANAGEMENT_API_URL: http://localhost:19102/api/management
+      NEXT_PUBLIC_MANAGEMENT_API_AUTH_KEY: change-me
+      NEXT_PUBLIC_CONNECTOR_NAME: PROVIDER
+    ports:
+      - "19120:8080"
+    networks:
+      - pc-net
+
+  consumer-ui:
+    image: eitel/edc-ui:latest
+    depends_on:
+      - consumer-connector
+    environment:
+      NEXT_PUBLIC_MANAGEMENT_API_URL: http://localhost:19202/api/management
+      NEXT_PUBLIC_MANAGEMENT_API_AUTH_KEY: change-me
+      NEXT_PUBLIC_CONNECTOR_NAME: CONSUMER
+    ports:
+      - "19220:8080"
+    networks:
+      - pc-net
+
+networks:
+  pc-net:
+    driver: bridge
