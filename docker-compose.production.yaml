@@ -20,6 +20,9 @@ services:
 
   conectoruc3m:
     image: eitel/eclipse-edc-runtime:0.16.0
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
     container_name: conectoruc3m
     restart: unless-stopped
     depends_on:
@@ -62,6 +65,9 @@ services:
 
   conectoruc3m-ui:
     image: eitel/edc-ui:latest
+    build:
+      context: ./caas/edc-ui
+      dockerfile: Dockerfile
     container_name: conectoruc3m-ui
     restart: unless-stopped
     depends_on:
