@@ -3,150 +3,1712 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EITEL Connector Console</title>
+  <title>Conector EITEL</title>
+  <link rel="icon" type="image/png" href="data:image/png;base64,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" />
   <style>
-    :root { --bg:#f4f7fc; --surface:#fff; --line:#dce5f3; --ink:#1d2b45; --muted:#63748f; --brand:#0f4ea8; }
-    *{box-sizing:border-box} html,body{height:100%;overflow:hidden} body{margin:0;font-family:"Segoe UI",Inter,Arial,sans-serif;color:var(--ink);background:var(--bg)}
-    .app{height:100vh;display:grid;grid-template-columns:220px 1fr 360px}
-    .side{border-right:1px solid var(--line);background:#eff4fb;padding:14px}.brand{background:#e6efff;border:1px solid #c7dafc;border-radius:12px;padding:12px;font-weight:700;color:#0f4ea8;margin-bottom:12px}
-    .nav{display:flex;flex-direction:column;gap:8px}.nav button{border:0;background:transparent;border-radius:10px;padding:10px;text-align:left;cursor:pointer;color:var(--ink)}.nav button.active{background:#d8e7ff;color:#0c438f;font-weight:600}
-    .main{padding:16px;height:100vh;overflow:auto}.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.top h1{margin:0;font-size:22px}
-    .badge{border:1px solid #bfd3f8;background:#eaf2ff;color:#0f4ea8;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:600}
-    .panel{display:none}.panel.active{display:block}.grid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:12px}.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px}.wide{grid-column:1/-1}
-    h2,h3{margin:0 0 8px}.muted{margin:0 0 10px;color:var(--muted);font-size:13px}.row{display:flex;gap:8px;flex-wrap:wrap}
-    .kpis{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px}.kpi{background:#f9fbff;border:1px solid #dde7f8;border-radius:10px;padding:10px}.kpi .label{font-size:12px;color:var(--muted)}.kpi .value{font-size:24px;font-weight:700;color:#0e468f}
-    .wizard{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:8px;margin-bottom:12px}
-    .step{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px;cursor:pointer}
-    .step .num{font-size:11px;color:var(--muted)}.step .name{font-size:13px;font-weight:600}.step.done{border-color:#9dd5b0;background:#effcf4}.step.active{border-color:#bfd3f8;background:#edf4ff}
-    label{display:block;margin-top:8px;color:var(--muted);font-size:12px}input,textarea,select{width:100%;margin-top:4px;border:1px solid var(--line);border-radius:10px;padding:8px 9px;background:#fff;color:var(--ink);font-family:inherit}
-    button.action,button.secondary{border-radius:10px;padding:8px 11px;cursor:pointer}button.action{border:0;background:var(--brand);color:#fff}button.secondary{border:1px solid #bfd3f8;background:#fff;color:#0f4ea8}
-    table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #e4ecf9;text-align:left;padding:8px;font-size:13px;vertical-align:top}
-    .output{border-left:1px solid var(--line);background:#0f1a30;color:#dce7ff;display:flex;flex-direction:column;min-width:0;height:100vh;position:sticky;top:0;overflow:hidden}.output-head{padding:10px;border-bottom:1px solid #21355d;display:flex;justify-content:space-between;align-items:center}.output pre{margin:0;padding:12px;overflow:auto;flex:1}
-    .app.output-collapsed{grid-template-columns:220px 1fr 0}.app.output-collapsed .output{border-left:0;overflow:hidden}.app.output-wide{grid-template-columns:220px 1fr 520px}
-    .mono{font-family:Consolas,monospace;font-size:12px}
-    @media (max-width:1200px){.app,.app.output-wide,.app.output-collapsed{grid-template-columns:200px 1fr}.output{position:fixed;right:0;top:0;bottom:0;width:min(88vw,520px);z-index:20;box-shadow:-8px 0 30px rgba(0,0,0,.2)}.app.output-collapsed .output{display:none}}
-    @media (max-width:900px){.app,.app.output-wide,.app.output-collapsed{grid-template-columns:1fr}.side{border-right:0;border-bottom:1px solid var(--line)}.nav{flex-direction:row;overflow-x:auto}.nav button{white-space:nowrap}.grid{grid-template-columns:1fr}.kpis{grid-template-columns:1fr 1fr}}
+    :root {
+      --bg: #f3f6fb;
+      --bg-soft: #eaf0fb;
+      --surface: #ffffff;
+      --surface-2: #f8fbff;
+      --line: #d8e1f0;
+      --text: #1f2d48;
+      --muted: #6a7896;
+      --primary: #1f5fcc;
+      --primary-soft: #e8f0ff;
+      --ok: #11834f;
+      --warn: #b77713;
+      --danger: #c6364d;
+
+      --console-bg: #f7fbff;
+      --console-text: #18345f;
+      --console-line: #cfe0ff;
+      --console-chip: #e9f1ff;
+    }
+
+    body[data-theme="dark"] {
+      --bg: #0b1221;
+      --bg-soft: #121d35;
+      --surface: #121b2f;
+      --surface-2: #16233d;
+      --line: #2a3a5f;
+      --text: #e5ecff;
+      --muted: #9aabcf;
+      --primary: #7aa8ff;
+      --primary-soft: #1d2e52;
+      --ok: #52d49a;
+      --warn: #f0b257;
+      --danger: #ff7388;
+
+      --console-bg: #0f1a30;
+      --console-text: #dce7ff;
+      --console-line: #2f456f;
+      --console-chip: #1c2f52;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      font-family: "Segoe UI", Inter, Arial, sans-serif;
+      background: linear-gradient(160deg, var(--bg-soft), var(--bg));
+      color: var(--text);
+      overflow: hidden;
+    }
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in srgb, var(--primary) 55%, var(--line)) color-mix(in srgb, var(--surface-2) 70%, var(--bg));
+    }
+    *::-webkit-scrollbar { width: 10px; height: 10px; }
+    *::-webkit-scrollbar-track { background: color-mix(in srgb, var(--surface-2) 70%, var(--bg)); }
+    *::-webkit-scrollbar-thumb {
+      background: color-mix(in srgb, var(--primary) 55%, var(--line));
+      border-radius: 999px;
+      border: 2px solid color-mix(in srgb, var(--surface-2) 70%, var(--bg));
+    }
+
+    .app {
+      height: 100vh;
+      display: grid;
+      grid-template-columns: 250px 1fr 410px;
+    }
+    .app.console-bottom {
+      grid-template-columns: 250px 1fr;
+      grid-template-rows: 1fr 300px;
+    }
+    .app.console-bottom .console { grid-column: 2; grid-row: 2; border-left: 0; border-top: 1px solid var(--line); }
+    .app.console-hidden { grid-template-columns: 250px 1fr 0; }
+    .app.console-hidden .console { display: none; }
+    .app.console-hidden.console-bottom { grid-template-columns: 250px 1fr; grid-template-rows: 1fr; }
+
+    .sidebar {
+      border-right: 1px solid var(--line);
+      background: color-mix(in srgb, var(--surface) 90%, var(--bg-soft));
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .brand {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: linear-gradient(145deg, var(--surface), var(--surface-2));
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, .08);
+      font-weight: 700;
+    }
+    .brand img { width: 54px; height: 54px; object-fit: contain; display: block; }
+    .brand .sub { font-size: 12px; color: var(--muted); font-weight: 500; }
+
+    .nav { display: flex; flex-direction: column; gap: 12px; }
+    .nav-group {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 8px;
+      background: color-mix(in srgb, var(--surface) 92%, var(--bg-soft));
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .nav-group-title {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 2px 8px;
+    }
+    .nav button {
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-align: left;
+      font-weight: 600;
+    }
+    .nav button svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
+    .nav button.active {
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    .main { overflow: auto; padding: 16px; }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .top h1 { margin: 0; font-size: 24px; letter-spacing: .2px; }
+    .top-right { display: flex; align-items: center; gap: 8px; }
+    .chip {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(280px, 1fr)); gap: 12px; }
+    .card {
+      background: linear-gradient(180deg, var(--surface), color-mix(in srgb, var(--surface) 88%, var(--surface-2)));
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, .08);
+    }
+    .wide { grid-column: 1 / -1; }
+    h2 { margin: 0 0 8px; font-size: 18px; }
+    h3 { margin: 14px 0 8px; font-size: 15px; }
+    .muted { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+
+    .row { display: flex; flex-wrap: wrap; gap: 8px; }
+    label { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
+    input, textarea, select {
+      width: 100%;
+      margin-top: 4px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      padding: 9px 10px;
+      background: var(--surface-2);
+      color: var(--text);
+      font-family: inherit;
+      caret-color: var(--primary);
+    }
+    input::placeholder, textarea::placeholder { color: var(--muted); opacity: .95; }
+    select option { background: var(--surface-2); color: var(--text); }
+    button.primary, button.ghost, button.danger {
+      border-radius: 11px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.primary { border: 0; background: var(--primary); color: #fff; }
+    button.ghost { border: 1px solid var(--line); background: var(--surface); color: var(--text); }
+    button.danger { border: 1px solid color-mix(in srgb, var(--danger) 60%, var(--line)); background: var(--surface); color: var(--danger); }
+
+    .kpis { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 10px; }
+    .kpi { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); padding: 10px; }
+    .kpi .k { color: var(--muted); font-size: 12px; }
+    .kpi .v { color: var(--primary); font-size: 28px; font-weight: 700; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid var(--line); padding: 10px; text-align: left; font-size: 13px; }
+    .title-cell { font-weight: 700; }
+    .ok { color: var(--ok); font-weight: 700; }
+    .warn { color: var(--warn); font-weight: 700; }
+
+    .console {
+      border-left: 1px solid var(--line);
+      background: var(--console-bg);
+      color: var(--console-text);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .console-head {
+      padding: 10px;
+      border-bottom: 1px solid var(--console-line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: color-mix(in srgb, var(--console-bg) 85%, #ffffff 15%);
+    }
+    .console pre {
+      margin: 0;
+      padding: 12px;
+      overflow: auto;
+      flex: 1;
+      font-size: 13px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .console-handle {
+      position: absolute;
+      left: -28px;
+      top: 58px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 20;
+    }
+    .console-handle button {
+      min-width: 28px;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-right: 0;
+      background: var(--surface);
+      border-radius: 10px 0 0 10px;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 0 6px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .console-handle button:hover { color: var(--primary); }
+
+    .console-show {
+      position: fixed;
+      right: 10px;
+      bottom: 12px;
+      z-index: 60;
+      display: none;
+    }
+    .app.console-hidden + .console-show { display: inline-flex; }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(6, 12, 24, .45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 80;
+      padding: 18px;
+    }
+    .modal.open { display: flex; }
+    .modal-card {
+      width: min(780px, 100%);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 20px 40px rgba(0,0,0,.25);
+    }
+
+    /* hard override: keep dark form contrast even if duplicated styles exist later */
+    body[data-theme="dark"] input,
+    body[data-theme="dark"] textarea,
+    body[data-theme="dark"] select {
+      background: #0f1a30 !important;
+      color: #e7eeff !important;
+      border-color: #2f456f !important;
+    }
+    body[data-theme="dark"] input::placeholder,
+    body[data-theme="dark"] textarea::placeholder {
+      color: #9fb2d7 !important;
+      opacity: 1 !important;
+    }
+
+    /* hard override: bottom console must stay visible as horizontal panel */
+    .app.console-bottom {
+      grid-template-columns: 250px 1fr !important;
+      grid-template-rows: 1fr 300px !important;
+    }
+    .app.console-expanded.console-bottom { grid-template-rows: 1fr 46vh !important; }
+    .app.console-expanded:not(.console-bottom) { grid-template-columns: 250px 1fr 560px !important; }
+    .app.console-bottom .console {
+      display: flex !important;
+      grid-column: 2 !important;
+      grid-row: 2 !important;
+      position: relative !important;
+      border-left: 0 !important;
+      border-top: 1px solid var(--line) !important;
+    }
+    .app.console-hidden.console-bottom .console { display: none !important; }
+
+    .info-pre {
+      margin: 0;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface-2);
+      max-height: 45vh;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 1200px) {
+      .app, .app.console-hidden { grid-template-columns: 1fr; }
+      .sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
+      .nav { flex-direction: column; overflow: visible; }
+      .grid { grid-template-columns: 1fr; }
+      .kpis { grid-template-columns: 1fr 1fr; }
+      .console { position: fixed; inset: auto 0 0 0; height: 40vh; z-index: 50; border-left: 0; border-top: 1px solid var(--line); }
+      .app.console-hidden .console { display: none; }
+      .console-handle { left: auto; right: 10px; top: -42px; flex-direction: row; }
+      .console-handle button { width: 34px; height: 22px; border-right: 1px solid var(--line); border-radius: 10px 10px 0 0; }
+    }
   </style>
 </head>
-<body>
-<div class="app" id="app">
-  <aside class="side"><div class="brand">EITEL Connector Console</div><div class="nav"><button class="active" data-view="dashboard">Dashboard</button><button data-view="publish">Publish</button><button data-view="catalog">Catalog Browser</button><button data-view="contracts">Contracts</button><button data-view="transfers">Transfers</button><button data-view="explorer">API Explorer</button></div></aside>
-  <main class="main">
-    <div class="top"><h1 id="title">Connector</h1><span class="badge" id="badge">Runtime</span></div>
-    <section class="wizard" id="wizardSteps">
-      <button class="step active" id="stepCatalog"><div class="num">Paso 1</div><div class="name">Catalog Browser</div></button>
-      <button class="step" id="stepNegotiate"><div class="num">Paso 2</div><div class="name">Negotiate Policy</div></button>
-      <button class="step" id="stepContracts"><div class="num">Paso 3</div><div class="name">Contracts</div></button>
-      <button class="step" id="stepTransfer"><div class="num">Paso 4</div><div class="name">Transfer to Consumer</div></button>
-    </section>
-    <section class="panel active" id="panel-dashboard"><div class="grid"><section class="card wide"><h2>Overview</h2><p class="muted">Flujo recomendado: Catalog Browser → Negotiation → Contracts → Transfer → Consumer destination.</p><div class="kpis"><div class="kpi"><div class="label">Assets</div><div class="value" id="kpiAssets">-</div></div><div class="kpi"><div class="label">Policies</div><div class="value" id="kpiPolicies">-</div></div><div class="kpi"><div class="label">Negotiations</div><div class="value" id="kpiNegotiations">-</div></div><div class="kpi"><div class="label">Transfers</div><div class="value" id="kpiTransfers">-</div></div></div><div class="row" style="margin-top:10px"><button class="action" id="btnRefreshOverview">Refresh</button><button class="secondary" id="gotoPublish">Go Publish</button><button class="secondary" id="gotoCatalog">Go Catalog</button><button class="secondary" id="gotoContracts">Go Contracts</button><button class="secondary" id="gotoTransfers">Go Transfers</button></div></section></div></section>
-    <section class="panel" id="panel-publish"><div class="grid"><section class="card wide"><h2>Publish</h2><p class="muted">Personalización amplia para el Asset.</p><div class="grid"><div><label>Asset key (humano)</label><input id="assetKey" value="dataset-clima-uc3m" /></div><div><label>Asset ID interno</label><input id="assetIdPreview" class="mono" readonly /></div></div><label>Display name</label><input id="assetName" value="Dataset Clima UC3M" /><div class="grid"><div><label>Data type</label><select id="assetDataType"><option>HttpData</option><option>AmazonS3</option><option>AzureStorage</option><option>CustomDataType</option></select></div><div><label>Content-Type</label><input id="assetContentType" value="application/json" /></div></div><div class="grid"><div><label>baseUrl</label><input id="assetBaseUrl" value="https://example.org/data" /></div><div><label>method</label><input id="assetMethod" value="GET" /></div></div><div class="grid"><div><label>path</label><input id="assetPath" value="/api/items" /></div><div><label>queryParams</label><input id="assetQueryParams" value="limit=10" /></div></div><label>Headers JSON</label><textarea id="assetHeadersJson" rows="4">{"Authorization":"Bearer replace-me"}</textarea><label>Asset properties JSON</label><textarea id="assetPropsJson" rows="4">{"category":"weather","owner":"uc3m"}</textarea><label>Asset privateProperties JSON</label><textarea id="assetPrivatePropsJson" rows="4">{"internalTag":"demo"}</textarea><label>DataAddress extra JSON (merge)</label><textarea id="assetDataAddressExtraJson" rows="4">{"proxyMethod":true,"proxyPath":true,"proxyQueryParams":true}</textarea><div class="row" style="margin-top:8px"><button class="action" id="btnCreateAsset">Create/Update Asset</button><button class="secondary" id="btnListAssets">List Assets</button><button class="secondary" id="btnDeleteAsset">Delete Asset</button></div></section><section class="card"><h3>Policy</h3><label>Policy name</label><input id="policyName" value="policy-clima" /><label>Policy JSON (ODRL Set)</label><textarea id="policyJson" rows="6">{"@context":"http://www.w3.org/ns/odrl.jsonld","@type":"Set","permission":[{"action":"use"}]}</textarea><div class="row" style="margin-top:8px"><button class="action" id="btnCreatePolicy">Create/Update Policy</button><button class="secondary" id="btnListPolicies">List Policies</button><button class="secondary" id="btnDeletePolicy">Delete Policy</button></div></section><section class="card"><h3>Contract Definition</h3><label>Contract name</label><input id="contractName" value="contract-clima" /><p class="muted">Vinculado al asset/policy actuales.</p><div class="row" style="margin-top:8px"><button class="action" id="btnCreateContractDef">Create/Update Contract</button><button class="secondary" id="btnListContractDefs">List Contracts</button><button class="secondary" id="btnDeleteContractDef">Delete Contract</button></div></section></div></section>
-    <section class="panel" id="panel-catalog"><div class="grid"><section class="card wide"><h2>Catalog Browser</h2><p class="muted">1) Busca offers del provider. 2) Selecciona una offer. 3) Negocia política.</p><div class="grid"><div><label>Connector ID</label><input id="searchConnectorId" value="provider" /></div><div><label>Resolved DSP URL</label><input id="resolvedAddress" class="mono" readonly /></div></div><div class="row" style="margin-top:8px"><button class="action" id="btnSearchOffers">Search offers</button><button class="secondary" id="btnRefreshCatalog">Refresh catalog + negotiations</button></div><label>Offer filter</label><input id="offersFilter" placeholder="Filtrar por offer/asset/assigner" /><table><thead><tr><th>Offer</th><th>Asset</th><th>Assigner</th><th></th></tr></thead><tbody id="tblOffers"></tbody></table></section><section class="card wide"><h2>Negotiate Policy</h2><div class="grid"><div><label>Counter party address</label><input id="negAddress" /></div><div><label>Assigner</label><input id="offerAssigner" value="provider" /></div></div><div class="grid"><div><label>Offer ID</label><input id="offerId" /></div><div><label>Offer target (asset id)</label><input id="offerTarget" /></div></div><label>Policy JSON-LD override (opcional)</label><textarea id="negPolicyOverride" rows="5" placeholder='Si se deja vacío, se usa la offer seleccionada.'></textarea><div class="row" style="margin-top:8px"><button class="action" id="btnStartNegotiation">Start Negotiation</button><button class="secondary" id="btnListNegotiations">List Negotiations</button><button class="secondary" id="gotoContractsFromCatalog">Go Contracts</button></div><label>Negotiation filter</label><input id="negotiationsFilter" placeholder="Filtrar por id/state/agreement" /><table><thead><tr><th>Negotiation</th><th>State</th><th>Agreement</th><th></th></tr></thead><tbody id="tblNegotiations"></tbody></table></section></div></section>
-    <section class="panel" id="panel-contracts"><div class="grid"><section class="card wide"><h2>Contracts</h2><p class="muted">Cuando la negociación se finaliza, el agreement aparece aquí. Desde aquí se inicia transferencia.</p><div class="row" style="margin-top:8px"><button class="action" id="btnListAgreements">List Agreements</button><button class="secondary" id="gotoTransfersFromContracts">Go Transfers</button></div><label>Agreement filter</label><input id="agreementsFilter" placeholder="Filtrar por agreement/asset/counterparty" /><table><thead><tr><th>Agreement</th><th>Asset</th><th>Counterparty</th><th></th></tr></thead><tbody id="tblAgreements"></tbody></table></section></div></section>
-    <section class="panel" id="panel-transfers"><div class="grid"><section class="card wide"><h2>Transfers</h2><p class="muted">Modo simplificado: siempre HttpData-PUSH al dummy sink (sin EDR).</p><div class="grid"><div><label>Counter party address</label><input id="transferAddress" /></div><div><label>Transfer type</label><select id="transferType"><option>HttpData-PUSH</option></select></div></div><label>Agreement (selecciona en Contracts)</label><select id="agreementSelect"><option value="">Primero pulsa "List Agreements" en Contracts</option></select><details style="margin-top:8px"><summary class="muted" style="cursor:pointer">Advanced: pegar ID manual</summary><input id="agreementId" class="mono" placeholder="agreement o negotiation id" /></details><h3 style="margin-top:12px">Consumer Destination (sink)</h3><div class="grid"><div><label>Destination type</label><select id="sinkType"><option>HttpData</option><option>DataAddress</option></select></div><div><label>Base URL</label><input id="sinkBaseUrl" value="http://host.docker.internal:18081/v1/dummy-sink/ingest" /></div></div><div class="grid"><div><label>Method</label><input id="sinkMethod" value="POST" /></div><div><label>Path</label><input id="sinkPath" value="/" /></div></div><label>Headers JSON (opcional)</label><textarea id="sinkHeaders" rows="4">{"Content-Type":"application/json"}</textarea><div class="row" style="margin-top:8px"><button class="action" id="btnStartTransfer">Start Transfer</button><button class="secondary" id="btnListTransfers">List Transfers</button><button class="secondary" id="btnCheckDummy">Check Dummy Inbox</button><button class="secondary" id="btnClearDummy">Clear Dummy Inbox</button></div><label>Transfer filter</label><input id="transfersFilter" placeholder="Filtrar por transfer/state/contract" /><table><thead><tr><th>Transfer</th><th>State</th><th>Contract</th><th></th></tr></thead><tbody id="tblTransfers"></tbody></table></section></div></section>
-    <section class="panel" id="panel-explorer"><div class="grid"><section class="card wide"><h2>API Explorer</h2><div class="grid"><div><label>Method</label><select id="explMethod"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select></div><div><label>Path</label><input id="explPath" value="/v3/assets/request" /></div></div><label>Body JSON</label><textarea id="explBody" rows="8">{"@context":{"@vocab":"https://w3id.org/edc/v0.0.1/ns/"},"@type":"QuerySpec","offset":0,"limit":20}</textarea><div class="row" style="margin-top:8px"><button class="action" id="btnExplorerSend">Send</button></div></section></div></section>
-  </main>
-  <aside class="output" id="outputPane"><div class="output-head"><strong>Output</strong><div class="row"><button class="secondary" id="btnOutputWide">Expand</button><button class="secondary" id="btnOutputToggle">Hide</button></div></div><pre id="out">{ "status": "ready" }</pre></aside>
-</div>
-<script src="/config.js"></script>
-<script>
-const cfg = window.EITEL_UI_CONFIG;
-const connectorName = cfg.connectorName || 'CONNECTOR';
-const role = connectorName.toLowerCase().includes('provider') ? 'Provider' : (connectorName.toLowerCase().includes('consumer') ? 'Consumer' : 'Connector');
-const app = document.getElementById('app');
-document.getElementById('title').textContent = `${connectorName} Console`;
-document.getElementById('badge').textContent = `${role} · ${cfg.managementApiUrl}`;
-const defaultCp = role === 'Consumer' ? { address: 'http://provider-connector:19103/api/v1/dsp/2025-1', id: 'provider' } : { address: 'http://consumer-connector:19203/api/v1/dsp/2025-1', id: 'consumer' };
-const toId = (prefix, value) => `${prefix}-${(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'default'}`;
-const q = () => JSON.stringify({ '@context': { '@vocab': 'https://w3id.org/edc/v0.0.1/ns/' }, '@type': 'QuerySpec', offset: 0, limit: 50, sortOrder: 'DESC' });
-const unwrap = (p) => Array.isArray(p?.data) ? p.data : (Array.isArray(p?.data?.value) ? p.data.value : (Array.isArray(p?.data?.content) ? p.data.content : []));
-const parseJson = (value, fallback) => { try { const t = (value || '').trim(); if (!t) return fallback; return JSON.parse(t); } catch { return null; } };
-const writeOut = (payload) => { document.getElementById('out').textContent = JSON.stringify(payload, null, 2); };
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-let lastCatalogResponse = null;
-let lastNegotiationsPayload = null;
-let lastAgreementsPayload = null;
-let lastTransfersPayload = null;
-let agreementOptions = [];
-const shortId = (v) => { const s = (v || '').toString(); return s.length > 16 ? `${s.slice(0,8)}…${s.slice(-6)}` : s; };
-const wizardState = { catalog: false, negotiated: false, contracts: false, transfer: false };
-function renderWizard(){
-  const steps = [
-    { id: 'stepCatalog', done: wizardState.catalog },
-    { id: 'stepNegotiate', done: wizardState.negotiated },
-    { id: 'stepContracts', done: wizardState.contracts },
-    { id: 'stepTransfer', done: wizardState.transfer },
-  ];
-  steps.forEach(s => {
-    const el = document.getElementById(s.id);
-    if (!el) return;
-    el.classList.toggle('done', !!s.done);
-  });
-}
-function setWizardStep(step){ wizardState[step] = true; renderWizard(); }
-async function callApi(method, path, body){ const res = await fetch(`${cfg.managementApiUrl}${path}`, { method, headers: { 'x-api-key': cfg.apiKey, 'content-type': 'application/json' }, body: method === 'GET' || method === 'DELETE' ? undefined : body }); const text = await res.text(); let data = text; try { data = JSON.parse(text); } catch {} return { status: res.status, data }; }
-function activateView(view){ document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active')); document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active')); const nav=document.querySelector(`.nav button[data-view="${view}"]`); const panel=document.getElementById(`panel-${view}`); if(nav)nav.classList.add('active'); if(panel)panel.classList.add('active'); }
-document.querySelectorAll('.nav button[data-view]').forEach(btn=>btn.onclick=()=>activateView(btn.dataset.view));
-document.getElementById('stepCatalog').onclick=()=>activateView('catalog');
-document.getElementById('stepNegotiate').onclick=()=>activateView('catalog');
-document.getElementById('stepContracts').onclick=()=>activateView('contracts');
-document.getElementById('stepTransfer').onclick=()=>activateView('transfers');
-document.getElementById('gotoPublish').onclick=()=>activateView('publish');
-document.getElementById('gotoCatalog').onclick=()=>activateView('catalog');
-document.getElementById('gotoContracts').onclick=()=>activateView('contracts');
-document.getElementById('gotoTransfers').onclick=()=>activateView('transfers');
-document.getElementById('gotoContractsFromCatalog').onclick=()=>activateView('contracts');
-document.getElementById('gotoTransfersFromContracts').onclick=()=>activateView('transfers');
-let outputWide=false, outputHidden=false;
-document.getElementById('btnOutputWide').onclick=()=>{ outputWide=!outputWide; app.classList.toggle('output-wide',outputWide); document.getElementById('btnOutputWide').textContent=outputWide?'Normal':'Expand'; };
-document.getElementById('btnOutputToggle').onclick=()=>{ outputHidden=!outputHidden; app.classList.toggle('output-collapsed',outputHidden); document.getElementById('btnOutputToggle').textContent=outputHidden?'Show':'Hide'; };
-function resolveConnectorAddress(connectorId){ const id=(connectorId||'').trim().toLowerCase(); if(!id) return defaultCp.address; if(id==='provider') return 'http://provider-connector:19103/api/v1/dsp/2025-1'; if(id==='consumer') return 'http://consumer-connector:19203/api/v1/dsp/2025-1'; return `http://${id}-connector:19103/api/v1/dsp/2025-1`; }
-function updateAssetPreview(){ document.getElementById('assetIdPreview').value=toId('asset',document.getElementById('assetKey').value.trim()); }
-document.getElementById('assetKey').oninput=updateAssetPreview; updateAssetPreview();
-const looksLikeUuid=(value)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value||'');
-async function resolveAgreement(rawValue){ const value=(rawValue||'').trim(); if(!value) return ''; if(!looksLikeUuid(value)) return value; const r=await callApi('GET',`/v3/contractnegotiations/${encodeURIComponent(value)}`); const agreement=r?.data?.contractAgreementId||r?.data?.['edc:contractAgreementId']||''; if(!agreement){ writeOut({status:400,data:'La negociación no tiene contractAgreementId todavía (espera FINALIZED).'}); return ''; } document.getElementById('agreementId').value=agreement; return agreement; }
-async function refreshOverview(){ const [a,p,n,t]=await Promise.all([callApi('POST','/v3/assets/request',q()),callApi('POST','/v3/policydefinitions/request',q()),callApi('POST','/v3/contractnegotiations/request',q()),callApi('POST','/v3/transferprocesses/request',q())]); document.getElementById('kpiAssets').textContent=unwrap(a).length; document.getElementById('kpiPolicies').textContent=unwrap(p).length; document.getElementById('kpiNegotiations').textContent=unwrap(n).length; document.getElementById('kpiTransfers').textContent=unwrap(t).length; }
-document.getElementById('btnRefreshOverview').onclick=refreshOverview;
-async function fetchTransferData(transferId){ const transferType='HttpData-PUSH'; const stateResp=await callApi('GET',`/v3/transferprocesses/${encodeURIComponent(transferId)}/state`); const state=stateResp?.data?.state||stateResp?.data?.['edc:state']||'UNKNOWN'; const inbox=await fetch('http://localhost:18081/v1/dummy-sink/records').then(r=>r.json()).catch(()=>({count:'n/a'})); writeOut({step:'Transfer status',ok:true,transferId,transferType,state,dummyInboxCount:inbox.count,message:'Modo simplificado PUSH: no se consulta EDR.',nextAction:'Pulsa "Check Dummy Inbox" para ver el dato recibido.'}); }
-function buildTransferDestination(){ const type=(document.getElementById('sinkType').value||'HttpData').trim(); const baseUrl=(document.getElementById('sinkBaseUrl').value||'').trim(); const method=(document.getElementById('sinkMethod').value||'POST').trim(); const path=(document.getElementById('sinkPath').value||'/').trim(); const headers=parseJson(document.getElementById('sinkHeaders').value,{}); if(headers===null){ writeOut({status:400,data:'Headers JSON inválido en Consumer Destination.'}); return null; } const destination={ type }; if(baseUrl) destination.baseUrl=baseUrl; if(method) destination.method=method; if(path) destination.path=path; if(headers&&Object.keys(headers).length) destination.headers=headers; return destination; }
-function syncAgreementSelection(){ const selected=document.getElementById('agreementSelect').value||''; if(selected){ document.getElementById('agreementId').value=selected; } }
-function populateAgreementSelect(rows){ const sel=document.getElementById('agreementSelect'); agreementOptions=rows||[]; sel.innerHTML=''; if(!agreementOptions.length){ sel.innerHTML='<option value="">No agreements disponibles todavía</option>'; return; } agreementOptions.forEach(r=>{ const opt=document.createElement('option'); opt.value=r.id; opt.textContent=`${shortId(r.id)} · ${r.assetId||'asset?'} · ${r.counterPartyId||'counterparty?'}`; sel.appendChild(opt); }); syncAgreementSelection(); }
-document.getElementById('btnCreateAsset').onclick=async()=>{ const id=toId('asset',document.getElementById('assetKey').value.trim()); const headers=parseJson(document.getElementById('assetHeadersJson').value,{}); const propsExtra=parseJson(document.getElementById('assetPropsJson').value,{}); const privateProps=parseJson(document.getElementById('assetPrivatePropsJson').value,{}); const dataAddressExtra=parseJson(document.getElementById('assetDataAddressExtraJson').value,{}); if([headers,propsExtra,privateProps,dataAddressExtra].some(v=>v===null)){ writeOut({status:400,data:'JSON inválido en la personalización de asset.'}); return; } const bodyObj={'@context':{edc:'https://w3id.org/edc/v0.0.1/ns/'},'@id':id,'@type':'Asset',properties:{name:document.getElementById('assetName').value.trim(),contenttype:document.getElementById('assetContentType').value.trim(),...propsExtra},dataAddress:{'@type':'DataAddress',type:document.getElementById('assetDataType').value.trim(),baseUrl:document.getElementById('assetBaseUrl').value.trim(),method:document.getElementById('assetMethod').value.trim(),path:document.getElementById('assetPath').value.trim(),queryParams:document.getElementById('assetQueryParams').value.trim(),headers,...dataAddressExtra}}; if(Object.keys(privateProps).length) bodyObj.privateProperties=privateProps; writeOut(await callApi('POST','/v3/assets',JSON.stringify(bodyObj))); refreshOverview(); };
-document.getElementById('btnListAssets').onclick=async()=>writeOut(await callApi('POST','/v3/assets/request',q()));
-document.getElementById('btnDeleteAsset').onclick=async()=>{ const id=toId('asset',document.getElementById('assetKey').value.trim()); writeOut(await callApi('DELETE',`/v3/assets/${encodeURIComponent(id)}`)); refreshOverview(); };
-document.getElementById('btnCreatePolicy').onclick=async()=>{ const id=toId('policy',document.getElementById('policyName').value.trim()); const policy=parseJson(document.getElementById('policyJson').value,null); if(!policy){ writeOut({status:400,data:'Policy JSON inválido.'}); return; } writeOut(await callApi('POST','/v3/policydefinitions',JSON.stringify({'@context':{edc:'https://w3id.org/edc/v0.0.1/ns/'},'@id':id,'@type':'PolicyDefinition',policy}))); refreshOverview(); };
-document.getElementById('btnListPolicies').onclick=async()=>writeOut(await callApi('POST','/v3/policydefinitions/request',q()));
-document.getElementById('btnDeletePolicy').onclick=async()=>{ const id=toId('policy',document.getElementById('policyName').value.trim()); writeOut(await callApi('DELETE',`/v3/policydefinitions/${encodeURIComponent(id)}`)); refreshOverview(); };
-document.getElementById('btnCreateContractDef').onclick=async()=>{ const id=toId('contract',document.getElementById('contractName').value.trim()); const assetId=toId('asset',document.getElementById('assetKey').value.trim()); const policyId=toId('policy',document.getElementById('policyName').value.trim()); writeOut(await callApi('POST','/v3/contractdefinitions',JSON.stringify({'@context':{edc:'https://w3id.org/edc/v0.0.1/ns/'},'@id':id,'@type':'ContractDefinition',accessPolicyId:policyId,contractPolicyId:policyId,assetsSelector:[{'@type':'Criterion',operandLeft:'https://w3id.org/edc/v0.0.1/ns/id',operator:'=',operandRight:assetId}]}))); };
-document.getElementById('btnListContractDefs').onclick=async()=>writeOut(await callApi('POST','/v3/contractdefinitions/request',q()));
-document.getElementById('btnDeleteContractDef').onclick=async()=>{ const id=toId('contract',document.getElementById('contractName').value.trim()); writeOut(await callApi('DELETE',`/v3/contractdefinitions/${encodeURIComponent(id)}`)); };
-function renderOffers(catalogResponse){ const root=catalogResponse?.data||{}; const datasets=root?.['dcat:dataset']||root?.dataset||[]; const list=Array.isArray(datasets)?datasets:[datasets]; const filter=(document.getElementById('offersFilter')?.value||'').trim(); const rows=list.map(ds=>{ const pol=ds?.['odrl:hasPolicy']||{}; const perm=pol?.['odrl:permission']||{}; return {offerId:pol?.['@id']||'',assetId:perm?.['odrl:target']||ds?.['@id']||'',assigner:pol?.assigner||pol?.['odrl:assigner']||document.getElementById('offerAssigner').value||'provider'}; }).filter(x=>x.offerId||x.assetId).filter(x=>textMatch(x,filter)); const tbody=document.getElementById('tblOffers'); if(!rows.length){ tbody.innerHTML='<tr><td colspan="4" class="muted">No offers found.</td></tr>'; return; } tbody.innerHTML=rows.map((r,i)=>`<tr><td title="${r.offerId}">${shortId(r.offerId)}</td><td title="${r.assetId}">${shortId(r.assetId)}</td><td>${r.assigner}</td><td><button class="secondary" data-offer="${i}">Use</button></td></tr>`).join(''); tbody.querySelectorAll('button[data-offer]').forEach(btn=>btn.onclick=()=>{ const r=rows[Number(btn.dataset.offer)]; document.getElementById('offerId').value=r.offerId; document.getElementById('offerTarget').value=r.assetId; document.getElementById('offerAssigner').value=r.assigner; }); }
-function textMatch(row, filter){ if(!filter) return true; const hay=Object.values(row||{}).join(' ').toLowerCase(); return hay.includes(filter.toLowerCase()); }
-function renderNegotiations(payload){ const source=unwrap(payload); const filter=(document.getElementById('negotiationsFilter')?.value||'').trim(); const rows=source.filter(n=>{ const id=n['@id']||''; const state=n.state||n['edc:state']||''; const agreement=n.contractAgreementId||n['edc:contractAgreementId']||''; return textMatch({id,state,agreement},filter); }); const tbody=document.getElementById('tblNegotiations'); if(!rows.length){ tbody.innerHTML='<tr><td colspan="4" class="muted">No negotiations.</td></tr>'; return; } tbody.innerHTML=rows.map((n,i)=>{ const id=n['@id']||'-'; const state=n.state||n['edc:state']||'-'; const agreement=n.contractAgreementId||n['edc:contractAgreementId']||'-'; return `<tr><td title="${id}">${shortId(id)}</td><td>${state}</td><td title="${agreement}">${agreement==='-'?'-':shortId(agreement)}</td><td>${agreement!=='-'?`<button class="secondary" data-neg="${i}">Use agreement</button>`:''}</td></tr>`; }).join(''); tbody.querySelectorAll('button[data-neg]').forEach(btn=>btn.onclick=()=>{ const row=rows[Number(btn.dataset.neg)]; const agreement=row.contractAgreementId||row['edc:contractAgreementId']||''; if(agreement){ document.getElementById('agreementId').value=agreement; document.getElementById('agreementSelect').value=agreement; } }); }
-function renderAgreements(payload){ const source=unwrap(payload); const filter=(document.getElementById('agreementsFilter')?.value||'').trim(); const rows=source.map(a=>{ const id=a['@id']||a.id||''; const assetId=a.assetId||a['edc:assetId']||a.asset||''; const counterPartyId=a.providerId||a.consumerId||a.counterPartyId||a['edc:providerId']||a['edc:consumerId']||''; return {id,assetId,counterPartyId}; }).filter(r=>r.id).filter(r=>textMatch(r,filter)); const tbody=document.getElementById('tblAgreements'); if(!rows.length){ tbody.innerHTML='<tr><td colspan="4" class="muted">No agreements.</td></tr>'; populateAgreementSelect([]); return; } populateAgreementSelect(rows); tbody.innerHTML=rows.map((a,i)=>`<tr><td title="${a.id}">${shortId(a.id)}</td><td title="${a.assetId||''}">${shortId(a.assetId||'-')}</td><td>${a.counterPartyId||'-'}</td><td><button class="secondary" data-agr="${i}">Transfer</button></td></tr>`).join(''); tbody.querySelectorAll('button[data-agr]').forEach(btn=>btn.onclick=()=>{ const row=rows[Number(btn.dataset.agr)]; document.getElementById('agreementId').value=row.id; document.getElementById('agreementSelect').value=row.id; activateView('transfers'); }); }
-function renderTransfers(payload){ const source=unwrap(payload); const filter=(document.getElementById('transfersFilter')?.value||'').trim(); const rows=source.filter(t=>{ const id=t['@id']||t.id||''; const state=t.state||t['edc:state']||''; const contract=t.contractId||t['edc:contractId']||''; return textMatch({id,state,contract},filter); }); const tbody=document.getElementById('tblTransfers'); if(!rows.length){ tbody.innerHTML='<tr><td colspan="4" class="muted">No transfers.</td></tr>'; return; } tbody.innerHTML=rows.map((t,i)=>{ const id=t['@id']||t.id||'-'; const state=t.state||t['edc:state']||'-'; const contract=t.contractId||t['edc:contractId']||'-'; return `<tr><td title="${id}">${shortId(id)}</td><td>${state}</td><td title="${contract}">${shortId(contract)}</td><td>${id!=='-'?`<button class="secondary" data-tp="${i}">View data</button>`:''}</td></tr>`; }).join(''); tbody.querySelectorAll('button[data-tp]').forEach(btn=>btn.onclick=async()=>{ const row=rows[Number(btn.dataset.tp)]; const transferId=row['@id']||row.id||''; if(transferId) await fetchTransferData(transferId); }); }
-document.getElementById('btnSearchOffers').onclick=async()=>{ const connectorId=document.getElementById('searchConnectorId').value.trim(); const address=resolveConnectorAddress(connectorId); document.getElementById('resolvedAddress').value=address; document.getElementById('negAddress').value=address; document.getElementById('transferAddress').value=address; const r=await callApi('POST','/v3/catalog/request',JSON.stringify({'@context':{edc:'https://w3id.org/edc/v0.0.1/ns/'},'@type':'CatalogRequest',counterPartyId:connectorId,counterPartyAddress:address,protocol:'dataspace-protocol-http:2025-1'})); lastCatalogResponse=r; writeOut(r); renderOffers(r); setWizardStep('catalog'); };
-document.getElementById('btnStartNegotiation').onclick=async()=>{ const overrideText=(document.getElementById('negPolicyOverride').value||'').trim(); const overridePolicy=overrideText?parseJson(overrideText,null):null; if(overrideText&&!overridePolicy){ writeOut({status:400,data:'Policy JSON-LD override inválido.'}); return; } const policy=overridePolicy||{'@context':'http://www.w3.org/ns/odrl.jsonld','@type':'odrl:Offer','@id':document.getElementById('offerId').value.trim(),assigner:document.getElementById('offerAssigner').value.trim(),target:document.getElementById('offerTarget').value.trim(),permission:[],prohibition:[],obligation:[]}; const r=await callApi('POST','/v3/contractnegotiations',JSON.stringify({'@context':{edc:'https://w3id.org/edc/v0.0.1/ns/'},'@type':'ContractRequest',protocol:'dataspace-protocol-http:2025-1',counterPartyAddress:document.getElementById('negAddress').value.trim(),policy})); writeOut(r); refreshOverview(); setWizardStep('negotiated'); };
-document.getElementById('btnListNegotiations').onclick=async()=>{ const r=await callApi('POST','/v3/contractnegotiations/request',q()); lastNegotiationsPayload=r; writeOut(r); renderNegotiations(r); };
-document.getElementById('btnListAgreements').onclick=async()=>{ const r=await callApi('POST','/v3/contractagreements/request',q()); lastAgreementsPayload=r; writeOut(r); renderAgreements(r); if(unwrap(r).length){ setWizardStep('contracts'); } };
-document.getElementById('agreementSelect').onchange=syncAgreementSelection;
-document.getElementById('btnStartTransfer').onclick=async()=>{ const selected=document.getElementById('agreementSelect').value.trim(); const manual=document.getElementById('agreementId').value.trim(); const contractId=await resolveAgreement(selected||manual); if(!contractId) return; const transferType='HttpData-PUSH'; const dataDestination=buildTransferDestination(); if(!dataDestination) return; const r=await callApi('POST','/v3/transferprocesses',JSON.stringify({'@context':{edc:'https://w3id.org/edc/v0.0.1/ns/'},'@type':'TransferRequest',protocol:'dataspace-protocol-http:2025-1',counterPartyAddress:document.getElementById('transferAddress').value.trim(),contractId,transferType,dataDestination})); writeOut(r); refreshOverview(); const transferId=r?.data?.['@id']||r?.data?.id||''; if(transferId){ writeOut({step:'Transfer started',ok:true,transferId,transferType,message:'Transfer PUSH lanzado. Comprueba ahora "Check Dummy Inbox" para validar el dato.'}); await fetchTransferData(transferId); } setWizardStep('transfer'); };
-document.getElementById('btnListTransfers').onclick=async()=>{ const r=await callApi('POST','/v3/transferprocesses/request',q()); lastTransfersPayload=r; writeOut(r); renderTransfers(r); };
-document.getElementById('btnRefreshCatalog').onclick=async()=>{ const [n]=await Promise.all([callApi('POST','/v3/contractnegotiations/request',q())]); lastNegotiationsPayload=n; renderNegotiations(n); writeOut({status:'ok',step:'Catalog refreshed',negotiations:unwrap(n).length}); };
-document.getElementById('offersFilter').oninput=()=>{ if(lastCatalogResponse) renderOffers(lastCatalogResponse); };
-document.getElementById('negotiationsFilter').oninput=()=>{ if(lastNegotiationsPayload) renderNegotiations(lastNegotiationsPayload); };
-document.getElementById('agreementsFilter').oninput=()=>{ if(lastAgreementsPayload) renderAgreements(lastAgreementsPayload); };
-document.getElementById('transfersFilter').oninput=()=>{ if(lastTransfersPayload) renderTransfers(lastTransfersPayload); };
-document.getElementById('btnCheckDummy').onclick=async()=>{ try{ const res=await fetch('http://localhost:18081/v1/dummy-sink/records'); const data=await res.json(); writeOut({step:'Dummy inbox',status:res.status,data}); }catch(e){ writeOut({step:'Dummy inbox error',error:String(e)}); } };
-document.getElementById('btnClearDummy').onclick=async()=>{ try{ const res=await fetch('http://localhost:18081/v1/dummy-sink/records',{method:'DELETE'}); const data=await res.json(); writeOut({step:'Dummy inbox cleared',status:res.status,data}); }catch(e){ writeOut({step:'Dummy clear error',error:String(e)}); } };
-document.getElementById('btnExplorerSend').onclick=async()=>writeOut(await callApi(document.getElementById('explMethod').value,document.getElementById('explPath').value.trim(),document.getElementById('explBody').value));
-activateView('dashboard');
-document.getElementById('searchConnectorId').value=defaultCp.id;
-document.getElementById('negAddress').value=defaultCp.address;
-document.getElementById('transferAddress').value=defaultCp.address;
-document.getElementById('resolvedAddress').value=resolveConnectorAddress(defaultCp.id);
-refreshOverview();
-renderWizard();
-</script>
+<body data-theme="light">
+  <div class="app" id="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="data:image/png;base64,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" alt="EITEL" />
+        <div>
+          <div id="brandTitle">Conector EITEL</div>
+          <div class="sub" id="brandSub">Consola de operación</div>
+        </div>
+      </div>
+
+      <div class="nav">
+        <div class="nav-group">
+          <div class="nav-group-title">Centro de control</div>
+          <button class="active" data-view="dashboard"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg><span>Dashboard</span></button>
+          <button data-view="catalog"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M7 9h10M7 13h10M7 17h6"/></svg><span>Catálogo</span></button>
+          <button data-view="contracts"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4"/><path d="M9 11h6M9 15h6"/></svg><span>Contratos</span></button>
+          <button data-view="transfers"><svg viewBox="0 0 24 24"><path d="M3 7h13v10H3z"/><path d="M16 10h3l2 2v5h-5"/><circle cx="7" cy="18" r="1.8"/><circle cx="18" cy="18" r="1.8"/></svg><span>Transferencias</span></button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">Publicar</div>
+          <button data-view="asset"><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M3 12h18"/></svg><span>Asset</span></button>
+          <button data-view="policy"><svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.5 8.5 8 9 4.5-.5 8-4 8-9V7z"/><path d="M9 12h6"/></svg><span>Política</span></button>
+          <button data-view="contractdef"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4"/><path d="M9 11h6M9 15h4"/></svg><span>Contrato</span></button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">Más</div>
+          <button data-view="secrets"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 1 1 8 0v3"/></svg><span>Secretos</span></button>
+          <button data-view="about"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 10v6"/><path d="M12 7h.01"/></svg><span>Sobre EITEL</span></button>
+          <button data-view="explorer"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg><span>API</span></button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="top">
+        <h1 id="title">Conector EITEL</h1>
+        <div class="top-right">
+          <span class="chip" id="badge"></span>
+          <button class="ghost" id="btnOpenSettings">⚙️ Ajustes</button>
+        </div>
+      </div>
+
+      <section class="panel active" id="panel-dashboard">
+        <div class="grid">
+          <section class="card wide">
+            <h2 data-i18n="dash.title">Dashboard</h2>
+            <p class="muted" data-i18n="dash.subtitle">Vista rápida del conector para operar en producción.</p>
+            <div class="kpis">
+              <div class="kpi"><div class="k">Assets</div><div class="v" id="kpiAssets">-</div></div>
+              <div class="kpi"><div class="k">Policies</div><div class="v" id="kpiPolicies">-</div></div>
+              <div class="kpi"><div class="k" data-i18n="dash.contracts">Contratos</div><div class="v" id="kpiContracts">-</div></div>
+              <div class="kpi"><div class="k" data-i18n="dash.transfers">Transferencias</div><div class="v" id="kpiTransfers">-</div></div>
+            </div>
+            <div class="row" style="margin-top:10px">
+              <button class="primary" id="btnRefreshOverview" data-i18n="dash.refresh">Actualizar</button>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-asset">
+        <div class="grid">
+          <section class="card wide">
+            <h2>Publicar asset</h2>
+            <p class="muted">Configura y publica el asset antes de definir política y contrato.</p>
+            <div class="grid">
+              <div><label data-i18n="publish.assetKey">Asset key</label><input id="assetKey" value="dataset-clima-uc3m" /></div>
+              <div><label data-i18n="publish.assetId">ID interno</label><input id="assetIdPreview" readonly /></div>
+            </div>
+            <div class="grid">
+              <div><label>Policy ID</label><input id="policyIdPreview" readonly /></div>
+              <div><label>Contract Definition ID</label><input id="contractDefIdPreview" readonly /></div>
+            </div>
+            <label data-i18n="publish.name">Nombre</label><input id="assetName" value="Dataset Clima UC3M" />
+            <div class="grid">
+              <div><label data-i18n="publish.baseUrl">Base URL</label><input id="assetBaseUrl" value="https://example.org/data" /></div>
+              <div><label>Path</label><input id="assetPath" value="/api/items" /></div>
+            </div>
+            <h3>Autenticación opcional</h3>
+            <div class="grid">
+              <div>
+                <label>Tipo</label>
+                <select id="pubAuthType">
+                  <option value="none">Ninguna</option>
+                  <option value="oauth2">OAuth2 token</option>
+                  <option value="bearer">Bearer token</option>
+                  <option value="apikey">API Key</option>
+                </select>
+              </div>
+              <div>
+                <label>Secreto (Vault)</label>
+                <select id="pubAuthSecret"><option value="">(opcional)</option></select>
+              </div>
+            </div>
+            <div class="grid">
+              <div><label>Header auth</label><input id="pubAuthHeader" value="Authorization" /></div>
+              <div><label>Prefijo</label><input id="pubAuthPrefix" value="Bearer " /></div>
+            </div>
+            <label>Headers JSON</label><textarea id="assetHeadersJson" rows="4">{}</textarea>
+
+            <div class="row" style="margin-top:8px">
+              <button class="primary" id="btnCreateAsset" data-i18n="publish.create">Crear/Actualizar asset</button>
+              <button class="ghost" id="btnListAssets" data-i18n="publish.list">Listar</button>
+              <button class="danger" id="btnDeleteAsset" data-i18n="publish.delete">Borrar</button>
+              <button class="ghost" id="btnGoPolicy">Continuar a Política</button>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-policy">
+        <div class="grid">
+          <section class="card wide">
+            <h2>Definir política</h2>
+            <p class="muted">Puedes crear la policy con formulario guiado o pegando JSON-LD puro.</p>
+            <div class="grid">
+              <div><label>Asset ID</label><input id="policyAssetPreview" readonly /></div>
+              <div><label>Policy ID</label><input id="policyIdMirror" readonly /></div>
+            </div>
+            <div class="grid">
+              <div>
+                <label>Modo</label>
+                <select id="policyMode">
+                  <option value="form">Formulario</option>
+                  <option value="jsonld">JSON-LD</option>
+                </select>
+              </div>
+              <div>
+                <label>Plantilla de policy</label>
+                <select id="policyTemplate">
+                  <option value="gaiax-open">Gaia-X Open (sin restricciones)</option>
+                  <option value="gaiax-participant">Gaia-X por participante</option>
+                  <option value="gaiax-purpose">Gaia-X por propósito</option>
+                  <option value="gaiax-participant-purpose">Gaia-X participante + propósito</option>
+                </select>
+              </div>
+            </div>
+            <div id="policyFormBlock">
+              <div class="grid">
+                <div>
+                  <label>Participant ID (si aplica)</label>
+                  <input id="policyParticipantId" placeholder="did:web:consumer.example" />
+                </div>
+                <div>
+                  <label>Purpose (si aplica)</label>
+                  <input id="policyPurpose" placeholder="analytics" value="analytics" />
+                </div>
+              </div>
+              <label>Geography (opcional)</label>
+              <input id="policyGeography" placeholder="EU" />
+            </div>
+            <div id="policyJsonBlock" style="display:none">
+              <label>Policy JSON-LD</label>
+              <textarea id="policyCustomJson" rows="8">{"@context":"http://www.w3.org/ns/odrl.jsonld","@type":"http://www.w3.org/ns/odrl/2/Set","permission":[{"action":"use"}]}</textarea>
+            </div>
+
+            <div class="row" style="margin-top:8px">
+              <button class="primary" id="btnCreatePolicy">Crear/Actualizar policy</button>
+              <button class="ghost" id="btnListPolicies">Listar policies</button>
+              <button class="danger" id="btnDeletePolicy">Borrar policy</button>
+              <button class="ghost" id="btnGoContract">Continuar a Contrato</button>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-contractdef">
+        <div class="grid">
+          <section class="card wide">
+            <h2>Definir contrato</h2>
+            <p class="muted">Aquí se asocia el asset con la policy mediante ContractDefinition.</p>
+            <div class="grid">
+              <div><label>Contract Definition ID</label><input id="contractDefIdMirror" readonly /></div>
+              <div><label>Asset ID</label><input id="contractAssetPreview" readonly /></div>
+            </div>
+            <div class="grid">
+              <div><label>Access Policy ID</label><input id="contractAccessPolicyId" readonly /></div>
+              <div><label>Contract Policy ID</label><input id="contractContractPolicyId" readonly /></div>
+            </div>
+
+            <div class="row" style="margin-top:8px">
+              <button class="primary" id="btnCreateContractDef">Crear ContractDefinition</button>
+              <button class="ghost" id="btnListContractDefs">Listar ContractDefinitions</button>
+              <button class="danger" id="btnDeleteContractDef">Borrar ContractDefinition</button>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-catalog">
+        <div class="grid">
+          <section class="card wide">
+            <h2 data-i18n="catalog.title">Data Offers del catálogo</h2>
+            <p class="muted" data-i18n="catalog.subtitle">Aquí el consumidor ve data-offers, revisa términos de policy y acepta condiciones antes de contratar.</p>
+            <div class="grid">
+              <div><label data-i18n="catalog.connector">Conector remoto</label><input id="searchConnectorId" value="provider" /></div>
+              <div><label data-i18n="catalog.dsp">URL DSP</label><input id="resolvedAddress" readonly /></div>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <button class="primary" id="btnSearchOffers" data-i18n="catalog.load">Ver catálogos</button>
+              <button class="ghost" id="btnRefreshCatalog" data-i18n="catalog.refresh">Actualizar</button>
+            </div>
+            <label data-i18n="catalog.assetToContract">Asset a contratar</label>
+            <select id="catalogAssetId">
+              <option value="">Primero carga data-offers</option>
+            </select>
+            <label>Términos de policy seleccionada</label>
+            <textarea id="catalogPolicyTerms" rows="4" readonly placeholder="Al seleccionar un asset se mostrarán los términos de uso de la policy"></textarea>
+            <div class="row" style="margin-top:8px; align-items:center">
+              <input id="catalogAcceptTerms" type="checkbox" style="width:auto; margin-top:0" />
+              <label for="catalogAcceptTerms" style="margin:0">Acepto los términos y condiciones de uso de la política seleccionada.</label>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <button class="primary" id="btnRequestContract">Realizar contrato</button>
+            </div>
+            <table>
+              <thead><tr><th data-i18n="table.offer">Data Offer</th><th>Asset</th><th data-i18n="table.provider">Provider</th><th>Términos de policy</th></tr></thead>
+              <tbody id="tblOffers"></tbody>
+            </table>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-contracts">
+        <div class="grid">
+          <section class="card wide">
+            <h2 data-i18n="contracts.title">Contratos</h2>
+            <p class="muted" data-i18n="contracts.subtitle">Vista descriptiva: provider, consumer, asset y fecha.</p>
+            <div class="row" style="margin-top:8px"><button class="primary" id="btnListAgreements" data-i18n="contracts.list">Listar contratos</button></div>
+            <table>
+              <thead><tr><th data-i18n="table.contract">Contrato</th><th>Asset</th><th>Proveedor</th><th>Consumidor</th><th>Publicado</th><th></th></tr></thead>
+              <tbody id="tblAgreements"></tbody>
+            </table>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-transfers">
+        <div class="grid">
+          <section class="card wide">
+            <h2 data-i18n="transfer.title">Transferencias</h2>
+            <div class="grid">
+              <div><label data-i18n="transfer.partnerAddress">Dirección partner</label><input id="transferAddress" /></div>
+              <div><label data-i18n="transfer.contractSelect">Contrato</label><select id="agreementSelect"><option value="">Primero lista contratos</option></select></div>
+            </div>
+            <label data-i18n="transfer.contractId">ID contrato (opcional)</label><input id="agreementId" />
+            <label>Destination URL (producción)</label><input id="sinkBaseUrl" placeholder="https://consumer.example.com/ingest" />
+            <div class="row" style="margin-top:8px">
+              <button class="primary" id="btnStartTransfer" data-i18n="transfer.start">Iniciar transferencia</button>
+              <button class="ghost" id="btnListTransfers" data-i18n="transfer.list">Listar transferencias</button>
+            </div>
+            <table>
+              <thead><tr><th data-i18n="table.transfer">Transferencia</th><th data-i18n="table.state">Estado</th><th data-i18n="table.contract">Contrato</th><th></th></tr></thead>
+              <tbody id="tblTransfers"></tbody>
+            </table>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-secrets">
+        <div class="grid">
+          <section class="card wide">
+            <h2 data-i18n="secrets.title">Secretos</h2>
+            <p class="muted" data-i18n="secrets.subtitle">Gestión rápida del vault de secretos.</p>
+            <div class="grid">
+              <div><label data-i18n="secrets.name">Nombre</label><input id="secretName" placeholder="api-key-provider" /></div>
+              <div><label data-i18n="secrets.value">Valor</label><input id="secretValue" placeholder="valor-secreto" /></div>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <button class="primary" id="btnSaveSecret" data-i18n="secrets.save">Guardar</button>
+              <button class="ghost" id="btnListSecrets" data-i18n="secrets.list">Listar</button>
+              <button class="danger" id="btnDeleteSecret" data-i18n="secrets.delete">Borrar</button>
+            </div>
+            <pre id="secretsOut" style="margin-top:10px"></pre>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-about">
+        <div class="grid">
+          <section class="card wide">
+            <h2>Proyecto EITEL</h2>
+            <p class="muted">EITEL impulsa un espacio de datos energéticos para gobiernos locales, con enfoque en soberanía del dato, confianza y colaboración entre municipios.</p>
+            <div class="grid">
+              <div class="card" style="box-shadow:none">
+                <h3 style="margin-top:0">Qué es EITEL</h3>
+                <p class="muted" style="margin-bottom:0">Un espacio de datos para compartir información energética bajo términos propios, alineado con GAIA-X y orientado al beneficio ciudadano.</p>
+              </div>
+              <div class="card" style="box-shadow:none">
+                <h3 style="margin-top:0">Impacto</h3>
+                <p class="muted" style="margin-bottom:0">Más de 700K ciudadanos beneficiados, 4 municipios adheridos y 6 socios en la iniciativa, según el portal oficial.</p>
+              </div>
+            </div>
+            <div class="row" style="margin-top:10px">
+              <button class="primary" id="btnEitelPortal">Ir al portal EITEL</button>
+              <button class="ghost" id="btnEitelProyecto">Ver página de proyecto</button>
+              <button class="ghost" id="btnEitelCatalogo">Ver catálogo público</button>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-explorer">
+        <div class="grid">
+          <section class="card wide">
+            <h2>API Explorer</h2>
+            <div class="grid">
+              <div><label>Método</label><select id="explMethod"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select></div>
+              <div><label>Path</label><input id="explPath" value="/v3/assets/request" /></div>
+            </div>
+            <label>Body JSON</label><textarea id="explBody" rows="8">{"@context":{"@vocab":"https://w3id.org/edc/v0.0.1/ns/"},"@type":"QuerySpec","offset":0,"limit":20}</textarea>
+            <div class="row" style="margin-top:8px"><button class="primary" id="btnExplorerSend">Enviar</button></div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <aside class="console" id="consolePane">
+      <div class="console-handle">
+        <button id="btnConsoleToggle" title="Ocultar / mostrar">⮞</button>
+        <button id="btnConsoleExpand" title="Expandir / normal">⤢</button>
+      </div>
+      <div class="console-head">
+        <strong id="consoleTitle">Consola</strong>
+        <span class="chip" id="consoleState">right</span>
+      </div>
+      <pre id="out">{ "status": "ready" }</pre>
+    </aside>
+  </div>
+  <button class="ghost console-show" id="btnConsoleShow">⮜ Consola</button>
+
+  <div class="modal" id="infoModal">
+    <div class="modal-card">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h2 id="infoTitle" style="margin:0">Detalle</h2>
+        <div class="row" style="margin:0">
+          <button class="ghost" id="btnInfoAction" style="display:none">Accion</button>
+          <button class="ghost" id="btnCloseInfo">Cerrar</button>
+        </div>
+      </div>
+      <pre class="info-pre" id="infoBody">{}</pre>
+    </div>
+  </div>
+
+  <div class="modal" id="settingsModal">
+    <div class="modal-card">
+      <h2 data-i18n="settings.title">Ajustes</h2>
+      <div class="grid">
+        <div><label data-i18n="settings.lang">Idioma</label><select id="setLanguage"><option value="es">Español</option><option value="en">English</option></select></div>
+        <div><label data-i18n="settings.theme">Tema</label><select id="setTheme"><option value="light">Claro</option><option value="dark">Oscuro</option></select></div>
+      </div>
+      <div class="grid">
+        <div><label data-i18n="settings.consolePosition">Consola</label><select id="setConsolePos"><option value="right">Derecha</option><option value="bottom">Abajo (horizontal)</option></select></div>
+        <div><label data-i18n="settings.consoleFont">Fuente consola</label><input id="setConsoleFont" type="range" min="11" max="18" value="13" /></div>
+      </div>
+      <p class="muted" data-i18n="settings.auto">Los cambios se aplican al instante.</p>
+      <div class="row" style="margin-top:12px">
+        <button class="ghost" id="btnCloseSettings" data-i18n="settings.close">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    const cfg = window.EITEL_UI_CONFIG || {};
+    const PROD_DSP_URL = cfg.dspUrl || 'http://conectoruc3m:11003/api/v1/dsp/2025-1';
+    const PROD_CONNECTOR_ID = (cfg.connectorName || 'conectoruc3m').toLowerCase();
+    const connectorName = cfg.connectorName || 'CONNECTOR';
+    const role = connectorName.toLowerCase().includes('provider') ? 'Provider' : (connectorName.toLowerCase().includes('consumer') ? 'Consumer' : 'Connector');
+
+    const app = document.getElementById('app');
+    const out = document.getElementById('out');
+    const settingsModal = document.getElementById('settingsModal');
+    const infoModal = document.getElementById('infoModal');
+
+    const settings = {
+      language: 'es',
+      theme: 'light',
+      consolePos: 'right',
+      consoleFont: 13,
+      consoleExpanded: false,
+    };
+    const settingsKey = `eitel.ui.settings.${connectorName}`;
+    let infoActionHandler = null;
+
+    function loadSettings() {
+      try {
+        const raw = localStorage.getItem(settingsKey);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') Object.assign(settings, parsed);
+      } catch {}
+    }
+
+    function persistSettings() {
+      try { localStorage.setItem(settingsKey, JSON.stringify(settings)); } catch {}
+    }
+
+    const state = {
+      catalogRows: [],
+      agreementRows: [],
+      transferRows: [],
+      secretNames: [],
+      catalogAutoRequestInFlight: false,
+      secretsAvailable: false,
+    };
+
+    const i18n = {
+      es: {
+        'nav.dashboard': 'Inicio', 'nav.publish': 'Publicar', 'nav.catalog': 'Catálogos', 'nav.contracts': 'Contratos', 'nav.transfers': 'Transferencias', 'nav.secrets': 'Secretos', 'nav.explorer': 'API',
+        'dash.title': 'Dashboard', 'dash.subtitle': 'Vista rápida del conector para operar en producción.', 'dash.contracts': 'Contratos', 'dash.transfers': 'Transferencias', 'dash.refresh': 'Actualizar',
+        'publish.title': 'Publicar asset + contrato', 'publish.subtitle': 'Control de duplicados y autenticación opcional enlazada con vault.', 'publish.assetKey': 'Asset key', 'publish.assetId': 'ID interno', 'publish.name': 'Nombre', 'publish.baseUrl': 'Base URL', 'publish.create': 'Crear/Actualizar', 'publish.list': 'Listar', 'publish.delete': 'Borrar',
+        'catalog.title': 'Catálogos del proveedor', 'catalog.subtitle': 'No hace falta ID de oferta. Solo selecciona asset y acepta términos para generar el contrato.', 'catalog.connector': 'Conector remoto', 'catalog.dsp': 'URL DSP', 'catalog.load': 'Ver catálogos', 'catalog.refresh': 'Actualizar', 'catalog.assetToContract': 'Asset a contratar', 'catalog.requestContract': 'Pedir contrato por asset', 'catalog.listRequests': 'Ver solicitudes', 'catalog.requests': 'Solicitudes',
+        'contracts.title': 'Contratos', 'contracts.subtitle': 'Sin repetidos: control por ID y por Asset+Partner.', 'contracts.list': 'Listar contratos',
+        'transfer.title': 'Transferencias', 'transfer.partnerAddress': 'Dirección partner', 'transfer.contractSelect': 'Contrato', 'transfer.contractId': 'ID contrato (opcional)', 'transfer.sinkUrl': 'Sink URL (dummy inbox)', 'transfer.start': 'Iniciar transferencia', 'transfer.list': 'Listar transferencias', 'transfer.checkInbox': 'Ver dummy inbox', 'transfer.clearInbox': 'Limpiar dummy inbox',
+        'secrets.title': 'Secretos', 'secrets.subtitle': 'Gestión rápida del vault de secretos.', 'secrets.name': 'Nombre', 'secrets.value': 'Valor', 'secrets.save': 'Guardar', 'secrets.list': 'Listar', 'secrets.delete': 'Borrar',
+        'settings.title': 'Ajustes', 'settings.lang': 'Idioma', 'settings.theme': 'Tema', 'settings.consolePosition': 'Consola', 'settings.consoleFont': 'Fuente consola', 'settings.dummyUrl': 'URL dummy inbox', 'settings.auto': 'Los cambios se aplican al instante.', 'settings.testDummy': 'Probar dummy inbox', 'settings.close': 'Cerrar',
+        'table.offer': 'Oferta', 'table.provider': 'Proveedor', 'table.request': 'Solicitud', 'table.state': 'Estado', 'table.contract': 'Contrato', 'table.transfer': 'Transferencia'
+      },
+      en: {
+        'nav.dashboard': 'Home', 'nav.publish': 'Publish', 'nav.catalog': 'Catalogs', 'nav.contracts': 'Contracts', 'nav.transfers': 'Transfers', 'nav.secrets': 'Secrets', 'nav.explorer': 'API',
+        'dash.title': 'Dashboard', 'dash.subtitle': 'Quick connector view for production operations.', 'dash.contracts': 'Contracts', 'dash.transfers': 'Transfers', 'dash.refresh': 'Refresh',
+        'publish.title': 'Publish asset + contract', 'publish.subtitle': 'Duplicate control and optional auth linked to vault.', 'publish.assetKey': 'Asset key', 'publish.assetId': 'Internal ID', 'publish.name': 'Name', 'publish.baseUrl': 'Base URL', 'publish.create': 'Create/Update', 'publish.list': 'List', 'publish.delete': 'Delete',
+        'catalog.title': 'Provider catalogs', 'catalog.subtitle': 'No offer ID needed. Select an asset and accept terms to generate the contract.', 'catalog.connector': 'Remote connector', 'catalog.dsp': 'DSP URL', 'catalog.load': 'Load catalogs', 'catalog.refresh': 'Refresh', 'catalog.assetToContract': 'Asset to contract', 'catalog.requestContract': 'Request contract by asset', 'catalog.listRequests': 'List requests', 'catalog.requests': 'Requests',
+        'contracts.title': 'Contracts', 'contracts.subtitle': 'No duplicates: check by ID and Asset+Partner.', 'contracts.list': 'List contracts',
+        'transfer.title': 'Transfers', 'transfer.partnerAddress': 'Partner address', 'transfer.contractSelect': 'Contract', 'transfer.contractId': 'Contract ID (optional)', 'transfer.sinkUrl': 'Sink URL (dummy inbox)', 'transfer.start': 'Start transfer', 'transfer.list': 'List transfers', 'transfer.checkInbox': 'Check dummy inbox', 'transfer.clearInbox': 'Clear dummy inbox',
+        'secrets.title': 'Secrets', 'secrets.subtitle': 'Quick secret vault management.', 'secrets.name': 'Name', 'secrets.value': 'Value', 'secrets.save': 'Save', 'secrets.list': 'List', 'secrets.delete': 'Delete',
+        'settings.title': 'Settings', 'settings.lang': 'Language', 'settings.theme': 'Theme', 'settings.consolePosition': 'Console', 'settings.consoleFont': 'Console font', 'settings.dummyUrl': 'Dummy inbox URL', 'settings.auto': 'Changes are applied instantly.', 'settings.testDummy': 'Test dummy inbox', 'settings.close': 'Close',
+        'table.offer': 'Offer', 'table.provider': 'Provider', 'table.request': 'Request', 'table.state': 'State', 'table.contract': 'Contract', 'table.transfer': 'Transfer'
+      }
+    };
+
+    const q = () => JSON.stringify({ '@context': { '@vocab': 'https://w3id.org/edc/v0.0.1/ns/' }, '@type': 'QuerySpec', offset: 0, limit: 100, sortOrder: 'DESC' });
+    const unwrap = (p) => Array.isArray(p?.data) ? p.data : (Array.isArray(p?.data?.value) ? p.data.value : (Array.isArray(p?.data?.content) ? p.data.content : []));
+    const clean = (v) => ((v || '').toString().split('/').pop().split(':').pop().replace(/[-_]+/g, ' ').trim() || (v || '').toString());
+    const slug = (v) => (v || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'default';
+    const fmtDate = (v) => {
+      if (!v) return '-';
+      const n = Number(v);
+      const d = Number.isFinite(n) && n > 0 ? new Date(n) : new Date(v);
+      if (Number.isNaN(d.getTime())) return String(v);
+      return d.toLocaleString();
+    };
+
+    function t(k) { return i18n[settings.language]?.[k] || k; }
+    function writeOut(payload) { out.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2); }
+
+    function summarizePolicyTerms(policyObj) {
+      const permsRaw = policyObj?.['odrl:permission'] || policyObj?.permission || [];
+      const perms = Array.isArray(permsRaw) ? permsRaw : [permsRaw];
+      const constraints = perms.flatMap(p => {
+        const c = p?.constraint || p?.['odrl:constraint'] || [];
+        return Array.isArray(c) ? c : [c];
+      }).filter(Boolean);
+      if (!constraints.length) return 'Sin restricciones explícitas';
+      return constraints.map(c => `${c.leftOperand || c['odrl:leftOperand'] || 'condición'} ${c.operator || c['odrl:operator'] || 'eq'} ${c.rightOperand || c['odrl:rightOperand'] || '-'}`).join(' | ');
+    }
+
+    async function callApi(method, path, body) {
+      try {
+        const res = await fetch(`${cfg.managementApiUrl}${path}`, {
+          method,
+          headers: { 'x-api-key': cfg.apiKey, 'content-type': 'application/json' },
+          body: method === 'GET' || method === 'DELETE' ? undefined : body
+        });
+        const text = await res.text();
+        let data = text;
+        try { data = JSON.parse(text); } catch {}
+        return { status: res.status, data };
+      } catch (e) {
+        const err = {
+          status: 0,
+          error: String(e),
+          method,
+          path,
+          hint: 'Revisa managementApiUrl/config.js y proxy reverse para evitar CORS/preflight fallidos.'
+        };
+        writeOut(err);
+        return err;
+      }
+    }
+
+    function applyI18n() {
+      document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+      document.getElementById('brandTitle').textContent = settings.language === 'en' ? 'EITEL Connector' : 'Conector EITEL';
+      document.getElementById('brandSub').textContent = settings.language === 'en' ? 'Operations console' : 'Consola de operación';
+      document.getElementById('consoleTitle').textContent = settings.language === 'en' ? 'Console' : 'Consola';
+    }
+
+    function updateConsoleButtons(hidden = app.classList.contains('console-hidden')) {
+      const toggle = document.getElementById('btnConsoleToggle');
+      const expand = document.getElementById('btnConsoleExpand');
+      const show = document.getElementById('btnConsoleShow');
+      toggle.textContent = settings.consolePos === 'bottom' ? '⮟' : '⮞';
+      expand.textContent = settings.consoleExpanded ? '⤡' : '⤢';
+      show.textContent = settings.consolePos === 'bottom' ? '⮝ Consola' : '⮜ Consola';
+      show.style.display = hidden ? 'inline-flex' : 'none';
+    }
+
+    function showInfoPopup(title, payload, options = {}) {
+      document.getElementById('infoTitle').textContent = title || 'Detalle';
+      if (options && options.plainText) {
+        document.getElementById('infoBody').textContent = typeof payload === 'string' ? payload : String(payload ?? '');
+      } else {
+        document.getElementById('infoBody').textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+      }
+      const actionBtn = document.getElementById('btnInfoAction');
+      if (options && options.actionLabel && typeof options.onAction === 'function') {
+        infoActionHandler = options.onAction;
+        actionBtn.textContent = options.actionLabel;
+        actionBtn.style.display = 'inline-flex';
+      } else {
+        infoActionHandler = null;
+        actionBtn.style.display = 'none';
+      }
+      infoModal.classList.add('open');
+    }
+    function closeInfoPopup() {
+      infoModal.classList.remove('open');
+      infoActionHandler = null;
+      const actionBtn = document.getElementById('btnInfoAction');
+      actionBtn.style.display = 'none';
+    }
+
+    function applySettings() {
+      document.body.dataset.theme = settings.theme;
+      app.classList.toggle('console-bottom', settings.consolePos === 'bottom');
+      app.classList.toggle('console-expanded', settings.consoleExpanded);
+      out.style.fontSize = `${settings.consoleFont}px`;
+
+      document.getElementById('consoleState').textContent = `${settings.consolePos}${settings.consoleExpanded ? ' + expanded' : ''}`;
+      document.getElementById('setLanguage').value = settings.language;
+      document.getElementById('setTheme').value = settings.theme;
+      document.getElementById('setConsolePos').value = settings.consolePos;
+      document.getElementById('setConsoleFont').value = String(settings.consoleFont);
+      if (document.getElementById('setDummyUrl')) document.getElementById('setDummyUrl').value = settings.dummyUrl || '';
+      applyI18n();
+      updateConsoleButtons();
+      persistSettings();
+    }
+
+    function activateView(view) {
+      const resolved = view;
+      document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelector(`.nav button[data-view="${view}"]`)?.classList.add('active');
+      document.getElementById(`panel-${resolved}`)?.classList.add('active');
+      if (resolved === 'catalog') loadCatalogs(false);
+      if (resolved === 'secrets' && !state.secretsAvailable) {
+        showInfoPopup('Secretos no disponibles', {
+          message: 'Este runtime no expone /v3/secrets/* en el management API. El resto del flujo sigue operativo.'
+        });
+      }
+    }
+
+    function updateAssetPreview() {
+      const key = slug(document.getElementById('assetKey').value || '');
+      document.getElementById('assetIdPreview').value = `asset-${key}`;
+      const p = document.getElementById('policyIdPreview');
+      const c = document.getElementById('contractDefIdPreview');
+      if (p) p.value = `policy-${key}`;
+      if (c) c.value = `contractdef-${key}`;
+      const assetId = document.getElementById('assetIdPreview').value;
+      const policyId = document.getElementById('policyIdPreview').value;
+      const contractDefId = document.getElementById('contractDefIdPreview').value;
+      const setVal = (id, value) => { const el = document.getElementById(id); if (el) el.value = value; };
+      setVal('policyAssetPreview', assetId);
+      setVal('policyIdMirror', policyId);
+      setVal('contractDefIdMirror', contractDefId);
+      setVal('contractAssetPreview', assetId);
+      setVal('contractAccessPolicyId', policyId);
+      setVal('contractContractPolicyId', policyId);
+    }
+
+    function applyPolicyMode() {
+      const mode = document.getElementById('policyMode')?.value || 'form';
+      const form = document.getElementById('policyFormBlock');
+      const json = document.getElementById('policyJsonBlock');
+      if (!form || !json) return;
+      form.style.display = mode === 'jsonld' ? 'none' : 'block';
+      json.style.display = mode === 'jsonld' ? 'block' : 'none';
+    }
+
+    function refreshCatalogAssetOptions() {
+      const sel = document.getElementById('catalogAssetId');
+      const terms = document.getElementById('catalogPolicyTerms');
+      const accept = document.getElementById('catalogAcceptTerms');
+      if (!sel) return;
+
+      sel.innerHTML = '<option value="">Selecciona un data-offer</option>';
+      state.catalogRows.forEach((r, idx) => {
+        const o = document.createElement('option');
+        o.value = String(idx);
+        o.textContent = `${clean(r.assetId)} · ${clean(r.offerId)} · ${r.assigner || '-'}`;
+        sel.appendChild(o);
+      });
+
+      if (terms) terms.value = '';
+      if (accept) accept.checked = false;
+    }
+
+    function syncCatalogSelectionState() {
+      const sel = document.getElementById('catalogAssetId');
+      const terms = document.getElementById('catalogPolicyTerms');
+      const accept = document.getElementById('catalogAcceptTerms');
+      if (!sel || !accept) return;
+
+      const idx = Number(sel.value);
+      const selected = Number.isInteger(idx) && idx >= 0 ? state.catalogRows[idx] : null;
+      if (terms) terms.value = selected?.policySummary || '';
+
+      // Explicit flow: contract is only requested when user clicks "Realizar contrato".
+    }
+
+    async function refreshOverview() {
+      const [a, p, ags, tps] = await Promise.all([
+        callApi('POST', '/v3/assets/request', q()),
+        callApi('POST', '/v3/policydefinitions/request', q()),
+        callApi('POST', '/v3/contractagreements/request', q()),
+        callApi('POST', '/v3/transferprocesses/request', q()),
+      ]);
+      document.getElementById('kpiAssets').textContent = unwrap(a).length;
+      document.getElementById('kpiPolicies').textContent = unwrap(p).length;
+      document.getElementById('kpiContracts').textContent = unwrap(ags).length;
+      document.getElementById('kpiTransfers').textContent = unwrap(tps).length;
+    }
+
+    function buildAuthHeaders(baseHeaders = {}) {
+      const authType = document.getElementById('pubAuthType')?.value || 'none';
+      const authSecret = (document.getElementById('pubAuthSecret')?.value || '').trim();
+      const authHeader = (document.getElementById('pubAuthHeader')?.value || 'Authorization').trim();
+      const authPrefix = document.getElementById('pubAuthPrefix')?.value || '';
+      const headers = { ...baseHeaders };
+      if (authType !== 'none' && authSecret) {
+        const secretRef = `{{vault:${authSecret}}}`;
+        headers[authHeader] = authType === 'apikey' ? secretRef : `${authPrefix || 'Bearer '}${secretRef}`;
+      }
+      return headers;
+    }
+
+    function parseJsonSafe(text, fallback = null) {
+      try { return JSON.parse(text); } catch { return fallback; }
+    }
+
+    function buildPolicyFromTemplate(assetId, policyId) {
+      const mode = document.getElementById('policyMode')?.value || 'form';
+      if (mode === 'jsonld') {
+        const custom = parseJsonSafe(document.getElementById('policyCustomJson')?.value || '', null);
+        if (!custom) throw new Error('Policy JSON-LD inválido');
+        return custom;
+      }
+
+      const tpl = document.getElementById('policyTemplate')?.value || 'gaiax-open';
+      const participantId = (document.getElementById('policyParticipantId')?.value || '').trim();
+      const purpose = (document.getElementById('policyPurpose')?.value || '').trim();
+      const geography = (document.getElementById('policyGeography')?.value || '').trim();
+
+      const constraints = [];
+      if (tpl === 'gaiax-participant' || tpl === 'gaiax-participant-purpose') {
+        constraints.push({ leftOperand: 'gx:participantId', operator: 'eq', rightOperand: participantId || 'did:web:participant.example' });
+      }
+      if (tpl === 'gaiax-purpose' || tpl === 'gaiax-participant-purpose') {
+        constraints.push({ leftOperand: 'gx:purpose', operator: 'eq', rightOperand: purpose || 'analytics' });
+      }
+      if (geography) {
+        constraints.push({ leftOperand: 'gx:location', operator: 'eq', rightOperand: geography });
+      }
+
+      return {
+        '@context': 'http://www.w3.org/ns/odrl.jsonld',
+        '@id': policyId,
+        '@type': 'http://www.w3.org/ns/odrl/2/Set',
+        permission: [{
+          action: 'use',
+          target: assetId,
+          ...(constraints.length ? { constraint: constraints } : {})
+        }],
+        prohibition: [],
+        obligation: []
+      };
+    }
+
+    async function createOrUpdatePolicy() {
+      const policyId = document.getElementById('policyIdPreview')?.value;
+      const assetId = document.getElementById('assetIdPreview')?.value;
+      if (!policyId || !assetId) { writeOut({ status: 400, error: 'Falta policyId o assetId.' }); return { status: 400 }; }
+      let policy;
+      try { policy = buildPolicyFromTemplate(assetId, policyId); } catch (e) { writeOut({ status: 400, error: String(e) }); return { status: 400 }; }
+
+      const body = {
+        '@context': { '@vocab': 'https://w3id.org/edc/v0.0.1/ns/' },
+        '@id': policyId,
+        '@type': 'PolicyDefinition',
+        policy
+      };
+      return callApi('POST', '/v3/policydefinitions', JSON.stringify(body));
+    }
+
+    async function listPolicies() {
+      const r = await callApi('POST', '/v3/policydefinitions/request', q());
+      writeOut(r);
+      return r;
+    }
+
+    async function deletePolicy() {
+      const policyId = document.getElementById('policyIdPreview')?.value;
+      if (!policyId) { writeOut({ status: 400, error: 'Policy ID requerido.' }); return; }
+      writeOut(await callApi('DELETE', `/v3/policydefinitions/${encodeURIComponent(policyId)}`));
+    }
+
+    async function createContractDefinition() {
+      const contractDefId = document.getElementById('contractDefIdPreview')?.value;
+      const assetId = document.getElementById('assetIdPreview')?.value;
+      const policyId = document.getElementById('policyIdPreview')?.value;
+      if (!contractDefId || !assetId || !policyId) {
+        writeOut({ status: 400, error: 'Faltan IDs de contractDef, asset o policy.' });
+        return { status: 400 };
+      }
+      return callApi('POST', '/v3/contractdefinitions', JSON.stringify({
+        '@context': { '@vocab': 'https://w3id.org/edc/v0.0.1/ns/' },
+        '@id': contractDefId,
+        '@type': 'ContractDefinition',
+        accessPolicyId: policyId,
+        contractPolicyId: policyId,
+        assetsSelector: [[{ '@type': 'Criterion', operandLeft: 'https://w3id.org/edc/v0.0.1/ns/id', operator: '=', operandRight: assetId }]]
+      }));
+    }
+
+    async function listContractDefinitions() {
+      const r = await callApi('POST', '/v3/contractdefinitions/request', q());
+      writeOut(r);
+      return r;
+    }
+
+    async function deleteContractDefinition() {
+      const id = document.getElementById('contractDefIdPreview')?.value;
+      if (!id) { writeOut({ status: 400, error: 'ContractDefinition ID requerido.' }); return; }
+      writeOut(await callApi('DELETE', `/v3/contractdefinitions/${encodeURIComponent(id)}`));
+    }
+
+    async function purgeConnectorArtifacts() {
+      const removed = { contractDefinitions: 0, policyDefinitions: 0, assets: 0 };
+      const contractDefs = unwrap(await callApi('POST', '/v3/contractdefinitions/request', q()));
+      for (const c of contractDefs) {
+        const id = c['@id'] || c.id;
+        if (!id) continue;
+        const d = await callApi('DELETE', `/v3/contractdefinitions/${encodeURIComponent(id)}`);
+        if (d.status >= 200 && d.status < 300) removed.contractDefinitions++;
+      }
+
+      const policies = unwrap(await callApi('POST', '/v3/policydefinitions/request', q()));
+      for (const p of policies) {
+        const id = p['@id'] || p.id;
+        if (!id) continue;
+        const d = await callApi('DELETE', `/v3/policydefinitions/${encodeURIComponent(id)}`);
+        if (d.status >= 200 && d.status < 300) removed.policyDefinitions++;
+      }
+
+      const assets = unwrap(await callApi('POST', '/v3/assets/request', q()));
+      for (const a of assets) {
+        const id = a['@id'] || a.id;
+        if (!id) continue;
+        const d = await callApi('DELETE', `/v3/assets/${encodeURIComponent(id)}`);
+        if (d.status >= 200 && d.status < 300) removed.assets++;
+      }
+
+      await refreshOverview();
+      writeOut({ purged: removed });
+      showInfoPopup('Conector vaciado', { removed, note: 'Se eliminaron assets, policies y contract definitions del conector actual.' });
+    }
+
+    async function createOrUpdateAsset() {
+      const id = document.getElementById('assetIdPreview').value;
+      let headers = {};
+      try { headers = JSON.parse(document.getElementById('assetHeadersJson').value || '{}'); } catch { writeOut({ status: 400, error: 'Headers JSON inválido.' }); return { status: 400 }; }
+      headers = buildAuthHeaders(headers);
+
+      const body = {
+        '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+        '@id': id,
+        '@type': 'Asset',
+        properties: {
+          name: document.getElementById('assetName').value.trim(),
+          contenttype: 'application/json',
+          'eitel:authType': document.getElementById('pubAuthType')?.value || 'none',
+          'eitel:authSecret': document.getElementById('pubAuthSecret')?.value || ''
+        },
+        dataAddress: {
+          '@type': 'DataAddress',
+          type: 'HttpData',
+          baseUrl: document.getElementById('assetBaseUrl').value.trim(),
+          method: 'GET',
+          path: document.getElementById('assetPath').value.trim(),
+          headers
+        }
+      };
+      return callApi('POST', '/v3/assets', JSON.stringify(body));
+    }
+
+    async function ensurePolicyAndContractDefinition() {
+      const assetId = document.getElementById('assetIdPreview').value;
+      const policyId = document.getElementById('policyIdPreview')?.value;
+      const contractDefId = document.getElementById('contractDefIdPreview')?.value;
+      if (!policyId || !contractDefId) return { skipped: true };
+
+      const existingPolicies = unwrap(await callApi('POST', '/v3/policydefinitions/request', q()));
+      const policyExists = existingPolicies.some(p => (p['@id'] || p.id) === policyId);
+      const policyResult = policyExists ? { status: 200, data: { message: 'Policy existente', id: policyId } } : await createOrUpdatePolicy();
+
+      const contractDefs = unwrap(await callApi('POST', '/v3/contractdefinitions/request', q()));
+      const duplicateById = contractDefs.find(c => (c['@id'] || c.id) === contractDefId);
+      const duplicateByAsset = contractDefs.find(c => {
+        const ac = c.assetsSelector?.[0]?.[0]?.rightValue || c.assetsSelector?.[0]?.[0]?.rightOperand;
+        const cp = c.contractPolicyId || c['edc:contractPolicyId'];
+        return ac === assetId && cp === policyId;
+      });
+
+      let contractResult;
+      if (duplicateById || duplicateByAsset) {
+        contractResult = { status: 200, data: { message: 'ContractDefinition existente', id: (duplicateById || duplicateByAsset)['@id'] || (duplicateById || duplicateByAsset).id } };
+      } else {
+        contractResult = await createContractDefinition();
+      }
+      return { policyResult, contractResult };
+    }
+
+    async function publishBundle() {
+      const asset = await createOrUpdateAsset();
+      const linked = await ensurePolicyAndContractDefinition();
+      writeOut({ publish: 'bundle', asset, ...linked });
+      await refreshOverview();
+    }
+
+    function renderCatalogRows(targetId, rows, withUseButton = false) {
+      const tbody = document.getElementById(targetId);
+      if (!tbody) return;
+      if (!rows.length) {
+        const colspan = withUseButton ? 4 : 3;
+        tbody.innerHTML = `<tr><td colspan="${colspan}" class="muted">No hay resultados.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = rows.map((r, i) => `
+        <tr>
+          <td class="title-cell" title="${r.offerId}">Oferta ${i + 1} · ${clean(r.offerId)}</td>
+          <td class="title-cell" title="${r.assetId}">Asset · ${clean(r.assetId)}</td>
+          <td>${r.assigner}</td>
+          ${withUseButton ? `<td><button class="ghost" onclick="window.useCatalogAsset('${(r.assetId || '').replace(/'/g, "\\'")}')">Usar</button></td>` : `<td class="title-cell" title="${(r.policySummary || '').replace(/"/g, '&quot;')}">${r.policySummary || '-'}</td>`}
+        </tr>
+      `).join('');
+    }
+
+    async function loadCatalogs(showOutput = true) {
+      const connectorId = (document.getElementById('searchConnectorId').value || 'provider').trim() || 'provider';
+      const address = connectorId.startsWith('http://') || connectorId.startsWith('https://')
+        ? connectorId
+        : connectorId === 'provider'
+        ? 'http://provider-connector:19103/api/v1/dsp/2025-1'
+        : connectorId === 'consumer'
+          ? 'http://consumer-connector:19203/api/v1/dsp/2025-1'
+          : connectorId === 'conectoruc3m'
+            ? PROD_DSP_URL
+            : `http://${connectorId}-connector:19103/api/v1/dsp/2025-1`;
+      document.getElementById('resolvedAddress').value = address;
+      document.getElementById('transferAddress').value = address;
+
+      const r = await callApi('POST', '/v3/catalog/request', JSON.stringify({
+        '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+        '@type': 'CatalogRequest',
+        counterPartyId: connectorId.startsWith('http://') || connectorId.startsWith('https://') ? PROD_CONNECTOR_ID : connectorId,
+        counterPartyAddress: address,
+        protocol: 'dataspace-protocol-http:2025-1'
+      }));
+
+      const root = r?.data || {};
+      const datasets = root?.['dcat:dataset'] || root?.dataset || [];
+      const list = Array.isArray(datasets) ? datasets : [datasets];
+      state.catalogRows = list.flatMap(d => {
+        const policiesRaw = d?.['odrl:hasPolicy'] || d?.hasPolicy || [];
+        const policies = Array.isArray(policiesRaw) ? policiesRaw : [policiesRaw];
+        const datasetId = d?.['@id'] || d?.id || '';
+
+        return policies.map(pol => {
+          const permsRaw = pol?.['odrl:permission'] || pol?.permission || [];
+          const perms = Array.isArray(permsRaw) ? permsRaw : [permsRaw];
+          const target = perms.find(p => p?.['odrl:target'] || p?.target)?.['odrl:target'] || perms.find(p => p?.['odrl:target'] || p?.target)?.target || datasetId;
+          return {
+            offerId: pol?.['@id'] || pol?.id || '',
+            assetId: target || datasetId,
+            assigner: pol?.assigner || pol?.['odrl:assigner'] || connectorId,
+            policySummary: summarizePolicyTerms(pol),
+            policyRaw: pol,
+          };
+        });
+      }).filter(x => x.offerId || x.assetId);
+
+      renderCatalogRows('tblOffers', state.catalogRows, false);
+      refreshCatalogAssetOptions();
+      syncCatalogSelectionState();
+      if (showOutput) writeOut(r);
+    }
+
+    async function requestContractByAsset() {
+      const actionBtn = document.getElementById('btnRequestContract');
+      if (actionBtn) {
+        actionBtn.disabled = true;
+        actionBtn.textContent = 'Procesando...';
+      }
+      const acceptedTerms = document.getElementById('catalogAcceptTerms')?.checked;
+      if (!acceptedTerms) {
+        writeOut({ status: 400, error: 'Debes aceptar los términos de uso de la política antes de solicitar contrato.' });
+        if (actionBtn) {
+          actionBtn.disabled = false;
+          actionBtn.textContent = 'Realizar contrato';
+        }
+        return;
+      }
+
+      const selectedIdxRaw = document.getElementById('catalogAssetId').value;
+      if (selectedIdxRaw === '') {
+        writeOut({ status: 400, error: 'Selecciona un data-offer del desplegable.' });
+        if (actionBtn) {
+          actionBtn.disabled = false;
+          actionBtn.textContent = 'Realizar contrato';
+        }
+        return;
+      }
+      if (!state.catalogRows.length) await loadCatalogs(false);
+
+      const selected = state.catalogRows[Number(selectedIdxRaw)];
+      if (!selected) {
+        writeOut({ status: 404, error: 'No se encontró ese asset en el catálogo.' });
+        if (actionBtn) {
+          actionBtn.disabled = false;
+          actionBtn.textContent = 'Realizar contrato';
+        }
+        return;
+      }
+
+      if (!selected.offerId) {
+        writeOut({
+          status: 400,
+          error: 'La oferta del catálogo no tiene policy/@id. Recarga catálogos y selecciona otro asset.',
+          selected
+        });
+        if (actionBtn) {
+          actionBtn.disabled = false;
+          actionBtn.textContent = 'Realizar contrato';
+        }
+        return;
+      }
+
+      const policy = selected.policyRaw
+        ? JSON.parse(JSON.stringify(selected.policyRaw))
+        : {};
+
+      policy['@context'] = 'http://www.w3.org/ns/odrl.jsonld';
+      policy['@type'] = 'odrl:Offer';
+      policy['@id'] = policy['@id'] || selected.offerId;
+      policy.assigner = policy.assigner || policy['odrl:assigner'] || selected.assigner || 'provider';
+      policy.target = policy.target || policy['odrl:target'] || selected.assetId;
+      if (!Array.isArray(policy.permission)) policy.permission = policy.permission ? [policy.permission] : [];
+      if (!Array.isArray(policy.prohibition)) policy.prohibition = policy.prohibition ? [policy.prohibition] : [];
+      if (!Array.isArray(policy.obligation)) policy.obligation = policy.obligation ? [policy.obligation] : [];
+
+      const beforeAgreementsResp = await callApi('POST', '/v3/contractagreements/request', q());
+      const beforeAgreementIds = new Set(unwrap(beforeAgreementsResp).map(a => a['@id'] || a.id).filter(Boolean));
+
+      const r = await callApi('POST', '/v3/contractnegotiations', JSON.stringify({
+        '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+        '@type': 'ContractRequest',
+        protocol: 'dataspace-protocol-http:2025-1',
+        counterPartyAddress: document.getElementById('resolvedAddress').value,
+        policy
+      }));
+      writeOut(r);
+
+      if (r.status < 200 || r.status >= 300) {
+        const detail = typeof r.data === 'string' ? r.data : JSON.stringify(r.data || {}, null, 2);
+        showInfoPopup(
+          'Aviso',
+          `No se pudo iniciar el contrato.\nEstado HTTP: ${r.status}.\nDetalle: ${detail}`,
+          { plainText: true }
+        );
+        if (actionBtn) {
+          actionBtn.disabled = false;
+          actionBtn.textContent = 'Realizar contrato';
+        }
+        return;
+      }
+
+      const negotiationId = r.data?.['@id'] || r.data?.id || '-';
+      showInfoPopup(
+        'Aviso',
+        `Solicitud enviada correctamente.\nNegotiation ID: ${negotiationId}\nEstamos comprobando automáticamente cuándo aparece el contrato en la pestaña Contratos.`,
+        { plainText: true }
+      );
+
+      if (actionBtn) {
+        actionBtn.disabled = false;
+        actionBtn.textContent = 'Realizar contrato';
+      }
+
+      // Espera corta para que el agreement aparezca si la negociación finaliza rápido.
+      let createdAgreement = null;
+      for (let i = 0; i < 6; i++) {
+        await new Promise(resolve => setTimeout(resolve, 1200));
+        const agreementsResp = await callApi('POST', '/v3/contractagreements/request', q());
+        const agreements = unwrap(agreementsResp);
+        const fresh = agreements.find(a => {
+          const id = a['@id'] || a.id;
+          return id && !beforeAgreementIds.has(id);
+        });
+        if (fresh) {
+          createdAgreement = fresh;
+          break;
+        }
+      }
+
+      await listAgreements();
+
+      if (createdAgreement) {
+        const agreementId = createdAgreement['@id'] || createdAgreement.id;
+        const assetId = createdAgreement.assetId || createdAgreement['edc:assetId'] || selected.assetId;
+        const providerId = createdAgreement.providerId || createdAgreement['edc:providerId'] || selected.assigner;
+        const consumerId = createdAgreement.consumerId || createdAgreement['edc:consumerId'] || connectorName;
+        showInfoPopup('Aviso', `Contrato concretado correctamente.\nAgreement ID: ${agreementId}\nNegotiation ID: ${negotiationId}\nAsset: ${assetId}\nProvider: ${providerId}\nConsumer: ${consumerId}`, {
+          plainText: true,
+          actionLabel: 'Ir al contrato',
+          onAction: () => window.useAgreement(agreementId)
+        });
+      } else {
+        showInfoPopup(
+          'Aviso',
+          `Negociación iniciada correctamente (ID: ${negotiationId}), pero el contrato todavía no aparece en la lista. Espera unos segundos y revisa la pestaña Contratos.`,
+          { plainText: true }
+        );
+      }
+    }
+
+    async function listAgreements() {
+      const r = await callApi('POST', '/v3/contractagreements/request', q());
+      const raw = unwrap(r).map(a => ({
+        id: a['@id'] || a.id || '',
+        asset: a.assetId || a['edc:assetId'] || a.asset || '',
+        provider: a.providerId || a['edc:providerId'] || a.provider || '',
+        consumer: a.consumerId || a['edc:consumerId'] || a.consumer || '',
+        publishedAt: a.contractSigningDate || a['edc:contractSigningDate'] || a.createdAt || a.created || a['edc:createdAt'] || '',
+        cp: a.counterPartyId || ''
+      })).filter(x => x.id);
+
+      const seenId = new Set();
+      const seenTuple = new Set();
+      state.agreementRows = raw.filter(a => {
+        if (seenId.has(a.id)) return false;
+        const tuple = `${a.asset}::${a.provider}::${a.consumer}`;
+        if (seenTuple.has(tuple)) return false;
+        seenId.add(a.id);
+        seenTuple.add(tuple);
+        return true;
+      });
+
+      const tbody = document.getElementById('tblAgreements');
+      const sel = document.getElementById('agreementSelect');
+      sel.innerHTML = state.agreementRows.length ? '' : '<option value="">No hay contratos</option>';
+
+      if (!state.agreementRows.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="muted">No hay contratos.</td></tr>';
+      } else {
+        tbody.innerHTML = state.agreementRows.map((a, i) => {
+          const alias = `Contrato ${i + 1} · ${clean(a.asset || 'asset')}`;
+          const opt = document.createElement('option');
+          opt.value = a.id;
+          opt.textContent = `${alias} · ${fmtDate(a.publishedAt)}`;
+          sel.appendChild(opt);
+          return `
+            <tr>
+              <td class="title-cell" title="${a.id}">${alias}</td>
+              <td class="title-cell" title="${a.asset}">${clean(a.asset)}</td>
+              <td>${a.provider || '-'}</td>
+              <td>${a.consumer || (a.cp || '-')}</td>
+              <td>${fmtDate(a.publishedAt)}</td>
+              <td>
+                <button class="ghost" onclick="window.showAgreementDetail(${i})">Detalle</button>
+                <button class="ghost" onclick="window.useAgreement('${a.id.replace(/'/g, "\\'")}')">Usar</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+      const deduplicated = raw.length - state.agreementRows.length;
+      writeOut({ ...r, deduplicated });
+      showInfoPopup('Contratos cargados', {
+        total: state.agreementRows.length,
+        deduplicated,
+        preview: state.agreementRows.slice(0, 5)
+      });
+    }
+
+    async function startTransfer() {
+      const typedContractId = (document.getElementById('agreementId').value || '').trim();
+      const selectedContractId = (document.getElementById('agreementSelect').value || '').trim();
+      const contractId = (typedContractId || selectedContractId || '').trim();
+      if (!contractId) { writeOut({ status: 400, error: 'Selecciona un contrato.' }); return; }
+
+      // Validación fuerte: solo permitir contratos vigentes del conector
+      const agreementsResp = await callApi('POST', '/v3/contractagreements/request', q());
+      const validAgreementIds = new Set(
+        unwrap(agreementsResp)
+          .map(a => a['@id'] || a.id)
+          .filter(Boolean)
+      );
+
+      if (!validAgreementIds.has(contractId)) {
+        showInfoPopup('Contrato no reconocido', {
+          message: 'Ese contrato no existe o ya no es válido en este conector. Carga contratos y selecciona uno del desplegable.',
+          selectedOrTypedContractId: contractId,
+          availableContracts: state.agreementRows.slice(0, 10).map(a => ({
+            id: a.id,
+            asset: a.asset,
+            provider: a.provider,
+            consumer: a.consumer,
+            publishedAt: a.publishedAt
+          }))
+        });
+        writeOut({ status: 400, error: 'Contract agreement not found/valid for transfer', contractId });
+        return;
+      }
+
+      const body = {
+        '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+        '@type': 'TransferRequest',
+        protocol: 'dataspace-protocol-http:2025-1',
+        counterPartyAddress: document.getElementById('transferAddress').value.trim(),
+        contractId,
+        transferType: 'HttpData-PUSH',
+        dataDestination: {
+          type: 'HttpData',
+          baseUrl: document.getElementById('sinkBaseUrl').value.trim(),
+          method: 'POST',
+          path: '/'
+        }
+      };
+
+      const r = await callApi('POST', '/v3/transferprocesses', JSON.stringify(body));
+      writeOut(r);
+
+      await listTransfers();
+    }
+
+    async function listTransfers() {
+      const r = await callApi('POST', '/v3/transferprocesses/request', q());
+      const rows = unwrap(r);
+      const tbody = document.getElementById('tblTransfers');
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="muted">No hay transferencias.</td></tr>';
+      } else {
+        tbody.innerHTML = rows.map((t, i) => {
+          const id = t['@id'] || t.id || '';
+          const st = t.state || t['edc:state'] || '-';
+          const contract = t.contractId || t['edc:contractId'] || '';
+          return `
+            <tr>
+              <td class="title-cell" title="${id}">Transferencia ${i + 1}</td>
+              <td>${st}</td>
+              <td class="title-cell" title="${contract}">${clean(contract)}</td>
+              <td>
+                <button class="ghost" onclick="window.showTransferDetail(${i})">Detalle</button>
+                <button class="ghost" onclick="window.checkTransfer('${id.replace(/'/g, "\\'")}')">Ver estado</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+      state.transferRows = rows;
+      writeOut(r);
+    }
+
+    async function checkTransfer(transferId) {
+      const r = await callApi('GET', `/v3/transferprocesses/${encodeURIComponent(transferId)}/state`);
+      writeOut(r);
+    }
+
+    async function checkDummy() {
+      try {
+        const res = await fetch(`${settings.dummyUrl}/v1/dummy-sink/records`);
+        const data = await res.json();
+        writeOut({ status: res.status, data });
+      } catch (e) {
+        writeOut({ step: 'Dummy inbox error', error: String(e), hint: `${settings.dummyUrl}/health` });
+      }
+    }
+
+    async function clearDummy() {
+      try {
+        const res = await fetch(`${settings.dummyUrl}/v1/dummy-sink/records`, { method: 'DELETE' });
+        const data = await res.json();
+        writeOut({ status: res.status, data });
+      } catch (e) {
+        writeOut({ error: String(e) });
+      }
+    }
+
+    async function saveSecret() {
+      if (!state.secretsAvailable) { writeOut({ status: 404, error: 'Secrets API no disponible en este runtime.' }); return; }
+      const name = document.getElementById('secretName').value.trim();
+      const value = document.getElementById('secretValue').value.trim();
+      if (!name || !value) { writeOut({ status: 400, error: 'Nombre y valor requeridos.' }); return; }
+      const body = { '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' }, '@type': 'Secret', '@id': name, value };
+      writeOut(await callApi('POST', '/v3/secrets', JSON.stringify(body)));
+      await listSecrets(false);
+    }
+
+    function refreshSecretSelect() {
+      const sel = document.getElementById('pubAuthSecret');
+      if (!sel) return;
+      const current = sel.value;
+      sel.innerHTML = '<option value="">(opcional)</option>';
+      state.secretNames.forEach(n => {
+        const o = document.createElement('option');
+        o.value = n;
+        o.textContent = n;
+        sel.appendChild(o);
+      });
+      if (state.secretNames.includes(current)) sel.value = current;
+    }
+
+    async function listSecrets(showOutput = true) {
+      const r = await callApi('POST', '/v3/secrets/request', q());
+      state.secretsAvailable = r.status >= 200 && r.status < 300;
+      if (!state.secretsAvailable) {
+        if (showOutput) writeOut({ status: r.status, message: 'Secrets API no disponible en este runtime.' });
+        return r;
+      }
+      state.secretNames = unwrap(r).map(s => s['@id'] || s.id).filter(Boolean);
+      refreshSecretSelect();
+      document.getElementById('secretsOut').textContent = JSON.stringify(r.data, null, 2);
+      if (showOutput) writeOut(r);
+      return r;
+    }
+    async function deleteSecret() {
+      if (!state.secretsAvailable) { writeOut({ status: 404, error: 'Secrets API no disponible en este runtime.' }); return; }
+      const name = document.getElementById('secretName').value.trim();
+      if (!name) { writeOut({ status: 400, error: 'Nombre requerido.' }); return; }
+      writeOut(await callApi('DELETE', `/v3/secrets/${encodeURIComponent(name)}`));
+      await listSecrets(false);
+    }
+
+    function openSettings() { settingsModal.classList.add('open'); }
+    function closeSettings() { settingsModal.classList.remove('open'); }
+
+    function bindEvents() {
+      document.querySelectorAll('.nav button[data-view]').forEach(btn => btn.onclick = () => activateView(btn.dataset.view));
+
+      document.getElementById('assetKey').oninput = updateAssetPreview;
+      document.getElementById('btnRefreshOverview').onclick = refreshOverview;
+      document.getElementById('btnSearchOffers').onclick = () => loadCatalogs(true);
+      document.getElementById('btnRefreshCatalog').onclick = async () => { await loadCatalogs(false); };
+      document.getElementById('catalogAssetId').addEventListener('change', () => {
+        const accept = document.getElementById('catalogAcceptTerms');
+        if (accept) accept.checked = false;
+        syncCatalogSelectionState();
+      });
+      document.getElementById('catalogAcceptTerms').addEventListener('change', syncCatalogSelectionState);
+      document.getElementById('btnRequestContract').onclick = requestContractByAsset;
+      document.getElementById('btnListAgreements').onclick = listAgreements;
+      document.getElementById('btnStartTransfer').onclick = startTransfer;
+      document.getElementById('btnListTransfers').onclick = listTransfers;
+      if (document.getElementById('btnSaveSecret')) document.getElementById('btnSaveSecret').onclick = saveSecret;
+      if (document.getElementById('btnListSecrets')) document.getElementById('btnListSecrets').onclick = () => listSecrets(true);
+      if (document.getElementById('btnDeleteSecret')) document.getElementById('btnDeleteSecret').onclick = deleteSecret;
+      document.getElementById('btnCreatePolicy').onclick = async () => writeOut(await createOrUpdatePolicy());
+      document.getElementById('btnListPolicies').onclick = listPolicies;
+      document.getElementById('btnDeletePolicy').onclick = deletePolicy;
+      document.getElementById('btnCreateContractDef').onclick = async () => writeOut(await createContractDefinition());
+      document.getElementById('btnListContractDefs').onclick = listContractDefinitions;
+      document.getElementById('btnDeleteContractDef').onclick = deleteContractDefinition;
+      document.getElementById('btnGoPolicy').onclick = () => activateView('policy');
+      document.getElementById('btnGoContract').onclick = () => activateView('contractdef');
+
+      document.getElementById('btnCreateAsset').onclick = async () => {
+        writeOut(await createOrUpdateAsset());
+        await refreshOverview();
+      };
+      document.getElementById('btnListAssets').onclick = async () => writeOut(await callApi('POST', '/v3/assets/request', q()));
+      document.getElementById('btnDeleteAsset').onclick = async () => writeOut(await callApi('DELETE', `/v3/assets/${encodeURIComponent(document.getElementById('assetIdPreview').value)}`));
+      document.getElementById('btnExplorerSend').onclick = async () => writeOut(await callApi(document.getElementById('explMethod').value, document.getElementById('explPath').value.trim(), document.getElementById('explBody').value));
+
+      document.getElementById('btnOpenSettings').onclick = openSettings;
+      document.getElementById('btnCloseSettings').onclick = closeSettings;
+      settingsModal.onclick = (e) => { if (e.target === settingsModal) closeSettings(); };
+      document.getElementById('btnCloseInfo').onclick = closeInfoPopup;
+      document.getElementById('btnInfoAction').onclick = () => {
+        if (typeof infoActionHandler === 'function') infoActionHandler();
+      };
+      infoModal.onclick = (e) => { if (e.target === infoModal) closeInfoPopup(); };
+
+      const autoApply = () => {
+        settings.language = document.getElementById('setLanguage').value;
+        settings.theme = document.getElementById('setTheme').value;
+        settings.consolePos = document.getElementById('setConsolePos').value;
+        settings.consoleFont = Number(document.getElementById('setConsoleFont').value || 13);
+        if (settings.consolePos === 'bottom') app.classList.remove('console-hidden');
+        applySettings();
+      };
+      ['setLanguage', 'setTheme', 'setConsolePos'].forEach(id => document.getElementById(id).addEventListener('change', autoApply));
+      document.getElementById('setConsoleFont').addEventListener('input', autoApply);
+      document.getElementById('policyMode').addEventListener('change', applyPolicyMode);
+
+      document.getElementById('btnConsoleToggle').onclick = () => {
+        const hidden = app.classList.toggle('console-hidden');
+        updateConsoleButtons(hidden);
+        persistSettings();
+      };
+      document.getElementById('btnConsoleExpand').onclick = () => {
+        settings.consoleExpanded = !settings.consoleExpanded;
+        applySettings();
+      };
+      document.getElementById('btnConsoleShow').onclick = () => {
+        app.classList.remove('console-hidden');
+        updateConsoleButtons(false);
+      };
+    }
+
+    window.useAgreement = (id) => {
+      document.getElementById('agreementId').value = id;
+      document.getElementById('agreementSelect').value = id;
+      activateView('transfers');
+    };
+    window.checkTransfer = checkTransfer;
+    window.useCatalogAsset = (assetId) => {
+      const idx = state.catalogRows.findIndex(r => r.assetId === assetId);
+      if (idx >= 0) document.getElementById('catalogAssetId').value = String(idx);
+      const accept = document.getElementById('catalogAcceptTerms');
+      if (accept) accept.checked = false;
+      syncCatalogSelectionState();
+      activateView('catalog');
+    };
+    window.showAgreementDetail = (index) => showInfoPopup('Detalle de contrato', state.agreementRows[index] || {});
+    window.showTransferDetail = (index) => showInfoPopup('Detalle de transferencia', state.transferRows[index] || {});
+
+    function init() {
+      document.getElementById('badge').textContent = `${role} · EDC · ${cfg.managementApiUrl || 'management api'}`;
+      document.getElementById('searchConnectorId').value = 'conectoruc3m';
+      document.getElementById('transferAddress').value = PROD_DSP_URL;
+      document.getElementById('btnEitelPortal').onclick = () => window.open('https://uc3m-espacioeitel.hub.arcgis.com/', '_blank');
+      document.getElementById('btnEitelProyecto').onclick = () => window.open('https://uc3m-espacioeitel.hub.arcgis.com/pages/proyecto', '_blank');
+      document.getElementById('btnEitelCatalogo').onclick = () => window.open('https://uc3m-espacioeitel.hub.arcgis.com/search', '_blank');
+      updateAssetPreview();
+      loadSettings();
+      bindEvents();
+      applyPolicyMode();
+      applySettings();
+      refreshOverview();
+      loadCatalogs(false);
+    }
+    init();
+  </script>
 </body>
 </html>

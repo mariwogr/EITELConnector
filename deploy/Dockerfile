@@ -9,6 +9,10 @@ WORKDIR /workspace
 RUN git clone --depth 1 --branch "${EDC_REF}" https://github.com/eclipse-edc/Connector.git connector
 WORKDIR /workspace/connector
 
+# Remove TCK seed extension dependency so runtime starts without preloaded assets/contracts.
+RUN sed -i '/system-tests:tck:tck-extension/d' system-tests/tck/dsp-tck-connector-under-test/build.gradle.kts
+RUN sed -i '/data-protocols:dsp:dsp-2025/a\    api(project(":extensions:common:iam:iam-mock"))' system-tests/tck/dsp-tck-connector-under-test/build.gradle.kts
+
 # Build a runnable EDC runtime distribution used in DSP TCK tests.
 RUN ./gradlew --no-daemon :system-tests:tck:dsp-tck-connector-under-test:installDist
 
