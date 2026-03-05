@@ -77,6 +77,12 @@ services:
       NEXT_PUBLIC_MANAGEMENT_API_AUTH_KEY: ${EDC_API_AUTH_KEY}
       NEXT_PUBLIC_CONNECTOR_NAME: conectoruc3m
       NEXT_PUBLIC_DSP_URL: https://gis.eiteldata.eu/conectoruc3m/api/v1/dsp/2025-1
+      NEXT_PUBLIC_ARCGIS_AUTH_ENABLED: ${ARCGIS_AUTH_ENABLED:-false}
+      NEXT_PUBLIC_ARCGIS_PORTAL_URL: ${ARCGIS_PORTAL_URL:-}
+      NEXT_PUBLIC_ARCGIS_CLIENT_ID: ${ARCGIS_CLIENT_ID:-}
+      NEXT_PUBLIC_ARCGIS_REDIRECT_URI: ${ARCGIS_REDIRECT_URI:-}
+      NEXT_PUBLIC_ARCGIS_REQUIRED_ORG_ID: ${ARCGIS_REQUIRED_ORG_ID:-}
+      NEXT_PUBLIC_ARCGIS_REQUIRED_GROUP_ID: ${ARCGIS_REQUIRED_GROUP_ID:-}
     volumes:
       - ./caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.final.html:ro
       - ./caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.html:ro

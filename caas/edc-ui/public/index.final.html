@@ -294,6 +294,38 @@
       box-shadow: 0 20px 40px rgba(0,0,0,.25);
     }
 
+    .auth-gate {
+      position: fixed;
+      inset: 0;
+      z-index: 120;
+      background: radial-gradient(circle at 20% 20%, #dbe9ff 0%, #eef4ff 35%, #f7faff 100%);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .auth-gate.open { display: flex; }
+    .auth-card {
+      width: min(560px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--surface);
+      box-shadow: 0 20px 40px rgba(16, 44, 90, .2);
+      padding: 20px;
+    }
+    .auth-card h2 { margin-top: 0; margin-bottom: 8px; }
+    .auth-help { color: var(--muted); margin-bottom: 14px; }
+    .auth-error {
+      margin-top: 10px;
+      border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--line));
+      background: color-mix(in srgb, #fff 85%, #ffe8ec 15%);
+      color: #8a2233;
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 13px;
+      white-space: pre-wrap;
+    }
+
     /* hard override: keep dark form contrast even if duplicated styles exist later */
     body[data-theme="dark"] input,
     body[data-theme="dark"] textarea,
@@ -391,6 +423,7 @@
         <h1 id="title">Conector EITEL</h1>
         <div class="top-right">
           <span class="chip" id="badge"></span>
+          <button class="ghost" id="btnArcgisLogout" style="display:none">Salir</button>
           <button class="ghost" id="btnOpenSettings">⚙️ Ajustes</button>
         </div>
       </div>
@@ -684,6 +717,17 @@
   </div>
   <button class="ghost console-show" id="btnConsoleShow">⮜ Consola</button>
 
+  <div class="auth-gate" id="authGate">
+    <div class="auth-card">
+      <h2>Acceso restringido</h2>
+      <p class="auth-help">Esta consola requiere iniciar sesión con ArcGIS Enterprise del proyecto EITEL.</p>
+      <div class="row" style="margin-top:12px">
+        <button class="primary" id="btnArcgisLogin">Entrar con ArcGIS Enterprise</button>
+      </div>
+      <div class="auth-error" id="authError" style="display:none"></div>
+    </div>
+  </div>
+
   <div class="modal" id="infoModal">
     <div class="modal-card">
       <div class="row" style="justify-content:space-between;align-items:center">
@@ -722,6 +766,25 @@
     const PROD_CONNECTOR_ID = (cfg.connectorName || 'conectoruc3m').toLowerCase();
     const connectorName = cfg.connectorName || 'CONNECTOR';
     const role = connectorName.toLowerCase().includes('provider') ? 'Provider' : (connectorName.toLowerCase().includes('consumer') ? 'Consumer' : 'Connector');
+
+    const isTruthy = (value) => ['1', 'true', 'yes', 'on'].includes(String(value || '').toLowerCase());
+    const normalizePortalUrl = (url) => {
+      let normalized = String(url || '').trim();
+      normalized = normalized.replace(/\/+$/, '');
+      normalized = normalized.replace(/\/home\/index\.html$/i, '');
+      normalized = normalized.replace(/\/home$/i, '');
+      return normalized;
+    };
+    const arcgis = {
+      enabled: isTruthy(cfg.arcgisAuthEnabled),
+      portalUrl: normalizePortalUrl(cfg.arcgisPortalUrl),
+      clientId: (cfg.arcgisClientId || '').trim(),
+      redirectUri: (cfg.arcgisRedirectUri || '').trim(),
+      requiredOrgId: (cfg.arcgisRequiredOrgId || '').trim(),
+      requiredGroupId: (cfg.arcgisRequiredGroupId || '').trim(),
+    };
+    const arcgisTokenStorageKey = `eitel.arcgis.token.${connectorName}`;
+    const authState = { token: null, username: '', orgId: '' };
 
     const app = document.getElementById('app');
     const out = document.getElementById('out');
@@ -799,6 +862,149 @@
 
     function t(k) { return i18n[settings.language]?.[k] || k; }
     function writeOut(payload) { out.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2); }
+
+    function showAuthGate(message = '', canLogin = true) {
+      const gate = document.getElementById('authGate');
+      const loginBtn = document.getElementById('btnArcgisLogin');
+      const errorBox = document.getElementById('authError');
+      if (!gate || !loginBtn || !errorBox) return;
+      gate.classList.add('open');
+      loginBtn.style.display = canLogin ? 'inline-flex' : 'none';
+      if (message) {
+        errorBox.textContent = message;
+        errorBox.style.display = 'block';
+      } else {
+        errorBox.style.display = 'none';
+      }
+    }
+
+    function hideAuthGate() {
+      const gate = document.getElementById('authGate');
+      if (gate) gate.classList.remove('open');
+    }
+
+    function saveArcgisToken(token) {
+      try { sessionStorage.setItem(arcgisTokenStorageKey, token); } catch {}
+    }
+
+    function loadArcgisToken() {
+      try { return sessionStorage.getItem(arcgisTokenStorageKey) || ''; } catch { return ''; }
+    }
+
+    function clearArcgisToken() {
+      try { sessionStorage.removeItem(arcgisTokenStorageKey); } catch {}
+    }
+
+    function parseArcgisTokenFromHash() {
+      const hash = window.location.hash || '';
+      if (!hash.startsWith('#')) return '';
+      const params = new URLSearchParams(hash.slice(1));
+      return params.get('access_token') || '';
+    }
+
+    function sanitizeArcgisHash() {
+      if (window.location.hash) {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+    }
+
+    async function fetchArcgisJson(path, token) {
+      const sep = path.includes('?') ? '&' : '?';
+      const url = `${arcgis.portalUrl}/sharing/rest/${path}${sep}f=json&token=${encodeURIComponent(token)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!res.ok || data?.error) {
+        const msg = data?.error?.message || `ArcGIS HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    async function userIsInRequiredGroup(username, token) {
+      if (!arcgis.requiredGroupId) return true;
+      const groupId = encodeURIComponent(arcgis.requiredGroupId);
+      try {
+        const list = await fetchArcgisJson(`community/groups/${groupId}/userList`, token);
+        const members = new Set([
+          ...(list?.users || []),
+          ...(list?.admins || []),
+          ...(list?.owner ? [list.owner] : []),
+        ]);
+        if (members.has(username)) return true;
+      } catch {}
+
+      const userData = await fetchArcgisJson(`community/users/${encodeURIComponent(username)}`, token);
+      const groups = Array.isArray(userData?.groups) ? userData.groups : [];
+      return groups.some(g => (g?.id || '') === arcgis.requiredGroupId);
+    }
+
+    function startArcgisLogin() {
+      if (!arcgis.portalUrl || !arcgis.clientId) {
+        showAuthGate('Falta configurar ARCGIS_PORTAL_URL y ARCGIS_CLIENT_ID.', false);
+        return;
+      }
+      const redirectUri = arcgis.redirectUri || `${window.location.origin}${window.location.pathname}`;
+      const authUrl = `${arcgis.portalUrl}/sharing/rest/oauth2/authorize?client_id=${encodeURIComponent(arcgis.clientId)}&response_type=token&expiration=20160&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      window.location.assign(authUrl);
+    }
+
+    function arcgisLogout() {
+      clearArcgisToken();
+      authState.token = null;
+      authState.username = '';
+      authState.orgId = '';
+      window.location.reload();
+    }
+
+    async function ensureArcgisLogin() {
+      if (!arcgis.enabled) return true;
+
+      const loginBtn = document.getElementById('btnArcgisLogin');
+      if (loginBtn) loginBtn.onclick = startArcgisLogin;
+
+      if (!arcgis.portalUrl || !arcgis.clientId) {
+        showAuthGate('ArcGIS login activo pero falta configurar portal/clientId en el entorno.', false);
+        return false;
+      }
+
+      const hashToken = parseArcgisTokenFromHash();
+      if (hashToken) {
+        saveArcgisToken(hashToken);
+        sanitizeArcgisHash();
+      }
+
+      const token = hashToken || loadArcgisToken();
+      if (!token) {
+        showAuthGate('Inicia sesión para acceder a la consola.', true);
+        return false;
+      }
+
+      try {
+        const self = await fetchArcgisJson('community/self', token);
+        const username = self?.username || self?.user?.username || '';
+        const orgId = self?.orgId || self?.user?.orgId || '';
+        if (!username) throw new Error('No se pudo obtener el usuario autenticado de ArcGIS.');
+
+        if (arcgis.requiredOrgId && orgId !== arcgis.requiredOrgId) {
+          throw new Error(`Usuario fuera de la organizacion permitida. orgId actual: ${orgId || '(vacio)'}`);
+        }
+
+        const inGroup = await userIsInRequiredGroup(username, token);
+        if (!inGroup) {
+          throw new Error(`Usuario '${username}' no pertenece al grupo permitido (${arcgis.requiredGroupId}).`);
+        }
+
+        authState.token = token;
+        authState.username = username;
+        authState.orgId = orgId;
+        hideAuthGate();
+        return true;
+      } catch (e) {
+        clearArcgisToken();
+        showAuthGate(`Acceso denegado.\n${String(e?.message || e)}`, true);
+        return false;
+      }
+    }
 
     function summarizePolicyTerms(policyObj) {
       const permsRaw = policyObj?.['odrl:permission'] || policyObj?.permission || [];
@@ -1694,6 +1900,9 @@
     window.showTransferDetail = (index) => showInfoPopup('Detalle de transferencia', state.transferRows[index] || {});
 
     function init() {
+      if (arcgis.enabled) {
+        showAuthGate('Validando sesion ArcGIS...', false);
+      }
       document.getElementById('badge').textContent = `${role} · EDC · ${cfg.managementApiUrl || 'management api'}`;
       document.getElementById('searchConnectorId').value = 'conectoruc3m';
       document.getElementById('transferAddress').value = PROD_DSP_URL;
@@ -1703,10 +1912,19 @@
       updateAssetPreview();
       loadSettings();
       bindEvents();
+      document.getElementById('btnArcgisLogout').onclick = arcgisLogout;
       applyPolicyMode();
       applySettings();
-      refreshOverview();
-      loadCatalogs(false);
+
+      ensureArcgisLogin().then((ok) => {
+        if (!ok) return;
+        if (arcgis.enabled && authState.username) {
+          document.getElementById('badge').textContent = `${role} · ${authState.username} · ${cfg.managementApiUrl || 'management api'}`;
+          document.getElementById('btnArcgisLogout').style.display = 'inline-flex';
+        }
+        refreshOverview();
+        loadCatalogs(false);
+      });
     }
     init();
   </script>
