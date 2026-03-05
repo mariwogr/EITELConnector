@@ -13,7 +13,7 @@ services:
       retries: 10
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./deploy/aws/init-conectoruc3m.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - edc-net
 

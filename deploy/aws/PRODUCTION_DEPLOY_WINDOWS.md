@@ -39,6 +39,9 @@ docker compose --env-file .env.production -f docker-compose.production.yaml up -
 docker compose --env-file .env.production -f docker-compose.production.yaml ps
 ```
 
+Note:
+- The production Postgres init script is `deploy/aws/init-conectoruc3m.sql` and creates `conectoruc3m_db`.
+
 ## 5) Validate locally on server
 ```powershell
 Invoke-WebRequest "http://localhost:12000/health" -UseBasicParsing
