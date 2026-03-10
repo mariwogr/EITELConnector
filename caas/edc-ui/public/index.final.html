@@ -173,6 +173,8 @@
     .tutorial {
       border-left: 4px solid var(--primary);
       background: color-mix(in srgb, var(--primary-soft) 55%, var(--surface));
+      min-width: 0;
+      overflow: hidden;
     }
     .tutorial ol {
       margin: 8px 0 0 18px;
@@ -180,6 +182,7 @@
       color: var(--text);
       font-size: 13px;
       line-height: 1.45;
+      overflow-wrap: anywhere;
     }
     .wide { grid-column: 1 / -1; }
     h2 { margin: 0 0 8px; font-size: 18px; }
@@ -388,6 +391,7 @@
       .nav { flex-direction: column; overflow: visible; }
       .grid { grid-template-columns: 1fr; }
       .kpis { grid-template-columns: 1fr 1fr; }
+      .tutorial ol { margin-left: 14px; }
       .console { position: fixed; inset: auto 0 0 0; height: 40vh; z-index: 50; border-left: 0; border-top: 1px solid var(--line); }
       .app.console-hidden .console { display: none; }
       .console-handle { left: auto; right: 10px; top: -42px; flex-direction: row; }
@@ -811,7 +815,7 @@
   <div class="auth-gate" id="authGate">
     <div class="auth-card">
       <h2>Acceso restringido</h2>
-      <p class="auth-help">Esta consola requiere iniciar sesión con ArcGIS Enterprise del proyecto EITEL.</p>
+      <p class="auth-help">Esta consola requiere sesión activa de ArcGIS Enterprise (cookie de portal) para control de acceso.</p>
       <div class="row" style="margin-top:12px">
         <button class="primary" id="btnArcgisLogin">Entrar con ArcGIS Enterprise</button>
       </div>
@@ -874,8 +878,7 @@
       requiredOrgId: (cfg.arcgisRequiredOrgId || '').trim(),
       requiredGroupId: (cfg.arcgisRequiredGroupId || '').trim(),
     };
-    const arcgisTokenStorageKey = `eitel.arcgis.token.${connectorName}`;
-    const authState = { token: null, username: '', orgId: '' };
+    const authState = { username: '', orgId: '' };
 
     const app = document.getElementById('app');
     const out = document.getElementById('out');
@@ -974,35 +977,11 @@
       if (gate) gate.classList.remove('open');
     }
 
-    function saveArcgisToken(token) {
-      try { sessionStorage.setItem(arcgisTokenStorageKey, token); } catch {}
-    }
-
-    function loadArcgisToken() {
-      try { return sessionStorage.getItem(arcgisTokenStorageKey) || ''; } catch { return ''; }
-    }
-
-    function clearArcgisToken() {
-      try { sessionStorage.removeItem(arcgisTokenStorageKey); } catch {}
-    }
-
-    function parseArcgisTokenFromHash() {
-      const hash = window.location.hash || '';
-      if (!hash.startsWith('#')) return '';
-      const params = new URLSearchParams(hash.slice(1));
-      return params.get('access_token') || '';
-    }
-
-    function sanitizeArcgisHash() {
-      if (window.location.hash) {
-        history.replaceState(null, '', window.location.pathname + window.location.search);
-      }
-    }
-
-    async function fetchArcgisJson(path, token) {
+    async function fetchArcgisJson(path, { token = '', useCookies = true } = {}) {
       const sep = path.includes('?') ? '&' : '?';
-      const url = `${arcgis.portalUrl}/sharing/rest/${path}${sep}f=json&token=${encodeURIComponent(token)}`;
-      const res = await fetch(url);
+      const tokenPart = token ? `&token=${encodeURIComponent(token)}` : '';
+      const url = `${arcgis.portalUrl}/sharing/rest/${path}${sep}f=json${tokenPart}`;
+      const res = await fetch(url, { credentials: useCookies ? 'include' : 'same-origin' });
       const data = await res.json();
       if (!res.ok || data?.error) {
         const msg = data?.error?.message || `ArcGIS HTTP ${res.status}`;
@@ -1011,11 +990,11 @@
       return data;
     }
 
-    async function userIsInRequiredGroup(username, token) {
+    async function userIsInRequiredGroup(username, options = {}) {
       if (!arcgis.requiredGroupId) return true;
       const groupId = encodeURIComponent(arcgis.requiredGroupId);
       try {
-        const list = await fetchArcgisJson(`community/groups/${groupId}/userList`, token);
+        const list = await fetchArcgisJson(`community/groups/${groupId}/userList`, options);
         const members = new Set([
           ...(list?.users || []),
           ...(list?.admins || []),
@@ -1024,27 +1003,29 @@
         if (members.has(username)) return true;
       } catch {}
 
-      const userData = await fetchArcgisJson(`community/users/${encodeURIComponent(username)}`, token);
+      const userData = await fetchArcgisJson(`community/users/${encodeURIComponent(username)}`, options);
       const groups = Array.isArray(userData?.groups) ? userData.groups : [];
       return groups.some(g => (g?.id || '') === arcgis.requiredGroupId);
     }
 
     function startArcgisLogin() {
-      if (!arcgis.portalUrl || !arcgis.clientId) {
-        showAuthGate('Falta configurar ARCGIS_PORTAL_URL y ARCGIS_CLIENT_ID.', false);
+      if (!arcgis.portalUrl) {
+        showAuthGate('Falta configurar ARCGIS_PORTAL_URL.', false);
         return;
       }
-      const redirectUri = arcgis.redirectUri || `${window.location.origin}${window.location.pathname}`;
-      const authUrl = `${arcgis.portalUrl}/sharing/rest/oauth2/authorize?client_id=${encodeURIComponent(arcgis.clientId)}&response_type=token&expiration=20160&redirect_uri=${encodeURIComponent(redirectUri)}`;
-      window.location.assign(authUrl);
+      const returnUrl = arcgis.redirectUri || window.location.href;
+      const signInUrl = `${arcgis.portalUrl}/home/signin.html?returnUrl=${encodeURIComponent(returnUrl)}`;
+      window.location.assign(signInUrl);
     }
 
     function arcgisLogout() {
-      clearArcgisToken();
-      authState.token = null;
-      authState.username = '';
-      authState.orgId = '';
-      window.location.reload();
+      if (!arcgis.portalUrl) {
+        window.location.reload();
+        return;
+      }
+      const returnUrl = window.location.href;
+      const signOutUrl = `${arcgis.portalUrl}/home/signout.html?redirect=${encodeURIComponent(returnUrl)}`;
+      window.location.assign(signOutUrl);
     }
 
     async function ensureArcgisLogin() {
@@ -1053,25 +1034,15 @@
       const loginBtn = document.getElementById('btnArcgisLogin');
       if (loginBtn) loginBtn.onclick = startArcgisLogin;
 
-      if (!arcgis.portalUrl || !arcgis.clientId) {
-        showAuthGate('ArcGIS login activo pero falta configurar portal/clientId en el entorno.', false);
+      if (!arcgis.portalUrl) {
+        showAuthGate('ArcGIS login activo pero falta configurar ARCGIS_PORTAL_URL en el entorno.', false);
         return false;
       }
 
-      const hashToken = parseArcgisTokenFromHash();
-      if (hashToken) {
-        saveArcgisToken(hashToken);
-        sanitizeArcgisHash();
-      }
-
-      const token = hashToken || loadArcgisToken();
-      if (!token) {
-        showAuthGate('Inicia sesión para acceder a la consola.', true);
-        return false;
-      }
+      showAuthGate('Comprobando sesion ArcGIS Enterprise...', false);
 
       try {
-        const self = await fetchArcgisJson('community/self', token);
+        const self = await fetchArcgisJson('community/self', { useCookies: true });
         const username = self?.username || self?.user?.username || '';
         const orgId = self?.orgId || self?.user?.orgId || '';
         if (!username) throw new Error('No se pudo obtener el usuario autenticado de ArcGIS.');
@@ -1080,19 +1051,17 @@
           throw new Error(`Usuario fuera de la organizacion permitida. orgId actual: ${orgId || '(vacio)'}`);
         }
 
-        const inGroup = await userIsInRequiredGroup(username, token);
+        const inGroup = await userIsInRequiredGroup(username, { useCookies: true });
         if (!inGroup) {
           throw new Error(`Usuario '${username}' no pertenece al grupo permitido (${arcgis.requiredGroupId}).`);
         }
 
-        authState.token = token;
         authState.username = username;
         authState.orgId = orgId;
         hideAuthGate();
         return true;
       } catch (e) {
-        clearArcgisToken();
-        showAuthGate(`Acceso denegado.\n${String(e?.message || e)}`, true);
+        showAuthGate(`Inicia sesion en ArcGIS Enterprise para acceder.\n${String(e?.message || e)}`, true);
         return false;
       }
     }
