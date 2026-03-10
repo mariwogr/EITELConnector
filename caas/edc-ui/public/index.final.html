@@ -1023,10 +1023,8 @@
         showAuthGate('Falta configurar ARCGIS_PORTAL_URL.', false);
         return;
       }
-      const oauthClientId = arcgis.clientId || 'arcgisonline';
-      const oauthRedirect = arcgis.redirectUri || `${arcgis.portalUrl}/home/accountswitcher-callback.html`;
-      const signInUrl = `${arcgis.portalUrl}/sharing/oauth2/authorize?client_id=${encodeURIComponent(oauthClientId)}&response_type=code&redirect_uri=${encodeURIComponent(oauthRedirect)}&force_login=true`;
-
+      const returnUrl = arcgis.redirectUri || window.location.href;
+      const signInUrl = `${arcgis.portalUrl}/home/signin.html?returnUrl=${encodeURIComponent(returnUrl)}`;
       const popup = window.open(signInUrl, '_blank', 'noopener,noreferrer');
       if (!popup) {
         window.location.assign(signInUrl);
@@ -1058,6 +1056,15 @@
         return false;
       }
 
+      try {
+        const appHost = window.location.host;
+        const portalHost = new URL(arcgis.portalUrl).host;
+        if (appHost !== portalHost) {
+          showAuthGate(`Host distinto detectado. Abre la consola en https://${portalHost}/conectoruc3m/ para reutilizar la sesion del portal. Host actual: ${appHost}`, true);
+          return false;
+        }
+      } catch {}
+
       showAuthGate('Comprobando sesion ArcGIS Enterprise...', false);
 
       try {
@@ -1080,7 +1087,7 @@
         hideAuthGate();
         return true;
       } catch (e) {
-        showAuthGate(`Inicia sesion en ArcGIS Enterprise para acceder.\n${String(e?.message || e)}`, true);
+        showAuthGate(`Inicia sesion en ArcGIS Enterprise para acceder.\n${String(e?.message || e)}\nTip: accede siempre por https://gis.eiteldata.eu/conectoruc3m/`, true);
         return false;
       }
     }
