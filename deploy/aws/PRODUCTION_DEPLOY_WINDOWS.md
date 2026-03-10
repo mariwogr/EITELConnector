@@ -28,7 +28,7 @@ Set secure values:
 - `POSTGRES_PASSWORD`
 - `EDC_API_AUTH_KEY`
 
-Optional (ArcGIS Enterprise login for UI):
+ArcGIS Enterprise login gate (required for UI access control):
 - `ARCGIS_AUTH_ENABLED=true`
 - `ARCGIS_PORTAL_URL=https://gis.eiteldata.eu/arcgis`
 - `ARCGIS_CLIENT_ID=<app-id-registrada-en-portal>`
@@ -45,6 +45,9 @@ Important:
 docker compose --env-file .env.production -f docker-compose.production.yaml build --no-cache
 docker compose --env-file .env.production -f docker-compose.production.yaml up -d
 docker compose --env-file .env.production -f docker-compose.production.yaml ps
+
+# If ArcGIS variables changed, recreate UI so config.js is regenerated
+docker compose --env-file .env.production -f docker-compose.production.yaml up -d --build --force-recreate conectoruc3m-ui
 ```
 
 Persistence rule (important):

@@ -827,6 +827,7 @@
       <p class="auth-help">Esta consola requiere sesión activa de ArcGIS Enterprise (cookie de portal) para control de acceso.</p>
       <div class="row" style="margin-top:12px">
         <button class="primary" id="btnArcgisLogin">Entrar con ArcGIS Enterprise</button>
+        <button class="ghost" id="btnArcgisCheck">Ya inicie sesion</button>
       </div>
       <div class="auth-error" id="authError" style="display:none"></div>
     </div>
@@ -1022,9 +1023,16 @@
         showAuthGate('Falta configurar ARCGIS_PORTAL_URL.', false);
         return;
       }
-      const returnUrl = arcgis.redirectUri || window.location.href;
-      const signInUrl = `${arcgis.portalUrl}/home/signin.html?returnUrl=${encodeURIComponent(returnUrl)}`;
-      window.location.assign(signInUrl);
+      const oauthClientId = arcgis.clientId || 'arcgisonline';
+      const oauthRedirect = arcgis.redirectUri || `${arcgis.portalUrl}/home/accountswitcher-callback.html`;
+      const signInUrl = `${arcgis.portalUrl}/sharing/oauth2/authorize?client_id=${encodeURIComponent(oauthClientId)}&response_type=code&redirect_uri=${encodeURIComponent(oauthRedirect)}&force_login=true`;
+
+      const popup = window.open(signInUrl, '_blank', 'noopener,noreferrer');
+      if (!popup) {
+        window.location.assign(signInUrl);
+        return;
+      }
+      showAuthGate('Se abrio el login en otra pestana. Cuando termines, vuelve aqui y pulsa "Ya inicie sesion".', true);
     }
 
     function arcgisLogout() {
@@ -1041,7 +1049,9 @@
       if (!arcgis.enabled) return true;
 
       const loginBtn = document.getElementById('btnArcgisLogin');
+      const checkBtn = document.getElementById('btnArcgisCheck');
       if (loginBtn) loginBtn.onclick = startArcgisLogin;
+      if (checkBtn) checkBtn.onclick = () => ensureArcgisLogin();
 
       if (!arcgis.portalUrl) {
         showAuthGate('ArcGIS login activo pero falta configurar ARCGIS_PORTAL_URL en el entorno.', false);

@@ -17,12 +17,21 @@ cp .env.production.example .env.production
 # Edit and set secure secrets:
 # - POSTGRES_PASSWORD
 # - EDC_API_AUTH_KEY
+# ArcGIS login gate (required for UI access control):
+# - ARCGIS_AUTH_ENABLED=true
+# - ARCGIS_PORTAL_URL=https://gis.eiteldata.eu/arcgis
+# - ARCGIS_REDIRECT_URI=https://gis.eiteldata.eu/conectoruc3m/
 nano .env.production
 ```
 
 ## 3) Start production stack
 ```bash
 docker compose --env-file .env.production -f docker-compose.production.yaml up -d
+```
+
+If you changed ArcGIS variables, recreate UI so `config.js` is regenerated:
+```bash
+docker compose --env-file .env.production -f docker-compose.production.yaml up -d --build --force-recreate conectoruc3m-ui
 ```
 
 Persistence rule (important):
