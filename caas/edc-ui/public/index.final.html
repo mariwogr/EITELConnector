@@ -889,6 +889,7 @@
       requiredGroupId: (cfg.arcgisRequiredGroupId || '').trim(),
     };
     const authState = { username: '', orgId: '' };
+    const arcgisTokenStorageKey = 'eitel.arcgis.access_token';
 
     const app = document.getElementById('app');
     const out = document.getElementById('out');
@@ -987,11 +988,30 @@
       if (gate) gate.classList.remove('open');
     }
 
+    function extractArcgisTokenFromHash() {
+      const hash = String(window.location.hash || '');
+      if (!hash || !hash.includes('access_token=')) return '';
+      const params = new URLSearchParams(hash.replace(/^#/, ''));
+      const token = (params.get('access_token') || '').trim();
+      if (!token) return '';
+      try { sessionStorage.setItem(arcgisTokenStorageKey, token); } catch {}
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+      return token;
+    }
+
+    function getStoredArcgisToken() {
+      try { return (sessionStorage.getItem(arcgisTokenStorageKey) || '').trim(); } catch { return ''; }
+    }
+
+    function clearStoredArcgisToken() {
+      try { sessionStorage.removeItem(arcgisTokenStorageKey); } catch {}
+    }
+
     async function fetchArcgisJson(path, { token = '', useCookies = true } = {}) {
       const sep = path.includes('?') ? '&' : '?';
       const tokenPart = token ? `&token=${encodeURIComponent(token)}` : '';
       const url = `${arcgis.portalUrl}/sharing/rest/${path}${sep}f=json${tokenPart}`;
-      const res = await fetch(url, { credentials: useCookies ? 'include' : 'same-origin' });
+      const res = await fetch(url, { credentials: useCookies ? 'include' : 'omit' });
       const data = await res.json();
       if (!res.ok || data?.error) {
         const msg = data?.error?.message || `ArcGIS HTTP ${res.status}`;
@@ -1023,17 +1043,14 @@
         showAuthGate('Falta configurar ARCGIS_PORTAL_URL.', false);
         return;
       }
-      const returnUrl = arcgis.redirectUri || window.location.href;
-      const signInUrl = `${arcgis.portalUrl}/home/signin.html?returnUrl=${encodeURIComponent(returnUrl)}`;
-      const popup = window.open(signInUrl, '_blank', 'noopener,noreferrer');
-      if (!popup) {
-        window.location.assign(signInUrl);
-        return;
-      }
-      showAuthGate('Se abrio el login en otra pestana. Cuando termines, vuelve aqui y pulsa "Ya inicie sesion".', true);
+      const clientId = arcgis.clientId || 'arcgisonline';
+      const redirectUri = arcgis.redirectUri || window.location.href;
+      const authorizeUrl = `${arcgis.portalUrl}/sharing/oauth2/authorize?client_id=${encodeURIComponent(clientId)}&response_type=token&expiration=20160&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      window.location.assign(authorizeUrl);
     }
 
     function arcgisLogout() {
+      clearStoredArcgisToken();
       if (!arcgis.portalUrl) {
         window.location.reload();
         return;
@@ -1067,8 +1084,13 @@
 
       showAuthGate('Comprobando sesion ArcGIS Enterprise...', false);
 
+      const tokenFromHash = extractArcgisTokenFromHash();
+      const accessToken = tokenFromHash || getStoredArcgisToken();
+
       try {
-        const self = await fetchArcgisJson('community/self', { useCookies: true });
+        const self = await fetchArcgisJson('community/self', accessToken
+          ? { token: accessToken, useCookies: false }
+          : { useCookies: true });
         const username = self?.username || self?.user?.username || '';
         const orgId = self?.orgId || self?.user?.orgId || '';
         if (!username) throw new Error('No se pudo obtener el usuario autenticado de ArcGIS.');
@@ -1077,7 +1099,9 @@
           throw new Error(`Usuario fuera de la organizacion permitida. orgId actual: ${orgId || '(vacio)'}`);
         }
 
-        const inGroup = await userIsInRequiredGroup(username, { useCookies: true });
+        const inGroup = await userIsInRequiredGroup(username, accessToken
+          ? { token: accessToken, useCookies: false }
+          : { useCookies: true });
         if (!inGroup) {
           throw new Error(`Usuario '${username}' no pertenece al grupo permitido (${arcgis.requiredGroupId}).`);
         }
@@ -1087,6 +1111,7 @@
         hideAuthGate();
         return true;
       } catch (e) {
+        clearStoredArcgisToken();
         showAuthGate(`Inicia sesion en ArcGIS Enterprise para acceder.\n${String(e?.message || e)}\nTip: accede siempre por https://gis.eiteldata.eu/conectoruc3m/`, true);
         return false;
       }
