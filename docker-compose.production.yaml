@@ -111,6 +111,7 @@ services:
 
 volumes:
   pg_data:
+    name: conectoruc3m_pg_data
 
 networks:
   edc-net:

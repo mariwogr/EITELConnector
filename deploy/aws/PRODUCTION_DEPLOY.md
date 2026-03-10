@@ -25,6 +25,11 @@ nano .env.production
 docker compose --env-file .env.production -f docker-compose.production.yaml up -d
 ```
 
+Persistence rule (important):
+- Do NOT run `docker compose down -v` in production.
+- Do NOT run `docker volume rm conectoruc3m_pg_data`.
+- Contracts, negotiations and transfers are stored in PostgreSQL volume `conectoruc3m_pg_data` and must be kept between deploys.
+
 ## 4) Validate
 ```bash
 curl -i http://localhost:12000/health
@@ -51,10 +56,12 @@ sudo systemctl restart eitel-connector
 ```bash
 cd /opt/eitel/EITELConnector
 git pull
-sudo systemctl restart eitel-connector
+docker compose --env-file .env.production -f docker-compose.production.yaml up -d --build
 ```
+
+This upgrade flow keeps the PostgreSQL volume and preserves existing connector state.
 
 ## 7) If machine hangs/crashes
 - On instance reboot, `systemd` + Docker restart policies restore services automatically.
 - For higher availability, use at least 2 EC2 instances behind ALB in an Auto Scaling Group.
-- Persist PostgreSQL volume (`pg_data`) on durable storage (EBS). Consider DB backups/snapshots.
+- Persist PostgreSQL volume (`conectoruc3m_pg_data`) on durable storage (EBS). Consider DB backups/snapshots.

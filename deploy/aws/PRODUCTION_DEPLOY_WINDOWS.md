@@ -47,6 +47,11 @@ docker compose --env-file .env.production -f docker-compose.production.yaml up -
 docker compose --env-file .env.production -f docker-compose.production.yaml ps
 ```
 
+Persistence rule (important):
+- Do NOT run `docker compose down -v` in production.
+- Do NOT remove Docker volume `conectoruc3m_pg_data`.
+- Contracts, negotiations and transfers are stored in PostgreSQL volume `conectoruc3m_pg_data` and must be kept between deploys.
+
 Note:
 - The production Postgres init script is `deploy/aws/init-conectoruc3m.sql` and creates `conectoruc3m_db`.
 
@@ -88,3 +93,5 @@ Set-Location "C:\eitel\EITELConnector"
 git pull origin main
 docker compose --env-file .env.production -f docker-compose.production.yaml up -d --build
 ```
+
+This update flow keeps the PostgreSQL volume and preserves existing connector state.
