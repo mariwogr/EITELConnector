@@ -170,6 +170,17 @@
       padding: 14px;
       box-shadow: 0 10px 24px rgba(0, 0, 0, .08);
     }
+    .tutorial {
+      border-left: 4px solid var(--primary);
+      background: color-mix(in srgb, var(--primary-soft) 55%, var(--surface));
+    }
+    .tutorial ol {
+      margin: 8px 0 0 18px;
+      padding: 0;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.45;
+    }
     .wide { grid-column: 1 / -1; }
     h2 { margin: 0 0 8px; font-size: 18px; }
     h3 { margin: 14px 0 8px; font-size: 15px; }
@@ -443,6 +454,14 @@
               <button class="primary" id="btnRefreshOverview" data-i18n="dash.refresh">Actualizar</button>
             </div>
           </section>
+          <section class="card wide tutorial">
+            <h3>Mini tutorial</h3>
+            <ol>
+              <li>Pulsa "Actualizar" para cargar el estado real del conector desplegado.</li>
+              <li>Verifica que haya datos en Assets, Policies, Contratos y Transferencias.</li>
+              <li>Si falta algo, sigue el flujo: Asset, Politica, Contrato, Catalogo, Contratos, Transferencias.</li>
+            </ol>
+          </section>
         </div>
       </section>
 
@@ -452,17 +471,17 @@
             <h2>Publicar asset</h2>
             <p class="muted">Configura y publica el asset antes de definir política y contrato.</p>
             <div class="grid">
-              <div><label data-i18n="publish.assetKey">Asset key</label><input id="assetKey" value="dataset-clima-uc3m" /></div>
+              <div><label data-i18n="publish.assetKey">Asset key</label><input id="assetKey" placeholder="ej: dataset-clima-uc3m" /></div>
               <div><label data-i18n="publish.assetId">ID interno</label><input id="assetIdPreview" readonly /></div>
             </div>
             <div class="grid">
               <div><label>Policy ID</label><input id="policyIdPreview" readonly /></div>
               <div><label>Contract Definition ID</label><input id="contractDefIdPreview" readonly /></div>
             </div>
-            <label data-i18n="publish.name">Nombre</label><input id="assetName" value="Dataset Clima UC3M" />
+            <label data-i18n="publish.name">Nombre</label><input id="assetName" placeholder="ej: Dataset Clima UC3M" />
             <div class="grid">
-              <div><label data-i18n="publish.baseUrl">Base URL</label><input id="assetBaseUrl" value="https://example.org/data" /></div>
-              <div><label>Path</label><input id="assetPath" value="/api/items" /></div>
+              <div><label data-i18n="publish.baseUrl">Base URL</label><input id="assetBaseUrl" placeholder="https://api.tu-dominio.com" /></div>
+              <div><label>Path</label><input id="assetPath" placeholder="/ruta/recurso" /></div>
             </div>
             <h3>Autenticación opcional</h3>
             <div class="grid">
@@ -481,8 +500,8 @@
               </div>
             </div>
             <div class="grid">
-              <div><label>Header auth</label><input id="pubAuthHeader" value="Authorization" /></div>
-              <div><label>Prefijo</label><input id="pubAuthPrefix" value="Bearer " /></div>
+              <div><label>Header auth</label><input id="pubAuthHeader" placeholder="Authorization" /></div>
+              <div><label>Prefijo</label><input id="pubAuthPrefix" placeholder="Bearer " /></div>
             </div>
             <label>Headers JSON</label><textarea id="assetHeadersJson" rows="4">{}</textarea>
 
@@ -492,6 +511,14 @@
               <button class="danger" id="btnDeleteAsset" data-i18n="publish.delete">Borrar</button>
               <button class="ghost" id="btnGoPolicy">Continuar a Política</button>
             </div>
+          </section>
+          <section class="card wide tutorial">
+            <h3>Mini tutorial</h3>
+            <ol>
+              <li>Introduce `Asset key`, nombre y `Base URL` del endpoint real que quieres compartir.</li>
+              <li>Si necesitas autenticacion de origen, selecciona tipo y secreto del vault.</li>
+              <li>Pulsa "Crear/Actualizar asset" y confirma en consola que devuelve `2xx`.</li>
+            </ol>
           </section>
         </div>
       </section>
@@ -531,7 +558,7 @@
                 </div>
                 <div>
                   <label>Purpose (si aplica)</label>
-                  <input id="policyPurpose" placeholder="analytics" value="analytics" />
+                  <input id="policyPurpose" placeholder="ej: analytics" />
                 </div>
               </div>
               <label>Geography (opcional)</label>
@@ -539,7 +566,7 @@
             </div>
             <div id="policyJsonBlock" style="display:none">
               <label>Policy JSON-LD</label>
-              <textarea id="policyCustomJson" rows="8">{"@context":"http://www.w3.org/ns/odrl.jsonld","@type":"http://www.w3.org/ns/odrl/2/Set","permission":[{"action":"use"}]}</textarea>
+              <textarea id="policyCustomJson" rows="8" placeholder='{"@context":"http://www.w3.org/ns/odrl.jsonld","@type":"http://www.w3.org/ns/odrl/2/Set","permission":[{"action":"use"}]}'></textarea>
             </div>
 
             <div class="row" style="margin-top:8px">
@@ -548,6 +575,14 @@
               <button class="danger" id="btnDeletePolicy">Borrar policy</button>
               <button class="ghost" id="btnGoContract">Continuar a Contrato</button>
             </div>
+          </section>
+          <section class="card wide tutorial">
+            <h3>Mini tutorial</h3>
+            <ol>
+              <li>En modo formulario, define restricciones minimas (participant, purpose o geography).</li>
+              <li>En modo JSON-LD, pega la policy final sin ejemplos de prueba.</li>
+              <li>Pulsa "Crear/Actualizar policy" y valida que queda asociada al asset.</li>
+            </ol>
           </section>
         </div>
       </section>
@@ -572,6 +607,14 @@
               <button class="danger" id="btnDeleteContractDef">Borrar ContractDefinition</button>
             </div>
           </section>
+          <section class="card wide tutorial">
+            <h3>Mini tutorial</h3>
+            <ol>
+              <li>Revisa que `Asset ID` y `Policy ID` correspondan al recurso publicado.</li>
+              <li>Crea el `ContractDefinition` para exponer la oferta en catalogo.</li>
+              <li>Comprueba con "Listar ContractDefinitions" que aparece activo.</li>
+            </ol>
+          </section>
         </div>
       </section>
 
@@ -581,7 +624,7 @@
             <h2 data-i18n="catalog.title">Data Offers del catálogo</h2>
             <p class="muted" data-i18n="catalog.subtitle">Aquí el consumidor ve data-offers, revisa términos de policy y acepta condiciones antes de contratar.</p>
             <div class="grid">
-              <div><label data-i18n="catalog.connector">Conector remoto</label><input id="searchConnectorId" value="provider" /></div>
+              <div><label data-i18n="catalog.connector">Conector remoto</label><input id="searchConnectorId" placeholder="ej: conectoruc3m" /></div>
               <div><label data-i18n="catalog.dsp">URL DSP</label><input id="resolvedAddress" readonly /></div>
             </div>
             <div class="row" style="margin-top:8px">
@@ -606,6 +649,14 @@
               <tbody id="tblOffers"></tbody>
             </table>
           </section>
+          <section class="card wide tutorial">
+            <h3>Mini tutorial</h3>
+            <ol>
+              <li>Escribe el ID del conector remoto y pulsa "Ver catalogos".</li>
+              <li>Selecciona un data-offer, revisa terminos y marca aceptacion.</li>
+              <li>Pulsa "Realizar contrato" para generar la negociacion contractual.</li>
+            </ol>
+          </section>
         </div>
       </section>
 
@@ -620,6 +671,14 @@
               <tbody id="tblAgreements"></tbody>
             </table>
           </section>
+          <section class="card wide tutorial">
+            <h3>Mini tutorial</h3>
+            <ol>
+              <li>Pulsa "Listar contratos" para confirmar contratos activos en produccion.</li>
+              <li>Identifica el contrato del asset que vas a transferir.</li>
+              <li>Usa la accion de ese contrato para rellenar Transferencias automaticamente.</li>
+            </ol>
+          </section>
         </div>
       </section>
 
@@ -632,7 +691,7 @@
               <div><label data-i18n="transfer.contractSelect">Contrato</label><select id="agreementSelect"><option value="">Primero lista contratos</option></select></div>
             </div>
             <label data-i18n="transfer.contractId">ID contrato (opcional)</label><input id="agreementId" />
-            <label>Destination URL (producción)</label><input id="sinkBaseUrl" placeholder="https://consumer.example.com/ingest" />
+            <label>Destination URL (produccion)</label><input id="sinkBaseUrl" placeholder="https://tu-destino.com/ingest" />
             <div class="row" style="margin-top:8px">
               <button class="primary" id="btnStartTransfer" data-i18n="transfer.start">Iniciar transferencia</button>
               <button class="ghost" id="btnListTransfers" data-i18n="transfer.list">Listar transferencias</button>
@@ -641,6 +700,14 @@
               <thead><tr><th data-i18n="table.transfer">Transferencia</th><th data-i18n="table.state">Estado</th><th data-i18n="table.contract">Contrato</th><th></th></tr></thead>
               <tbody id="tblTransfers"></tbody>
             </table>
+          </section>
+          <section class="card wide tutorial">
+            <h3>Mini tutorial</h3>
+            <ol>
+              <li>Selecciona contrato desde el desplegable o pega el `agreementId` real.</li>
+              <li>Completa `Destination URL` del receptor en produccion.</li>
+              <li>Inicia la transferencia y monitorea su estado hasta `COMPLETED`.</li>
+            </ol>
           </section>
         </div>
       </section>
@@ -651,8 +718,8 @@
             <h2 data-i18n="secrets.title">Secretos</h2>
             <p class="muted" data-i18n="secrets.subtitle">Gestión rápida del vault de secretos.</p>
             <div class="grid">
-              <div><label data-i18n="secrets.name">Nombre</label><input id="secretName" placeholder="api-key-provider" /></div>
-              <div><label data-i18n="secrets.value">Valor</label><input id="secretValue" placeholder="valor-secreto" /></div>
+              <div><label data-i18n="secrets.name">Nombre</label><input id="secretName" placeholder="nombre-del-secreto" /></div>
+              <div><label data-i18n="secrets.value">Valor</label><input id="secretValue" placeholder="valor-real" /></div>
             </div>
             <div class="row" style="margin-top:8px">
               <button class="primary" id="btnSaveSecret" data-i18n="secrets.save">Guardar</button>
@@ -660,6 +727,14 @@
               <button class="danger" id="btnDeleteSecret" data-i18n="secrets.delete">Borrar</button>
             </div>
             <pre id="secretsOut" style="margin-top:10px"></pre>
+          </section>
+          <section class="card wide tutorial">
+            <h3>Mini tutorial</h3>
+            <ol>
+              <li>Guarda secretos que vaya a consumir el asset o la autenticacion DSP.</li>
+              <li>Verifica con "Listar" que existen y usa esos nombres en formularios.</li>
+              <li>Elimina secretos de pruebas para dejar solo los de produccion.</li>
+            </ol>
           </section>
         </div>
       </section>
@@ -685,6 +760,14 @@
               <button class="ghost" id="btnEitelCatalogo">Ver catálogo público</button>
             </div>
           </section>
+          <section class="card wide tutorial">
+            <h3>Mini tutorial</h3>
+            <ol>
+              <li>Usa estos enlaces para validar coherencia entre despliegue y contexto EITEL.</li>
+              <li>Comprueba naming y datos publicados antes de exponer a terceros.</li>
+              <li>Vuelve a Dashboard para seguir con operacion del conector desplegado.</li>
+            </ol>
+          </section>
         </div>
       </section>
 
@@ -694,10 +777,18 @@
             <h2>API Explorer</h2>
             <div class="grid">
               <div><label>Método</label><select id="explMethod"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select></div>
-              <div><label>Path</label><input id="explPath" value="/v3/assets/request" /></div>
+              <div><label>Path</label><input id="explPath" placeholder="/v3/assets/request" /></div>
             </div>
-            <label>Body JSON</label><textarea id="explBody" rows="8">{"@context":{"@vocab":"https://w3id.org/edc/v0.0.1/ns/"},"@type":"QuerySpec","offset":0,"limit":20}</textarea>
+            <label>Body JSON</label><textarea id="explBody" rows="8" placeholder='{"@context":{"@vocab":"https://w3id.org/edc/v0.0.1/ns/"},"@type":"QuerySpec"}'></textarea>
             <div class="row" style="margin-top:8px"><button class="primary" id="btnExplorerSend">Enviar</button></div>
+          </section>
+          <section class="card wide tutorial">
+            <h3>Mini tutorial</h3>
+            <ol>
+              <li>Introduce metodo, endpoint y body solo cuando necesites pruebas tecnicas.</li>
+              <li>Empieza por consultas (`request`) antes de operaciones de escritura.</li>
+              <li>Valida respuesta en consola y documenta cambios sobre el conector desplegado.</li>
+            </ol>
           </section>
         </div>
       </section>
@@ -712,7 +803,7 @@
         <strong id="consoleTitle">Consola</strong>
         <span class="chip" id="consoleState">right</span>
       </div>
-      <pre id="out">{ "status": "ready" }</pre>
+      <pre id="out"></pre>
     </aside>
   </div>
   <button class="ghost console-show" id="btnConsoleShow">⮜ Consola</button>
@@ -1904,8 +1995,8 @@
         showAuthGate('Validando sesion ArcGIS...', false);
       }
       document.getElementById('badge').textContent = `${role} · EDC · ${cfg.managementApiUrl || 'management api'}`;
-      document.getElementById('searchConnectorId').value = 'conectoruc3m';
-      document.getElementById('transferAddress').value = PROD_DSP_URL;
+      document.getElementById('searchConnectorId').value = '';
+      document.getElementById('transferAddress').value = '';
       document.getElementById('btnEitelPortal').onclick = () => window.open('https://uc3m-espacioeitel.hub.arcgis.com/', '_blank');
       document.getElementById('btnEitelProyecto').onclick = () => window.open('https://uc3m-espacioeitel.hub.arcgis.com/pages/proyecto', '_blank');
       document.getElementById('btnEitelCatalogo').onclick = () => window.open('https://uc3m-espacioeitel.hub.arcgis.com/search', '_blank');
