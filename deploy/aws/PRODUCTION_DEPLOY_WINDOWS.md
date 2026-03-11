@@ -65,23 +65,24 @@ Invoke-WebRequest "http://localhost:12000/conectoruc3m/" -UseBasicParsing
 Invoke-WebRequest "http://localhost:12000/conectoruc3m/api/check/health" -UseBasicParsing
 ```
 
-## 6) Keep it always running as a Windows service
+## 6) Keep it always running after reboot (Windows Task Scheduler watchdog)
 Create launcher script:
 ```powershell
 @'
 Set-Location "C:\eitel\EITELConnector"
 docker compose --env-file .env.production -f docker-compose.production.yaml up -d
-while ($true) { Start-Sleep -Seconds 300 }
 '@ | Set-Content -Path "C:\eitel\EITELConnector\start-eitel.ps1" -Encoding UTF8
 ```
 
-Install service with NSSM:
+Register a watchdog task (runs at startup and every minute):
 ```powershell
-nssm install EITELConnector "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" "-ExecutionPolicy Bypass -File C:\eitel\EITELConnector\start-eitel.ps1"
-nssm set EITELConnector Start SERVICE_AUTO_START
-nssm set EITELConnector AppExit Default Restart
-nssm start EITELConnector
-Get-Service EITELConnector
+$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File C:\eitel\EITELConnector\start-eitel.ps1"
+$triggerStartup = New-ScheduledTaskTrigger -AtStartup
+$triggerMinute = New-ScheduledTaskTrigger -Once -At (Get-Date).Date -RepetitionInterval (New-TimeSpan -Minutes 1)
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopIfGoingOnBatteries -AllowStartIfOnBatteries
+Register-ScheduledTask -TaskName "EITELConnector-Watchdog" -Action $action -Trigger @($triggerStartup,$triggerMinute) -Settings $settings -RunLevel Highest -User "SYSTEM" -Force
+Start-ScheduledTask -TaskName "EITELConnector-Watchdog"
+Get-ScheduledTask -TaskName "EITELConnector-Watchdog"
 ```
 
 Ensure Docker service is automatic:
@@ -89,6 +90,9 @@ Ensure Docker service is automatic:
 Set-Service -Name com.docker.service -StartupType Automatic
 Start-Service com.docker.service
 ```
+
+Note:
+- This watchdog is idempotent: repeated `docker compose ... up -d` is safe and only reconciles desired state.
 
 ## 7) Update procedure
 ```powershell

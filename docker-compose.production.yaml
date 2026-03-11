@@ -2,7 +2,7 @@ services:
   edc-postgres:
     image: postgres:15-alpine
     container_name: conectoruc3m-postgres
-    restart: unless-stopped
+    restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -23,7 +23,7 @@ services:
       context: .
       dockerfile: deploy/Dockerfile
     container_name: conectoruc3m
-    restart: unless-stopped
+    restart: always
     depends_on:
       edc-postgres:
         condition: service_healthy
@@ -68,7 +68,7 @@ services:
       context: ./caas/edc-ui
       dockerfile: Dockerfile
     container_name: conectoruc3m-ui
-    restart: unless-stopped
+    restart: always
     depends_on:
       conectoruc3m:
         condition: service_healthy
@@ -93,7 +93,7 @@ services:
   conectoruc3m-gateway:
     image: nginx:1.27-alpine
     container_name: conectoruc3m-gateway
-    restart: unless-stopped
+    restart: always
     depends_on:
       - conectoruc3m-ui
       - conectoruc3m
