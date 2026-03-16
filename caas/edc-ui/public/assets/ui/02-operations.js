@@ -260,10 +260,13 @@
     function buildAuthHeaders(baseHeaders = {}) {
       const authType = document.getElementById('pubAuthType')?.value || 'none';
       const authHeader = (document.getElementById('pubAuthHeader')?.value || 'Authorization').trim();
-      const authPrefix = document.getElementById('pubAuthPrefix')?.value || '';
+      const authPrefix = (document.getElementById('pubAuthPrefix')?.value || '').trim();
       const authToken = (document.getElementById('pubAuthToken')?.value || '').trim();
       const authSecret = (document.getElementById('pubAuthSecret')?.value || '').trim();
       const headers = { ...baseHeaders };
+
+      // Keep headers JSON in sync with the form.
+      syncAuthHeadersJson();
 
       if (authType === 'none') return headers;
 
@@ -283,6 +286,17 @@
 
       if (authValue) headers[authHeader] = authValue;
       return headers;
+    }
+
+    function syncAuthHeadersJson() {
+      const headersEl = document.getElementById('assetHeadersJson');
+      if (!headersEl) return;
+      const headers = buildAuthHeaders({});
+      try {
+        headersEl.value = JSON.stringify(headers, null, 2);
+      } catch {
+        // ignore if JSON can't be stringified
+      }
     }
 
     function applyAuthTypeForm() {
@@ -322,6 +336,8 @@
         headerInput.placeholder = 'Authorization';
         prefixInput.placeholder = 'Bearer ';
       }
+
+      syncAuthHeadersJson();
     }
 
     function parseJsonSafe(text, fallback = null) {
@@ -457,6 +473,28 @@
 
     async function createOrUpdateAsset() {
       const id = document.getElementById('assetIdPreview').value;
+
+      const authType = document.getElementById('pubAuthType')?.value || 'none';
+      const authToken = (document.getElementById('pubAuthToken')?.value || '').trim();
+      const authHeader = (document.getElementById('pubAuthHeader')?.value || '').trim();
+      const authClientId = (document.getElementById('pubAuthClientId')?.value || '').trim();
+      const authClientSecret = (document.getElementById('pubAuthClientSecret')?.value || '').trim();
+
+      if (authType !== 'none') {
+        if (!authHeader) {
+          writeOut({ status: 400, error: 'El campo "Header auth" es obligatorio para el tipo de autenticación seleccionado.' });
+          return { status: 400 };
+        }
+        if (!authToken) {
+          writeOut({ status: 400, error: 'El token/api token es obligatorio para el tipo de autenticación seleccionado.' });
+          return { status: 400 };
+        }
+        if (authType === 'oauth2' && (!authClientId || !authClientSecret)) {
+          writeOut({ status: 400, error: 'clientId y clientSecret son obligatorios para OAuth2.' });
+          return { status: 400 };
+        }
+      }
+
       let headers = {};
       try { headers = JSON.parse(document.getElementById('assetHeadersJson').value || '{}'); } catch { writeOut({ status: 400, error: 'Headers JSON inválido.' }); return { status: 400 }; }
       headers = buildAuthHeaders(headers);
