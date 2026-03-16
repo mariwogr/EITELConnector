@@ -265,9 +265,6 @@
       const authSecret = (document.getElementById('pubAuthSecret')?.value || '').trim();
       const headers = { ...baseHeaders };
 
-      // Keep headers JSON in sync with the form.
-      syncAuthHeadersJson();
-
       if (authType === 'none') return headers;
 
       let authValue = '';
@@ -289,13 +286,20 @@
     }
 
     function syncAuthHeadersJson() {
-      const headersEl = document.getElementById('assetHeadersJson');
-      if (!headersEl) return;
-      const headers = buildAuthHeaders({});
+      // Prevent recursive re-entry (e.g. if input events trigger sync again).
+      if (syncAuthHeadersJson._running) return;
+      syncAuthHeadersJson._running = true;
       try {
-        headersEl.value = JSON.stringify(headers, null, 2);
-      } catch {
-        // ignore if JSON can't be stringified
+        const headersEl = document.getElementById('assetHeadersJson');
+        if (!headersEl) return;
+        const headers = buildAuthHeaders({});
+        try {
+          headersEl.value = JSON.stringify(headers, null, 2);
+        } catch {
+          // ignore if JSON can't be stringified
+        }
+      } finally {
+        syncAuthHeadersJson._running = false;
       }
     }
 
