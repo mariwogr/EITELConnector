@@ -30,7 +30,7 @@ services:
       WEB_HTTP_CONTROL_PORT: 11001
       WEB_HTTP_CONTROL_PATH: /api/control
       WEB_HTTP_MANAGEMENT_PORT: 11002
-      WEB_HTTP_MANAGEMENT_PATH: /api/management
+      WEB_HTTP_MANAGEMENT_PATH: /management
       WEB_HTTP_PROTOCOL_PORT: 11003
       WEB_HTTP_PROTOCOL_PATH: /api/v1/dsp
       EDC_DSP_CALLBACK_ADDRESS: http://conectoruc3m:11003/api/v1/dsp
