@@ -77,6 +77,9 @@
       });
       document.getElementById('policyMode').addEventListener('change', applyPolicyMode);
 
+      const authTypeSelect = document.getElementById('pubAuthType');
+      if (authTypeSelect) authTypeSelect.addEventListener('change', applyAuthTypeForm);
+
       document.getElementById('btnConsoleToggle').onclick = () => {
         const hidden = app.classList.toggle('console-hidden');
         updateConsoleButtons(hidden);
@@ -124,6 +127,7 @@
       bindEvents();
       document.getElementById('btnArcgisLogout').onclick = arcgisLogout;
       applyPolicyMode();
+      if (typeof applyAuthTypeForm === 'function') applyAuthTypeForm();
       applySettings();
 
       ensureArcgisLogin().then((ok) => {

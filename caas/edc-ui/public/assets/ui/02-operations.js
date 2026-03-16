@@ -259,15 +259,69 @@
 
     function buildAuthHeaders(baseHeaders = {}) {
       const authType = document.getElementById('pubAuthType')?.value || 'none';
-      const authSecret = (document.getElementById('pubAuthSecret')?.value || '').trim();
       const authHeader = (document.getElementById('pubAuthHeader')?.value || 'Authorization').trim();
       const authPrefix = document.getElementById('pubAuthPrefix')?.value || '';
+      const authToken = (document.getElementById('pubAuthToken')?.value || '').trim();
+      const authSecret = (document.getElementById('pubAuthSecret')?.value || '').trim();
       const headers = { ...baseHeaders };
-      if (authType !== 'none' && authSecret) {
+
+      if (authType === 'none') return headers;
+
+      let authValue = '';
+      if (authToken) {
+        // token provided directly in the form (useful for OAuth2 or API tokens)
+        if (authType === 'apikey') {
+          authValue = authToken;
+        } else {
+          const prefix = authPrefix || 'Bearer ';
+          authValue = `${prefix}${authToken}`;
+        }
+      } else if (authSecret) {
         const secretRef = `{{vault:${authSecret}}}`;
-        headers[authHeader] = authType === 'apikey' ? secretRef : `${authPrefix || 'Bearer '}${secretRef}`;
+        authValue = authType === 'apikey' ? secretRef : `${authPrefix || 'Bearer '}${secretRef}`;
       }
+
+      if (authValue) headers[authHeader] = authValue;
       return headers;
+    }
+
+    function applyAuthTypeForm() {
+      const authType = document.getElementById('pubAuthType')?.value || 'none';
+      const clientFields = document.getElementById('pubAuthClientFields');
+      const tokenRow = document.getElementById('pubAuthTokenRow');
+      const headerRow = document.getElementById('pubAuthHeaderRow');
+      const tokenLabel = document.getElementById('pubAuthTokenLabel');
+      const headerInput = document.getElementById('pubAuthHeader');
+      const prefixInput = document.getElementById('pubAuthPrefix');
+
+      if (!clientFields || !tokenRow || !headerRow || !tokenLabel || !headerInput || !prefixInput) return;
+
+      if (authType === 'none') {
+        clientFields.style.display = 'none';
+        tokenRow.style.display = 'none';
+        headerRow.style.display = 'none';
+      } else if (authType === 'oauth2') {
+        clientFields.style.display = '';
+        tokenRow.style.display = '';
+        headerRow.style.display = '';
+        tokenLabel.textContent = 'Token temporal';
+        headerInput.placeholder = 'Authorization';
+        prefixInput.placeholder = 'Bearer ';
+      } else if (authType === 'apikey') {
+        clientFields.style.display = 'none';
+        tokenRow.style.display = '';
+        headerRow.style.display = '';
+        tokenLabel.textContent = 'API token';
+        headerInput.placeholder = 'X-API-Key';
+        prefixInput.placeholder = '';
+      } else {
+        clientFields.style.display = 'none';
+        tokenRow.style.display = '';
+        headerRow.style.display = '';
+        tokenLabel.textContent = 'Token';
+        headerInput.placeholder = 'Authorization';
+        prefixInput.placeholder = 'Bearer ';
+      }
     }
 
     function parseJsonSafe(text, fallback = null) {
@@ -415,7 +469,10 @@
           name: document.getElementById('assetName').value.trim(),
           contenttype: 'application/json',
           'eitel:authType': document.getElementById('pubAuthType')?.value || 'none',
-          'eitel:authSecret': document.getElementById('pubAuthSecret')?.value || ''
+          'eitel:authSecret': document.getElementById('pubAuthSecret')?.value || '',
+          'eitel:authClientId': document.getElementById('pubAuthClientId')?.value.trim() || '',
+          'eitel:authClientSecret': document.getElementById('pubAuthClientSecret')?.value.trim() || '',
+          'eitel:authToken': document.getElementById('pubAuthToken')?.value.trim() || ''
         },
         dataAddress: {
           '@type': 'DataAddress',

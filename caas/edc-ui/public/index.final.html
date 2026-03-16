@@ -102,19 +102,26 @@
                 <select id="pubAuthType">
                   <option value="none">Ninguna</option>
                   <option value="oauth2">OAuth2 token</option>
-                  <option value="bearer">Bearer token</option>
-                  <option value="apikey">API Key</option>
+                  <option value="apikey">API token</option>
                 </select>
               </div>
-              <div>
-                <label>Secreto (Vault)</label>
-                <select id="pubAuthSecret"><option value="">(opcional)</option></select>
-              </div>
             </div>
-            <div class="grid">
+
+            <div id="pubAuthClientFields" class="grid" style="display:none">
+              <div><label>ID de cliente</label><input id="pubAuthClientId" placeholder="ej: 1xKcBD4pqDDxZ1uV" /></div>
+              <div><label>Secreto de cliente</label><input id="pubAuthClientSecret" type="password" placeholder="********" /></div>
+            </div>
+
+            <div id="pubAuthTokenRow" class="grid" style="display:none">
+              <div><label id="pubAuthTokenLabel">Token temporal</label><input id="pubAuthToken" placeholder="Token" /></div>
+              <div><label>Secreto (Vault)</label><select id="pubAuthSecret"><option value="">(opcional)</option></select></div>
+            </div>
+
+            <div id="pubAuthHeaderRow" class="grid" style="display:none">
               <div><label>Header auth</label><input id="pubAuthHeader" placeholder="Authorization" /></div>
               <div><label>Prefijo</label><input id="pubAuthPrefix" placeholder="Bearer " /></div>
             </div>
+
             <label>Headers JSON</label><textarea id="assetHeadersJson" rows="4">{}</textarea>
 
             <div class="row" style="margin-top:8px">
