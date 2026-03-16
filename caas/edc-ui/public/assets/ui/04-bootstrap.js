@@ -78,7 +78,18 @@
       document.getElementById('policyMode').addEventListener('change', applyPolicyMode);
 
       const authTypeSelect = document.getElementById('pubAuthType');
+      const authTokenInput = document.getElementById('pubAuthToken');
+      const authHeaderInput = document.getElementById('pubAuthHeader');
+      const authPrefixInput = document.getElementById('pubAuthPrefix');
+      const authSecretSelect = document.getElementById('pubAuthSecret');
+
       if (authTypeSelect) authTypeSelect.addEventListener('change', applyAuthTypeForm);
+      [authTokenInput, authHeaderInput, authPrefixInput, authSecretSelect].forEach(el => {
+        if (!el) return;
+        el.addEventListener('input', () => {
+          try { syncAuthHeadersJson(); } catch {}
+        });
+      });
 
       document.getElementById('btnConsoleToggle').onclick = () => {
         const hidden = app.classList.toggle('console-hidden');
