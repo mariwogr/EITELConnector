@@ -190,14 +190,12 @@
     }
 
     function arcgisLogout() {
+      // Only clear the stored token locally; keep the ArcGIS session intact.
       clearStoredArcgisToken();
-      if (!arcgis.portalUrl) {
-        window.location.reload();
-        return;
-      }
-      const returnUrl = window.location.href;
-      const signOutUrl = `${arcgis.portalUrl}/home/signout.html?redirect=${encodeURIComponent(returnUrl)}`;
-      window.location.assign(signOutUrl);
+      authState.username = '';
+      authState.orgId = '';
+      hideAuthGate();
+      window.location.reload();
     }
 
     async function ensureArcgisLogin() {
