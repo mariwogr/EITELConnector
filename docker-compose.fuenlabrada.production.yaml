@@ -1,7 +1,7 @@
 services:
   edc-postgres:
     image: postgres:15-alpine
-    container_name: conectorfuenalabrada-postgres
+    container_name: conectorfuenlabrada-postgres
     restart: always
     environment:
       POSTGRES_USER: postgres
@@ -12,24 +12,24 @@ services:
       timeout: 5s
       retries: 10
     volumes:
-      - conectorfuenalabrada_pg_data:/var/lib/postgresql/data
-      - ./deploy/aws/init-conectorfuenalabrada.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - conectorfuenlabrada_pg_data:/var/lib/postgresql/data
+      - ./deploy/aws/init-conectorfuenlabrada.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
-      - edc-fuenalabrada-net
+      - edc-fuenlabrada-net
 
-  conectorfuenalabrada:
+  conectorfuenlabrada:
     image: eitel/eclipse-edc-runtime:0.16.0
     build:
       context: .
       dockerfile: deploy/Dockerfile
-    container_name: conectorfuenalabrada
+    container_name: conectorfuenlabrada
     restart: always
     depends_on:
       edc-postgres:
         condition: service_healthy
     environment:
-      EDC_PARTICIPANT_ID: conectorfuenalabrada
-      EDC_PARTICIPANT_CONTEXT_ID: conectorfuenalabrada
+      EDC_PARTICIPANT_ID: conectorFuenlabrada
+      EDC_PARTICIPANT_CONTEXT_ID: conectorFuenlabrada
       EDC_HOSTNAME: gis.eiteldata.eu
       WEB_HTTP_PORT: 11000
       WEB_HTTP_PATH: /api
@@ -39,15 +39,15 @@ services:
       WEB_HTTP_MANAGEMENT_PATH: /api/management
       WEB_HTTP_PROTOCOL_PORT: 11003
       WEB_HTTP_PROTOCOL_PATH: /api/v1/dsp
-      EDC_DSP_CALLBACK_ADDRESS: https://gis.eiteldata.eu/conectorfuenalabrada/api/v1/dsp
+      EDC_DSP_CALLBACK_ADDRESS: https://gis.eiteldata.eu/conectorFuenlabrada/api/v1/dsp
       EDC_MANAGEMENT_CONTEXT_ENABLED: "true"
       EDC_TRANSFER_PROXY_TOKEN_SIGNER_PRIVATEKEY_ALIAS: private-key
       EDC_TRANSFER_PROXY_TOKEN_VERIFIER_PUBLICKEY_ALIAS: public-key
-      EDC_JDBC_URL: jdbc:postgresql://edc-postgres:5432/conectorfuenalabrada_db
+      EDC_JDBC_URL: jdbc:postgresql://edc-postgres:5432/conectorfuenlabrada_db
       EDC_JDBC_USER: postgres
       EDC_JDBC_PASSWORD: ${POSTGRES_PASSWORD}
       EDC_API_AUTH_KEY: ${EDC_API_AUTH_KEY}
-      EDC_WEB_HTTP_MANAGEMENT_AUTH_DAC_AUDIENCE: conectorfuenalabrada
+      EDC_WEB_HTTP_MANAGEMENT_AUTH_DAC_AUDIENCE: conectorFuenlabrada
       EDC_WEB_REST_CORS_ENABLED: "true"
       EDC_WEB_REST_CORS_HEADERS: "origin,content-type,accept,x-api-key,authorization"
       EDC_WEB_REST_CORS_METHODS: "GET,POST,PUT,DELETE,OPTIONS"
@@ -60,23 +60,23 @@ services:
       timeout: 5s
       retries: 20
     networks:
-      - edc-fuenalabrada-net
+      - edc-fuenlabrada-net
 
-  conectorfuenalabrada-ui:
+  conectorfuenlabrada-ui:
     image: eitel/edc-ui:latest
     build:
       context: ./caas/edc-ui
       dockerfile: Dockerfile
-    container_name: conectorfuenalabrada-ui
+    container_name: conectorfuenlabrada-ui
     restart: always
     depends_on:
-      conectorfuenalabrada:
+      conectorfuenlabrada:
         condition: service_healthy
     environment:
-      NEXT_PUBLIC_MANAGEMENT_API_URL: /conectorfuenalabrada/api/management
+      NEXT_PUBLIC_MANAGEMENT_API_URL: /conectorFuenlabrada/api/management
       NEXT_PUBLIC_MANAGEMENT_API_AUTH_KEY: ${EDC_API_AUTH_KEY}
-      NEXT_PUBLIC_CONNECTOR_NAME: conectorfuenalabrada
-      NEXT_PUBLIC_DSP_URL: https://gis.eiteldata.eu/conectorfuenalabrada/api/v1/dsp/2025-1
+      NEXT_PUBLIC_CONNECTOR_NAME: conectorFuenlabrada
+      NEXT_PUBLIC_DSP_URL: https://gis.eiteldata.eu/conectorFuenlabrada/api/v1/dsp/2025-1
       NEXT_PUBLIC_ARCGIS_AUTH_ENABLED: ${ARCGIS_AUTH_ENABLED:-true}
       NEXT_PUBLIC_ARCGIS_PORTAL_URL: ${ARCGIS_PORTAL_URL:-}
       NEXT_PUBLIC_ARCGIS_CLIENT_ID: ${ARCGIS_CLIENT_ID:-}
@@ -88,48 +88,48 @@ services:
       - ./caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.html:ro
       - ./caas/edc-ui/public/config.template.js:/usr/share/nginx/html/config.template.js:ro
     networks:
-      - edc-fuenalabrada-net
+      - edc-fuenlabrada-net
 
-  conectorfuenalabrada-local-assets:
+  conectorfuenlabrada-local-assets:
     build:
       context: ./caas/control-plane
       dockerfile: Dockerfile
-    container_name: conectorfuenalabrada-local-assets
+    container_name: conectorfuenlabrada-local-assets
     restart: always
     environment:
-      CAAS_LOCAL_ASSETS_INTERNAL_BASE_URL: http://conectorfuenalabrada-local-assets:8081/v1/local-assets/files
-      CAAS_LOCAL_ASSETS_PUBLIC_BASE_URL: https://gis.eiteldata.eu/conectorfuenalabrada/local-assets/files
+      CAAS_LOCAL_ASSETS_INTERNAL_BASE_URL: http://conectorfuenlabrada-local-assets:8081/v1/local-assets/files
+      CAAS_LOCAL_ASSETS_PUBLIC_BASE_URL: https://gis.eiteldata.eu/conectorFuenlabrada/local-assets/files
     volumes:
-      - conectorfuenalabrada_local_assets_data:/app/data/local-assets
+      - conectorfuenlabrada_local_assets_data:/app/data/local-assets
     networks:
-      - edc-fuenalabrada-net
+      - edc-fuenlabrada-net
 
-  conectorfuenalabrada-gateway:
+  conectorfuenlabrada-gateway:
     image: nginx:1.27-alpine
-    container_name: conectorfuenalabrada-gateway
+    container_name: conectorfuenlabrada-gateway
     restart: always
     depends_on:
-      - conectorfuenalabrada-ui
-      - conectorfuenalabrada
-      - conectorfuenalabrada-local-assets
+      - conectorfuenlabrada-ui
+      - conectorfuenlabrada
+      - conectorfuenlabrada-local-assets
     ports:
       - "12000:80"
     volumes:
-      - ./traefik/nginx-fuenalabrada.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./traefik/nginx-fuenlabrada.conf:/etc/nginx/conf.d/default.conf:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
     networks:
-      - edc-fuenalabrada-net
+      - edc-fuenlabrada-net
 
 volumes:
-  conectorfuenalabrada_pg_data:
-    name: conectorfuenalabrada_pg_data
-  conectorfuenalabrada_local_assets_data:
-    name: conectorfuenalabrada_local_assets_data
+  conectorfuenlabrada_pg_data:
+    name: conectorfuenlabrada_pg_data
+  conectorfuenlabrada_local_assets_data:
+    name: conectorfuenlabrada_local_assets_data
 
 networks:
-  edc-fuenalabrada-net:
+  edc-fuenlabrada-net:
     driver: bridge

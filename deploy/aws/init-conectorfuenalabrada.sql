@@ -1,1 +1,0 @@
-CREATE DATABASE conectorfuenalabrada_db;
