@@ -1400,13 +1400,27 @@
         while (true) {
           const elapsed = Date.now() - started;
           if (elapsed > maxWaitMs) {
+            const detail = await callApi('GET', `/v3/transferprocesses/${encodeURIComponent(transferId)}`, undefined, { silent: true, retries: 0 });
+            const dp = await callApi('GET', '/v3/dataplanes', undefined, { silent: true, retries: 0 });
+            const dataplanes = Array.isArray(dp?.data) ? dp.data : [];
+            const errorDetail = detail?.data?.errorDetail || detail?.data?.['edc:errorDetail'] || '(sin errorDetail)';
+            const stateRaw = detail?.data?.state || detail?.data?.['edc:state'] || 'STARTED';
+            const stateNow = normalizeTransferState(stateRaw);
+            const dpMeta = detail?.data?.['edc:dataplaneMetadata'] || detail?.data?.dataplaneMetadata || {};
+
             showInfoPopup('Transferencia estancada ⚠️', {
               message: `La transferencia lleva más de ${Math.round(maxWaitMs / 1000)}s en estado no terminal. Posibles causas: el origen no es accesible desde el conector (comprueba que la URL y autenticación son válidas desde el servidor, no solo desde el navegador), o el destino (sinkBaseUrl) no acepta la conexión del conector. El estado quedó en STARTED porque el conector no pudo completar el PUSH.`,
               transferId,
+              state: stateNow,
               elapsed: `${Math.round(elapsed / 1000)}s`,
-              hint: 'Usa el botón Detalle para ver errorDetail. Verifica que el sinkBaseUrl (webhook.site, etc.) sea accesible desde dentro del contenedor Docker del conector.'
+              errorDetail,
+              dataplanesCount: dataplanes.length,
+              dataplaneMetadata: dpMeta,
+              hint: dataplanes.length === 0
+                ? 'No hay dataplanes registrados en Management API. Sin dataplane activo las transferencias quedan en STARTED.'
+                : 'Hay dataplane registrado. Revisa token ArcGIS (caducidad) y conectividad saliente desde el contenedor hacia origen y destino.'
             });
-            writeOut({ warning: 'Transfer stalled', transferId, elapsed });
+            writeOut({ warning: 'Transfer stalled', transferId, elapsed, stateNow, errorDetail, dataplanesCount: dataplanes.length, dataplaneMetadata: dpMeta });
             break;
           }
 
