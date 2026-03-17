@@ -1175,6 +1175,18 @@
         return;
       }
 
+      const dataplanesResp = await callApi('GET', '/v3/dataplanes', undefined, { silent: true, retries: 0 });
+      const dataplanes = Array.isArray(dataplanesResp?.data) ? dataplanesResp.data : [];
+      if (dataplanesResp.status >= 200 && dataplanesResp.status < 300 && dataplanes.length === 0) {
+        showInfoPopup('Transferencia bloqueada: sin dataplane', {
+          message: 'Este conector no tiene dataplanes registrados. Si inicias la transferencia se quedará en STARTED.',
+          transferId: null,
+          hint: 'Despliega/activa dataplane y vuelve a intentar. Puedes usar el botón "⚙️ Dataplanes" para verificarlo.'
+        });
+        writeOut({ status: 503, error: 'No hay dataplanes registrados en este conector.' });
+        return;
+      }
+
       const activeTransfersResp = await callApi('POST', '/v3/transferprocesses/request', q(), { retries: 0 });
       const activeByContract = unwrap(activeTransfersResp).find(tp => {
         const tpContractId = tp.contractId || tp['edc:contractId'] || '';

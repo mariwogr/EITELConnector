@@ -74,3 +74,27 @@ This upgrade flow keeps the PostgreSQL volume and preserves existing connector s
 - On instance reboot, `systemd` + Docker restart policies restore services automatically.
 - For higher availability, use at least 2 EC2 instances behind ALB in an Auto Scaling Group.
 - Persist PostgreSQL volume (`conectoruc3m_pg_data`) on durable storage (EBS). Consider DB backups/snapshots.
+
+## 8) Transfers stuck in STARTED
+If a transfer remains in `STARTED` for a long time, the issue is usually dataplane/runtime connectivity, not UI.
+
+Check dataplanes registered in the connector:
+```bash
+curl -s -H "x-api-key: <EDC_API_AUTH_KEY>" \
+	http://localhost:12000/conectoruc3m/api/management/v3/dataplanes | jq
+```
+
+If the response is `[]`, there is no active dataplane and transfers cannot complete.
+
+Check transfer detail including error detail:
+```bash
+curl -s -H "x-api-key: <EDC_API_AUTH_KEY>" \
+	http://localhost:12000/conectoruc3m/api/management/v3/transferprocesses/<TRANSFER_ID> | jq
+```
+
+Check destination reachability from inside connector container:
+```bash
+docker exec conectoruc3m curl -I https://webhook.site/
+```
+
+If source is ArcGIS-protected, verify token freshness by republishing the asset before retrying transfer.
