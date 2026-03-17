@@ -675,7 +675,19 @@
           headers
         }
       };
-      return callApi('POST', '/v3/assets', JSON.stringify(body));
+      const publishResp = await callApi('POST', '/v3/assets', JSON.stringify(body));
+      if (authType === 'arcgis-login') {
+        const safeBaseUrl = String(baseUrl || '').replace(/([?&]token=)[^&]+/i, '$1<<access token>>');
+        return {
+          ...publishResp,
+          requestPreview: {
+            authMode: 'arcgis-query-token',
+            baseUrl: safeBaseUrl,
+            path,
+          },
+        };
+      }
+      return publishResp;
     }
 
     async function ensurePolicyAndContractDefinition() {

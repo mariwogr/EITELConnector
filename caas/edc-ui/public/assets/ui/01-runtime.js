@@ -65,7 +65,33 @@
       secretsApi: null,
     };
 
-    const getApiBaseUrl = () => (settings.apiBaseUrl || cfg.managementApiUrl || '/api/management').trim();
+    function normalizeManagementApiBaseUrl(rawUrl) {
+      const raw = String(rawUrl || '').trim();
+      if (!raw) return '/api/management';
+
+      // Already correct shape.
+      if (raw.includes('/api/management')) return raw.replace(/\/+$/, '');
+
+      const firstSegment = (window.location.pathname || '/')
+        .split('/')
+        .filter(Boolean)[0] || '';
+      const prefix = firstSegment ? `/${firstSegment}` : '';
+
+      // Common misconfiguration: absolute .../management (missing connector prefix + /api).
+      if (/\/management\/?$/i.test(raw)) {
+        try {
+          const u = new URL(raw, window.location.origin);
+          const fixedPath = `${prefix}/api/management` || '/api/management';
+          return `${u.origin}${fixedPath}`.replace(/\/+$/, '');
+        } catch {
+          return `${prefix}/api/management`.replace(/\/+$/, '') || '/api/management';
+        }
+      }
+
+      return raw.replace(/\/+$/, '');
+    }
+
+    const getApiBaseUrl = () => normalizeManagementApiBaseUrl(settings.apiBaseUrl || cfg.managementApiUrl || '/api/management');
     const getApiKey = () => (settings.apiKeyOverride || cfg.apiKey || '').trim();
 
     const i18n = {
