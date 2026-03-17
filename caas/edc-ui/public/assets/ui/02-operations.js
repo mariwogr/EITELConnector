@@ -388,9 +388,10 @@
     }
 
     async function resolveArcgisTokenForPublish() {
-      const fromStorage = getArcgisAccessTokenForPublish();
-      if (fromStorage) return fromStorage;
-      return fetchArcgisAccessTokenFromPortalSession();
+      // Prefer a fresh token from ArcGIS session to avoid stale-token transfers.
+      const fresh = await fetchArcgisAccessTokenFromPortalSession();
+      if (fresh) return fresh;
+      return getArcgisAccessTokenForPublish();
     }
 
     function resolveAuthTokenForPublish(authType) {
@@ -449,6 +450,35 @@
     function buildArcgisPathWithToken(path, token) {
       const withFormat = appendQueryParams(path, { f: 'json' });
       return appendQueryParams(withFormat, { token });
+    }
+
+    function normalizeHttpDataUrlParts(rawBaseUrl, rawPath) {
+      let baseUrl = String(rawBaseUrl || '').trim();
+      let path = String(rawPath || '').trim();
+
+      // Accept full URL pasted in path field.
+      if (/^https?:\/\//i.test(path)) {
+        try {
+          const u = new URL(path);
+          baseUrl = `${u.origin}${u.pathname}`;
+          const q = u.search ? u.search.replace(/^\?/, '') : '';
+          path = q ? `?${q}` : '';
+        } catch {}
+      }
+
+      // If baseUrl already contains query, move it to path query to avoid double '?'.
+      const qIndex = baseUrl.indexOf('?');
+      if (qIndex >= 0) {
+        const baseQuery = baseUrl.slice(qIndex + 1);
+        baseUrl = baseUrl.slice(0, qIndex);
+        path = appendQueryParams(path, Object.fromEntries(new URLSearchParams(baseQuery).entries()));
+      }
+
+      if (path && !path.startsWith('/') && !path.startsWith('?')) {
+        path = `/${path}`;
+      }
+
+      return { baseUrl: baseUrl.trim(), path: path.trim() };
     }
 
     function looksLikeSourceErrorPayload(text, contentType) {
@@ -756,6 +786,10 @@
 
       let baseUrl = document.getElementById('assetBaseUrl').value.trim();
       let path = document.getElementById('assetPath').value.trim();
+
+      const normalizedUrlParts = normalizeHttpDataUrlParts(baseUrl, path);
+      baseUrl = normalizedUrlParts.baseUrl;
+      path = normalizedUrlParts.path;
 
       if (authType === 'arcgis-login') {
         headers = {
