@@ -270,6 +270,38 @@
       }
     }
 
+    async function fetchArcgisAccessTokenFromPortalSession() {
+      if (!arcgis?.portalUrl) return '';
+      try {
+        const body = new URLSearchParams({
+          f: 'json',
+          client: 'referer',
+          referer: window.location.origin,
+          expiration: '20160'
+        });
+        const res = await fetch(`${arcgis.portalUrl}/sharing/rest/generateToken`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+          body: body.toString(),
+          credentials: 'include',
+        });
+        const data = await res.json();
+        const token = (data?.token || '').trim();
+        if (token) {
+          try { sessionStorage.setItem('eitel.arcgis.access_token', token); } catch {}
+        }
+        return token;
+      } catch {
+        return '';
+      }
+    }
+
+    async function resolveArcgisTokenForPublish() {
+      const fromStorage = getArcgisAccessTokenForPublish();
+      if (fromStorage) return fromStorage;
+      return fetchArcgisAccessTokenFromPortalSession();
+    }
+
     function resolveAuthTokenForPublish(authType) {
       if (authType === 'arcgis-login') {
         return getArcgisAccessTokenForPublish();
@@ -353,8 +385,8 @@
         if (authSecretSelect) authSecretSelect.disabled = false;
       } else if (authType === 'arcgis-login') {
         clientFields.style.display = 'none';
-        tokenRow.style.display = '';
-        headerRow.style.display = '';
+        tokenRow.style.display = 'none';
+        headerRow.style.display = 'none';
         tokenLabel.textContent = 'Access token (login ArcGIS)';
         if (!headerInput.value) headerInput.value = 'Authorization';
         if (!prefixInput.value) prefixInput.value = 'Bearer ';
@@ -524,13 +556,15 @@
       const id = document.getElementById('assetIdPreview').value;
 
       const authType = document.getElementById('pubAuthType')?.value || 'none';
-      const authToken = resolveAuthTokenForPublish(authType);
+      const authToken = authType === 'arcgis-login'
+        ? await resolveArcgisTokenForPublish()
+        : resolveAuthTokenForPublish(authType);
       const authHeader = (document.getElementById('pubAuthHeader')?.value || '').trim();
       const authClientId = (document.getElementById('pubAuthClientId')?.value || '').trim();
       const authClientSecret = (document.getElementById('pubAuthClientSecret')?.value || '').trim();
 
       if (authType !== 'none') {
-        if (!authHeader) {
+        if (!authHeader && authType !== 'arcgis-login') {
           writeOut({ status: 400, error: 'El campo "Header auth" es obligatorio para el tipo de autenticación seleccionado.' });
           return { status: 400 };
         }
@@ -549,7 +583,13 @@
 
       let headers = {};
       try { headers = JSON.parse(document.getElementById('assetHeadersJson').value || '{}'); } catch { writeOut({ status: 400, error: 'Headers JSON inválido.' }); return { status: 400 }; }
-      headers = buildAuthHeaders(headers);
+      if (authType === 'arcgis-login') {
+        const headerName = authHeader || 'Authorization';
+        const prefix = (document.getElementById('pubAuthPrefix')?.value || '').trim() || 'Bearer ';
+        headers[headerName] = `${prefix}${authToken}`;
+      } else {
+        headers = buildAuthHeaders(headers);
+      }
 
       const body = {
         '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
