@@ -151,7 +151,10 @@
     const fmtDate = (v) => {
       if (!v) return '-';
       const n = Number(v);
-      const d = Number.isFinite(n) && n > 0 ? new Date(n) : new Date(v);
+      const ts = Number.isFinite(n) && n > 0
+        ? (n < 1_000_000_000_000 ? n * 1000 : n)
+        : NaN;
+      const d = Number.isFinite(ts) ? new Date(ts) : new Date(v);
       if (Number.isNaN(d.getTime())) return String(v);
       return d.toLocaleString();
     };

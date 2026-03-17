@@ -9,6 +9,24 @@
       return constraints.map(c => `${c.leftOperand || c['odrl:leftOperand'] || 'condición'} ${c.operator || c['odrl:operator'] || 'eq'} ${c.rightOperand || c['odrl:rightOperand'] || '-'}`).join(' | ');
     }
 
+    let transferStartInFlight = false;
+
+    function normalizeTransferState(raw) {
+      if (raw === undefined || raw === null) return '-';
+      const txt = String(raw).trim();
+      const numericMap = {
+        '100': 'INITIAL',
+        '200': 'PROVISIONING',
+        '300': 'PROVISIONED',
+        '400': 'REQUESTED',
+        '500': 'STARTED',
+        '600': 'SUSPENDED',
+        '700': 'COMPLETED',
+        '800': 'TERMINATED',
+      };
+      return numericMap[txt] || txt;
+    }
+
     function getUiPrefixPath() {
       const parts = (window.location.pathname || '/').split('/').filter(Boolean);
       if (!parts.length) return '/';
@@ -701,6 +719,16 @@
         }
       };
       const publishResp = await callApi('POST', '/v3/assets', JSON.stringify(body));
+      if (publishResp.status >= 200 && publishResp.status < 300) {
+        showInfoPopup('Asset publicado', {
+          status: publishResp.status,
+          assetId: id,
+          baseUrl,
+          path,
+          authType,
+          hint: 'El asset se ha creado/actualizado correctamente en Management API.'
+        });
+      }
       if (authType === 'arcgis-login') {
         return {
           ...publishResp,
@@ -1017,6 +1045,19 @@
     }
 
     async function startTransfer() {
+      if (transferStartInFlight) {
+        writeOut({ status: 409, error: 'Ya hay una transferencia iniciándose. Espera unos segundos.' });
+        return;
+      }
+
+      const startBtn = document.getElementById('btnStartTransfer');
+      transferStartInFlight = true;
+      if (startBtn) {
+        startBtn.disabled = true;
+        startBtn.textContent = 'Iniciando...';
+      }
+
+      try {
       const typedContractId = (document.getElementById('agreementId').value || '').trim();
       const selectedContractId = (document.getElementById('agreementSelect').value || '').trim();
       const contractId = (typedContractId || selectedContractId || '').trim();
@@ -1064,7 +1105,24 @@
       const r = await callApi('POST', '/v3/transferprocesses', JSON.stringify(body));
       writeOut(r);
 
+      const transferId = r?.data?.['@id'] || r?.data?.id || '';
+      if (r.status >= 200 && r.status < 300) {
+        showInfoPopup('Transferencia iniciada', {
+          status: r.status,
+          transferId,
+          contractId,
+          message: 'La transferencia se ha enviado. Se refresca la lista automáticamente.'
+        });
+      }
+
       await listTransfers();
+      } finally {
+        transferStartInFlight = false;
+        if (startBtn) {
+          startBtn.disabled = false;
+          startBtn.textContent = 'Iniciar transferencia';
+        }
+      }
     }
 
     async function listTransfers() {
@@ -1076,7 +1134,7 @@
       } else {
         tbody.innerHTML = rows.map((t, i) => {
           const id = t['@id'] || t.id || '';
-          const st = t.state || t['edc:state'] || '-';
+          const st = normalizeTransferState(t.state || t['edc:state'] || '-');
           const contract = t.contractId || t['edc:contractId'] || '';
           return `
             <tr>
