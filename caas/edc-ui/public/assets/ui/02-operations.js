@@ -40,7 +40,12 @@
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
         try {
-          const primaryBase = String(getApiBaseUrl() || '').trim();
+          let primaryBase = String(getApiBaseUrl() || '').trim();
+          // Hard fix for common wrong base persisted in settings: .../management -> .../<prefix>/api/management
+          if (/\/management\/?$/i.test(primaryBase) && !/\/api\/management\/?$/i.test(primaryBase)) {
+            const forcedBase = getAutoFixedApiBaseUrl();
+            if (forcedBase) primaryBase = forcedBase;
+          }
           const primaryUrl = `${primaryBase}${path}`;
           let res = await fetch(primaryUrl, {
             method,
@@ -644,10 +649,12 @@
       let path = document.getElementById('assetPath').value.trim();
 
       if (authType === 'arcgis-login') {
-        // ArcGIS style auth for source endpoint: token as query param, no Authorization header.
+        // ArcGIS style auth for source endpoint: include token in query and Authorization header.
         const sep = baseUrl.includes('?') ? '&' : '?';
         baseUrl = `${baseUrl}${sep}token=${encodeURIComponent(authToken)}`;
-        headers = {};
+        headers = {
+          Authorization: `Bearer ${authToken}`
+        };
       } else {
         headers = buildAuthHeaders(headers);
       }
@@ -684,6 +691,9 @@
             authMode: 'arcgis-query-token',
             baseUrl: safeBaseUrl,
             path,
+            headers: {
+              Authorization: 'Bearer <<access token>>'
+            }
           },
         };
       }
