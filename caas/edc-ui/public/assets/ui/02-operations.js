@@ -9,6 +9,26 @@
       return constraints.map(c => `${c.leftOperand || c['odrl:leftOperand'] || 'condición'} ${c.operator || c['odrl:operator'] || 'eq'} ${c.rightOperand || c['odrl:rightOperand'] || '-'}`).join(' | ');
     }
 
+    function getUiPrefixPath() {
+      const parts = (window.location.pathname || '/').split('/').filter(Boolean);
+      if (!parts.length) return '/';
+      return `/${parts[0]}/`;
+    }
+
+    function getAutoFixedApiBaseUrl() {
+      const current = String(getApiBaseUrl() || '').trim();
+      if (!current) return '';
+      if (current.includes('/api/management')) return current;
+      if (!current.endsWith('/management')) return '';
+      try {
+        const url = new URL(current, window.location.origin);
+        const prefix = getUiPrefixPath();
+        return `${url.origin}${prefix}api/management`;
+      } catch {
+        return '';
+      }
+    }
+
     async function callApi(method, path, body, options = {}) {
       const retries = Number.isFinite(Number(options.retries)) ? Number(options.retries) : Number(settings.apiRetries || 0);
       const timeoutMs = Number.isFinite(Number(options.timeoutMs)) ? Number(options.timeoutMs) : Number(settings.apiTimeoutMs || 15000);
@@ -20,7 +40,9 @@
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
         try {
-          const res = await fetch(`${getApiBaseUrl()}${path}`, {
+          const primaryBase = String(getApiBaseUrl() || '').trim();
+          const primaryUrl = `${primaryBase}${path}`;
+          let res = await fetch(primaryUrl, {
             method,
             headers: {
               'x-api-key': getApiKey(),
@@ -31,7 +53,30 @@
             signal: controller.signal,
           });
           clearTimeout(timeout);
-          const text = await res.text();
+          let text = await res.text();
+
+          if ((res.status === 404 || res.status === 405) && !options.noAutoBaseFallback) {
+            const fallbackBase = getAutoFixedApiBaseUrl();
+            if (fallbackBase && fallbackBase !== primaryBase) {
+              const fallbackUrl = `${fallbackBase}${path}`;
+              const fallbackRes = await fetch(fallbackUrl, {
+                method,
+                headers: {
+                  'x-api-key': getApiKey(),
+                  'content-type': 'application/json',
+                  ...(options.headers || {}),
+                },
+                body: method === 'GET' || method === 'DELETE' ? undefined : body,
+                signal: controller.signal,
+              });
+              const fallbackText = await fallbackRes.text();
+              if (fallbackRes.status >= 200 && fallbackRes.status < 300) {
+                res = fallbackRes;
+                text = fallbackText;
+              }
+            }
+          }
+
           let data = text;
           try { data = JSON.parse(text); } catch {}
           const result = { status: res.status, data, attempt };
@@ -318,6 +363,7 @@
       const headers = { ...baseHeaders };
 
       if (authType === 'none') return headers;
+      if (authType === 'arcgis-login') return headers;
 
       let authValue = '';
       if (authToken) {
@@ -593,10 +639,15 @@
 
       let headers = {};
       try { headers = JSON.parse(document.getElementById('assetHeadersJson').value || '{}'); } catch { writeOut({ status: 400, error: 'Headers JSON inválido.' }); return { status: 400 }; }
+
+      let baseUrl = document.getElementById('assetBaseUrl').value.trim();
+      let path = document.getElementById('assetPath').value.trim();
+
       if (authType === 'arcgis-login') {
-        const headerName = authHeader || 'Authorization';
-        const prefix = (document.getElementById('pubAuthPrefix')?.value || '').trim() || 'Bearer ';
-        headers[headerName] = `${prefix}${authToken}`;
+        // ArcGIS style auth for source endpoint: token as query param, no Authorization header.
+        const sep = baseUrl.includes('?') ? '&' : '?';
+        baseUrl = `${baseUrl}${sep}token=${encodeURIComponent(authToken)}`;
+        headers = {};
       } else {
         headers = buildAuthHeaders(headers);
       }
@@ -618,9 +669,9 @@
         dataAddress: {
           '@type': 'DataAddress',
           type: 'HttpData',
-          baseUrl: document.getElementById('assetBaseUrl').value.trim(),
+          baseUrl,
           method: 'GET',
-          path: document.getElementById('assetPath').value.trim(),
+          path,
           headers
         }
       };
