@@ -10,6 +10,7 @@
     }
 
     let transferStartInFlight = false;
+    const localTransferStorageKey = `eitel.ui.localTransfers.${connectorName}`;
 
     function normalizeTransferState(raw) {
       if (raw === undefined || raw === null) return '-';
@@ -30,6 +31,76 @@
     function isTransferTerminalState(state) {
       const normalized = normalizeTransferState(state);
       return normalized === 'COMPLETED' || normalized === 'TERMINATED' || normalized === 'FAILED';
+    }
+
+    function getLocalTransferRecords() {
+      try {
+        const raw = localStorage.getItem(localTransferStorageKey);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveLocalTransferRecords(records) {
+      try {
+        localStorage.setItem(localTransferStorageKey, JSON.stringify(records.slice(0, 200)));
+      } catch {}
+    }
+
+    function addLocalTransferRecord(record) {
+      const current = getLocalTransferRecords();
+      current.unshift(record);
+      saveLocalTransferRecords(current);
+      return record;
+    }
+
+    function buildLocalTransferRecord(result) {
+      const status = Number(result?.status || 0);
+      const localTransferId = `local-download-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const completed = status >= 200 && status < 300;
+      return {
+        '@id': localTransferId,
+        id: localTransferId,
+        state: completed ? 'COMPLETED' : 'FAILED',
+        contractId: result?.contractId || '',
+        assetId: result?.assetId || '',
+        createdAt: new Date().toISOString(),
+        transferType: 'LOCAL-DOWNLOAD',
+        destinationType: 'browser-download',
+        filename: result?.filename || '',
+        bytes: Number(result?.bytes || 0),
+        sourceUrl: result?.sourceUrl || '',
+        contentType: result?.contentType || '',
+        errorDetail: result?.error || result?.detail || '',
+        detail: result,
+        localDownload: true,
+      };
+    }
+
+    function normalizeTransferRow(row) {
+      const id = row['@id'] || row.id || '';
+      const createdAt = row.createdAt || row['edc:createdAt'] || row.startedAt || row['edc:startedAt'] || '';
+      return {
+        ...row,
+        '@id': id,
+        id,
+        state: row.state || row['edc:state'] || '-',
+        contractId: row.contractId || row['edc:contractId'] || '',
+        createdAt,
+        localDownload: Boolean(row.localDownload),
+      };
+    }
+
+    function getAllTransferRows(remoteRows = []) {
+      const localRows = getLocalTransferRecords().map(normalizeTransferRow);
+      const normalizedRemote = (Array.isArray(remoteRows) ? remoteRows : []).map(normalizeTransferRow);
+      return [...localRows, ...normalizedRemote].sort((a, b) => {
+        const aTime = Date.parse(a.createdAt || 0) || 0;
+        const bTime = Date.parse(b.createdAt || 0) || 0;
+        return bTime - aTime;
+      });
     }
 
     function getUiPrefixPath() {
@@ -333,7 +404,7 @@
       document.getElementById('kpiAssets').textContent = unwrap(a).length;
       document.getElementById('kpiPolicies').textContent = unwrap(p).length;
       document.getElementById('kpiContracts').textContent = unwrap(ags).length;
-      document.getElementById('kpiTransfers').textContent = unwrap(tps).length;
+      document.getElementById('kpiTransfers').textContent = getAllTransferRows(unwrap(tps)).length;
     }
 
     let lastArcgisPublishToken = '';
@@ -1378,9 +1449,13 @@
 
       if (transferMode === 'local-download') {
         const downloadResp = await downloadAssetLocally(contractId, agreementAssetId);
+        const localTransfer = addLocalTransferRecord(buildLocalTransferRecord(downloadResp));
         writeOut(downloadResp);
+        await refreshOverview();
+        await listTransfers();
         if (downloadResp.status >= 200 && downloadResp.status < 300) {
           showInfoPopup('Descarga iniciada', {
+            transferId: localTransfer.id,
             contractId,
             assetId: agreementAssetId,
             filename: downloadResp.filename,
@@ -1481,7 +1556,7 @@
 
     async function listTransfers() {
       const r = await callApi('POST', '/v3/transferprocesses/request', q());
-      const rows = unwrap(r);
+      const rows = getAllTransferRows(unwrap(r));
       const tbody = document.getElementById('tblTransfers');
       if (!rows.length) {
         tbody.innerHTML = '<tr><td colspan="4" class="muted">No hay transferencias.</td></tr>';
@@ -1494,16 +1569,18 @@
           const errorDetail = t.errorDetail || t['edc:errorDetail'] || '';
           const errorTip = errorDetail ? ` title="${errorDetail.replace(/"/g, '&quot;')}"` : '';
           const isTerminal = isTransferTerminalState(t.state || t['edc:state'] || '');
+          const title = t.localDownload ? `Descarga local · ${clean(t.filename || id)}` : `Transferencia ${i + 1}`;
+          const monitorLabel = t.localDownload ? 'Estado' : '↺ Monitor';
           return `
             <tr>
-              <td class="title-cell" title="${id}">Transferencia ${i + 1}</td>
+              <td class="title-cell" title="${id}">${title}</td>
               <td><span style="${style}"${errorTip}>${st}${errorDetail ? ' ⚠️' : ''}</span></td>
               <td class="title-cell" title="${contract}">${clean(contract)}</td>
               <td>
                 <button class="ghost" onclick="window.showTransferDetail(${i})">Detalle</button>
                 <button class="ghost" onclick="window.checkTransfer('${id.replace(/'/g, "\\'")}')">Estado</button>
-                <button class="ghost" onclick="window.retryTransferMonitor('${id.replace(/'/g, "\\'")}')">↺ Monitor</button>
-                ${!isTerminal ? `<button class="danger" onclick="window.terminateTransfer('${id.replace(/'/g, "\\'")}')">Terminar</button>` : ''}
+                <button class="ghost" onclick="window.retryTransferMonitor('${id.replace(/'/g, "\\'")}')">${monitorLabel}</button>
+                ${!isTerminal && !t.localDownload ? `<button class="danger" onclick="window.terminateTransfer('${id.replace(/'/g, "\\'")}')">Terminar</button>` : ''}
               </td>
             </tr>
           `;
@@ -1514,6 +1591,27 @@
     }
 
     async function checkTransfer(transferId) {
+      const localTransfer = getLocalTransferRecords().find(t => (t['@id'] || t.id || '') === transferId);
+      if (localTransfer) {
+        const st = normalizeTransferState(localTransfer.state || '-');
+        showInfoPopup(`Estado: ${st}`, {
+          transferId,
+          state: st,
+          contractId: localTransfer.contractId || '',
+          assetId: localTransfer.assetId || '',
+          transferType: localTransfer.transferType || 'LOCAL-DOWNLOAD',
+          destinationType: localTransfer.destinationType || 'browser-download',
+          filename: localTransfer.filename || '',
+          bytes: localTransfer.bytes || 0,
+          sourceUrl: localTransfer.sourceUrl || '',
+          contentType: localTransfer.contentType || '',
+          createdAt: fmtDate(localTransfer.createdAt || ''),
+          errorDetail: localTransfer.errorDetail || '',
+        });
+        writeOut({ status: 200, data: localTransfer, localDownload: true });
+        return;
+      }
+
       // Obtener detalle completo (no solo estado) para ver errorDetail
       const full = await callApi('GET', `/v3/transferprocesses/${encodeURIComponent(transferId)}`);
       const st = normalizeTransferState(full?.data?.state || full?.data?.['edc:state'] || '-');
@@ -1646,6 +1744,12 @@
 
     window.retryTransferMonitor = (transferId) => {
       if (!transferId) return;
+      const localTransfer = getLocalTransferRecords().find(t => (t['@id'] || t.id || '') === transferId);
+      if (localTransfer) {
+        window.checkTransfer(transferId);
+        writeOut({ info: `Transferencia local ${transferId} registrada en historial.` });
+        return;
+      }
       pollTransferUntilDone(transferId, 120000);
       writeOut({ info: `Monitoreando transferencia ${transferId}...` });
     };
