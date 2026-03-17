@@ -451,8 +451,29 @@
     }
 
     function buildArcgisPathWithToken(path, token) {
-      const withFormat = appendQueryParams(path, { f: 'json' });
-      return appendQueryParams(withFormat, { token });
+      const withFormat = setQueryParams(path, { f: 'json' });
+      return setQueryParams(withFormat, { token });
+    }
+
+    function setQueryParams(path, params) {
+      const basePath = String(path || '').trim();
+      const [rawPath, rawQuery = ''] = basePath.split('?', 2);
+      const qs = new URLSearchParams(rawQuery);
+      Object.entries(params || {}).forEach(([k, v]) => {
+        if (v === undefined || v === null || v === '') return;
+        qs.set(k, String(v));
+      });
+      const query = qs.toString();
+      return query ? `${rawPath}?${query}` : rawPath;
+    }
+
+    function removeQueryParams(path, keys = []) {
+      const basePath = String(path || '').trim();
+      const [rawPath, rawQuery = ''] = basePath.split('?', 2);
+      const qs = new URLSearchParams(rawQuery);
+      keys.forEach(key => qs.delete(key));
+      const query = qs.toString();
+      return query ? `${rawPath}?${query}` : rawPath;
     }
 
     function normalizeHttpDataUrlParts(rawBaseUrl, rawPath) {
@@ -482,6 +503,143 @@
       }
 
       return { baseUrl: baseUrl.trim(), path: path.trim() };
+    }
+
+    function getSelectedTransferMode() {
+      return (document.getElementById('transferMode')?.value || 'push').trim();
+    }
+
+    function syncTransferModeUi() {
+      const mode = getSelectedTransferMode();
+      const sinkWrap = document.getElementById('sinkBaseUrlWrap');
+      const startBtn = document.getElementById('btnStartTransfer');
+      if (sinkWrap) sinkWrap.style.display = mode === 'local-download' ? 'none' : '';
+      if (startBtn && !transferStartInFlight) {
+        startBtn.textContent = mode === 'local-download' ? 'Descargar en local' : 'Iniciar transferencia';
+      }
+    }
+
+    function guessFileExtension(contentType, fallback = 'json') {
+      const lower = String(contentType || '').toLowerCase();
+      if (lower.includes('application/json')) return 'json';
+      if (lower.includes('geo+json')) return 'geojson';
+      if (lower.includes('text/csv')) return 'csv';
+      if (lower.includes('application/zip')) return 'zip';
+      if (lower.includes('application/pdf')) return 'pdf';
+      if (lower.includes('text/plain')) return 'txt';
+      if (lower.includes('text/html')) return 'html';
+      return fallback;
+    }
+
+    function inferDownloadFilename(assetId, sourceUrl, contentType, contentDisposition) {
+      const cd = String(contentDisposition || '');
+      const matchUtf8 = cd.match(/filename\*=UTF-8''([^;]+)/i);
+      if (matchUtf8?.[1]) {
+        try { return decodeURIComponent(matchUtf8[1]); } catch {}
+      }
+      const matchSimple = cd.match(/filename="?([^";]+)"?/i);
+      if (matchSimple?.[1]) return matchSimple[1];
+
+      try {
+        const url = new URL(sourceUrl, window.location.origin);
+        const lastSegment = (url.pathname.split('/').filter(Boolean).pop() || '').trim();
+        if (lastSegment && lastSegment.includes('.')) return lastSegment;
+      } catch {}
+
+      const safeAssetId = String(assetId || 'dataset').trim().replace(/[^a-z0-9._-]+/gi, '_').replace(/^_+|_+$/g, '') || 'dataset';
+      return `${safeAssetId}.${guessFileExtension(contentType)}`;
+    }
+
+    async function downloadAssetLocally(contractId, assetId) {
+      if (!assetId) {
+        return { status: 404, error: 'No se pudo resolver el asset asociado al contrato seleccionado.' };
+      }
+
+      const assetsResp = await callApi('POST', '/v3/assets/request', q(), { retries: 0 });
+      const assets = unwrap(assetsResp);
+      const asset = assets.find(a => (a['@id'] || a.id || '') === assetId);
+      if (!asset) {
+        return { status: 404, error: 'El asset del contrato no existe en este conector.', contractId, assetId };
+      }
+
+      const props = asset.properties || {};
+      const dataAddress = asset.dataAddress || asset['edc:dataAddress'] || {};
+      const baseUrl = String(dataAddress.baseUrl || '').trim();
+      let path = String(dataAddress.path || '').trim();
+      let headers = { ...(dataAddress.headers || {}) };
+      const authType = String(props['eitel:authType'] || '').trim();
+
+      if (!baseUrl || String(dataAddress.type || '').trim() !== 'HttpData') {
+        return { status: 400, error: 'El asset seleccionado no usa un origen HttpData descargable.', contractId, assetId, dataAddress };
+      }
+
+      if (authType === 'arcgis-login') {
+        const authToken = await resolveArcgisTokenForPublish();
+        if (!authToken) {
+          return { status: 401, error: 'No se pudo obtener un token ArcGIS válido para la descarga local.' };
+        }
+        path = buildArcgisPathWithToken(removeQueryParams(path, ['token']), authToken);
+        headers = { ...headers, token: authToken };
+      }
+
+      const sourceUrl = `${baseUrl.replace(/\/+$/, '')}${path || ''}`;
+      try {
+        const response = await fetch(sourceUrl, {
+          method: 'GET',
+          headers,
+          credentials: 'include',
+        });
+        const contentType = response.headers.get('content-type') || 'application/octet-stream';
+        if (!response.ok) {
+          const detail = await response.text();
+          return {
+            status: response.status,
+            error: 'La descarga local devolvió error HTTP.',
+            contractId,
+            assetId,
+            sourceUrl,
+            contentType,
+            detail: detail.slice(0, 1000)
+          };
+        }
+
+        const blob = await response.blob();
+        const filename = inferDownloadFilename(
+          assetId,
+          sourceUrl,
+          contentType,
+          response.headers.get('content-disposition') || ''
+        );
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = filename;
+        anchor.style.display = 'none';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
+
+        return {
+          status: 200,
+          downloaded: true,
+          contractId,
+          assetId,
+          sourceUrl,
+          filename,
+          contentType,
+          bytes: blob.size,
+        };
+      } catch (error) {
+        return {
+          status: 500,
+          error: 'No se pudo descargar el recurso en el navegador.',
+          contractId,
+          assetId,
+          sourceUrl,
+          detail: String(error),
+        };
+      }
     }
 
     function looksLikeSourceErrorPayload(text, contentType) {
@@ -1184,9 +1342,10 @@
       const typedContractId = (document.getElementById('agreementId').value || '').trim();
       const selectedContractId = (document.getElementById('agreementSelect').value || '').trim();
       const contractId = (typedContractId || selectedContractId || '').trim();
+      const transferMode = getSelectedTransferMode();
       const sinkBaseUrl = (document.getElementById('sinkBaseUrl').value || '').trim();
       if (!contractId) { writeOut({ status: 400, error: 'Selecciona un contrato.' }); return; }
-      if (!sinkBaseUrl || !/^https?:\/\//i.test(sinkBaseUrl)) {
+      if (transferMode !== 'local-download' && (!sinkBaseUrl || !/^https?:\/\//i.test(sinkBaseUrl))) {
         writeOut({ status: 400, error: 'Destination URL inválida. Debe empezar por http:// o https://.' });
         return;
       }
@@ -1198,6 +1357,8 @@
           .map(a => a['@id'] || a.id)
           .filter(Boolean)
       );
+      const selectedAgreement = unwrap(agreementsResp).find(a => (a['@id'] || a.id || '') === contractId) || null;
+      const agreementAssetId = selectedAgreement?.assetId || selectedAgreement?.['edc:assetId'] || state.agreementRows.find(a => a.id === contractId)?.asset || '';
 
       if (!validAgreementIds.has(contractId)) {
         showInfoPopup('Contrato no reconocido', {
@@ -1212,6 +1373,24 @@
           }))
         });
         writeOut({ status: 400, error: 'Contract agreement not found/valid for transfer', contractId });
+        return;
+      }
+
+      if (transferMode === 'local-download') {
+        const downloadResp = await downloadAssetLocally(contractId, agreementAssetId);
+        writeOut(downloadResp);
+        if (downloadResp.status >= 200 && downloadResp.status < 300) {
+          showInfoPopup('Descarga iniciada', {
+            contractId,
+            assetId: agreementAssetId,
+            filename: downloadResp.filename,
+            bytes: downloadResp.bytes,
+            sourceUrl: downloadResp.sourceUrl,
+            message: 'El navegador ha iniciado la descarga local. Normalmente se guardará en Descargas según tu configuración del navegador.'
+          });
+        } else {
+          showInfoPopup('Error en descarga local', downloadResp);
+        }
         return;
       }
 
@@ -1283,7 +1462,7 @@
         transferStartInFlight = false;
         if (startBtn) {
           startBtn.disabled = false;
-          startBtn.textContent = 'Iniciar transferencia';
+          startBtn.textContent = getSelectedTransferMode() === 'local-download' ? 'Descargar en local' : 'Iniciar transferencia';
         }
       }
     }

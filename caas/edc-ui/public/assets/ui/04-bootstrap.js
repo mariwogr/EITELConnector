@@ -18,6 +18,7 @@
       document.getElementById('btnListAgreements').onclick = listAgreements;
       document.getElementById('btnStartTransfer').onclick = startTransfer;
       document.getElementById('btnListTransfers').onclick = listTransfers;
+      if (document.getElementById('transferMode')) document.getElementById('transferMode').addEventListener('change', syncTransferModeUi);
       if (document.getElementById('btnSaveSecret')) document.getElementById('btnSaveSecret').onclick = saveSecret;
       if (document.getElementById('btnListSecrets')) document.getElementById('btnListSecrets').onclick = () => listSecrets(true);
       if (document.getElementById('btnDeleteSecret')) document.getElementById('btnDeleteSecret').onclick = deleteSecret;
@@ -145,6 +146,7 @@
       document.getElementById('btnArcgisLogout').onclick = arcgisLogout;
       applyPolicyMode();
       if (typeof applyAuthTypeForm === 'function') applyAuthTypeForm();
+      if (typeof syncTransferModeUi === 'function') syncTransferModeUi();
       applySettings();
 
       ensureArcgisLogin().then((ok) => {

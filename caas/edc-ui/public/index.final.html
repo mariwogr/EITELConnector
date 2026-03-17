@@ -311,7 +311,14 @@
               <div><label data-i18n="transfer.contractSelect">Contrato</label><select id="agreementSelect"><option value="">Primero lista contratos</option></select></div>
             </div>
             <label data-i18n="transfer.contractId">ID contrato (opcional)</label><input id="agreementId" />
-            <label>Destination URL (produccion)</label><input id="sinkBaseUrl" placeholder="https://tu-destino.com/ingest" />
+            <label>Modo de salida</label>
+            <select id="transferMode">
+              <option value="push">Enviar a URL destino</option>
+              <option value="local-download">Descargar en local</option>
+            </select>
+            <div id="sinkBaseUrlWrap">
+              <label>Destination URL (produccion)</label><input id="sinkBaseUrl" placeholder="https://tu-destino.com/ingest" />
+            </div>
             <div class="row" style="margin-top:8px">
               <button class="primary" id="btnStartTransfer" data-i18n="transfer.start">Iniciar transferencia</button>
               <button class="ghost" id="btnListTransfers" data-i18n="transfer.list">Listar transferencias</button>
@@ -326,8 +333,10 @@
             <h3>Mini tutorial</h3>
             <ol>
               <li>Selecciona contrato desde el desplegable o pega el `agreementId` real.</li>
-              <li>Completa `Destination URL` del receptor en produccion.</li>
-              <li>Inicia la transferencia. Si se queda en <strong>STARTED</strong>, pulsa ⚙️ Dataplanes para verificar que hay un motor activo.</li>
+              <li>En `Modo de salida`, elige `Enviar a URL destino` o `Descargar en local`.</li>
+              <li>Si eliges `Enviar a URL destino`, completa `Destination URL` del receptor en produccion.</li>
+              <li>Si eliges `Descargar en local`, el navegador descargará el recurso directamente y lo guardará según tu configuración, normalmente en Descargas.</li>
+              <li>Si la transferencia remota se queda en <strong>STARTED</strong>, pulsa ⚙️ Dataplanes para verificar que hay un motor activo.</li>
               <li>Si sigue atascada, pulsa <strong>Terminar</strong> en la fila y republica el asset con el token renovado antes de reintentar.</li>
             </ol>
           </section>
@@ -488,10 +497,10 @@
   </div>
 
     <script src="config.js?v=20260317d"></script>
-  <script src="assets/ui/01-runtime.js?v=20260317d"></script>
-  <script src="assets/ui/02-operations.js?v=20260317d"></script>
-  <script src="assets/ui/03-secrets.js?v=20260317d"></script>
-  <script src="assets/ui/04-bootstrap.js?v=20260317d"></script>
+  <script src="assets/ui/01-runtime.js?v=20260317e"></script>
+  <script src="assets/ui/02-operations.js?v=20260317e"></script>
+  <script src="assets/ui/03-secrets.js?v=20260317e"></script>
+  <script src="assets/ui/04-bootstrap.js?v=20260317e"></script>
 </body>
 </html>
 
