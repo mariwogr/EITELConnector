@@ -27,6 +27,11 @@
       return numericMap[txt] || txt;
     }
 
+    function isTransferTerminalState(state) {
+      const normalized = normalizeTransferState(state);
+      return normalized === 'COMPLETED' || normalized === 'TERMINATED' || normalized === 'FAILED';
+    }
+
     function getUiPrefixPath() {
       const parts = (window.location.pathname || '/').split('/').filter(Boolean);
       if (!parts.length) return '/';
@@ -54,10 +59,13 @@
       const retries = Number.isFinite(Number(options.retries)) ? Number(options.retries) : Number(settings.apiRetries || 0);
       const timeoutMs = Number.isFinite(Number(options.timeoutMs)) ? Number(options.timeoutMs) : Number(settings.apiTimeoutMs || 15000);
       const silent = Boolean(options.silent);
+      const normalizedMethod = String(method || 'GET').toUpperCase();
+      const allowRetry = options.retryUnsafe === true || normalizedMethod === 'GET' || normalizedMethod === 'HEAD' || normalizedMethod === 'DELETE';
+      const effectiveRetries = allowRetry ? retries : 0;
       let attempt = 0;
       let lastError = null;
 
-      while (attempt <= retries) {
+      while (attempt <= effectiveRetries) {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
         try {
@@ -106,7 +114,7 @@
           let data = text;
           try { data = JSON.parse(text); } catch {}
           const result = { status: res.status, data, attempt };
-          if (res.status >= 500 && attempt < retries) {
+          if (res.status >= 500 && attempt < effectiveRetries) {
             attempt++;
             await new Promise(resolve => setTimeout(resolve, 250 * attempt));
             continue;
@@ -115,7 +123,7 @@
         } catch (e) {
           clearTimeout(timeout);
           lastError = e;
-          if (attempt < retries) {
+          if (attempt < effectiveRetries) {
             attempt++;
             await new Promise(resolve => setTimeout(resolve, 250 * attempt));
             continue;
@@ -426,6 +434,69 @@
       return headers;
     }
 
+    function appendQueryParams(path, params) {
+      const basePath = String(path || '').trim();
+      const [rawPath, rawQuery = ''] = basePath.split('?', 2);
+      const qs = new URLSearchParams(rawQuery);
+      Object.entries(params || {}).forEach(([k, v]) => {
+        if (v === undefined || v === null || v === '') return;
+        if (!qs.has(k)) qs.set(k, String(v));
+      });
+      const query = qs.toString();
+      return query ? `${rawPath}?${query}` : rawPath;
+    }
+
+    function buildArcgisPathWithToken(path, token) {
+      const withFormat = appendQueryParams(path, { f: 'json' });
+      return appendQueryParams(withFormat, { token });
+    }
+
+    function looksLikeSourceErrorPayload(text, contentType) {
+      const sample = String(text || '').slice(0, 5000);
+      const lower = sample.toLowerCase();
+      if (String(contentType || '').toLowerCase().includes('text/html')) return true;
+      if (lower.includes('<html') || lower.includes('sign in') || lower.includes('arcgis login')) return true;
+      try {
+        const parsed = JSON.parse(sample);
+        if (parsed?.error) return true;
+        if (typeof parsed?.message === 'string' && parsed.message.toLowerCase().includes('error')) return true;
+      } catch {}
+      return false;
+    }
+
+    async function validateSourcePayloadPreview(baseUrl, path, headers) {
+      const url = `${String(baseUrl || '').replace(/\/+$/, '')}${path || ''}`;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      try {
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: headers || {},
+          signal: controller.signal,
+        });
+        const text = await res.text();
+        const contentType = res.headers.get('content-type') || '';
+        const badPayload = looksLikeSourceErrorPayload(text, contentType);
+        return {
+          ok: res.ok && !badPayload,
+          status: res.status,
+          contentType,
+          preview: text.slice(0, 240),
+          url,
+          badPayload,
+        };
+      } catch (e) {
+        return {
+          ok: true,
+          inconclusive: true,
+          url,
+          error: String(e),
+        };
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
     function syncAuthHeadersJson() {
       // Prevent recursive re-entry (e.g. if input events trigger sync again).
       if (syncAuthHeadersJson._running) return;
@@ -687,12 +758,24 @@
       let path = document.getElementById('assetPath').value.trim();
 
       if (authType === 'arcgis-login') {
-        // ArcGIS mode requested by user: keep baseUrl as-is and send token in header only.
         headers = {
           token: authToken
         };
+        path = buildArcgisPathWithToken(path, authToken);
       } else {
         headers = buildAuthHeaders(headers);
+      }
+
+      if (authType !== 'none') {
+        const sourcePreview = await validateSourcePayloadPreview(baseUrl, path, headers);
+        if (!sourcePreview.ok) {
+          showInfoPopup('Origen con error', {
+            message: 'El endpoint origen devuelve una respuesta de error/login. No se publica el asset para evitar transferir errores al destino.',
+            sourcePreview
+          });
+          writeOut({ status: 400, error: 'Endpoint origen no válido para transferencia', sourcePreview });
+          return { status: 400, data: { sourcePreview } };
+        }
       }
 
       const body = {
@@ -1061,7 +1144,12 @@
       const typedContractId = (document.getElementById('agreementId').value || '').trim();
       const selectedContractId = (document.getElementById('agreementSelect').value || '').trim();
       const contractId = (typedContractId || selectedContractId || '').trim();
+      const sinkBaseUrl = (document.getElementById('sinkBaseUrl').value || '').trim();
       if (!contractId) { writeOut({ status: 400, error: 'Selecciona un contrato.' }); return; }
+      if (!sinkBaseUrl || !/^https?:\/\//i.test(sinkBaseUrl)) {
+        writeOut({ status: 400, error: 'Destination URL inválida. Debe empezar por http:// o https://.' });
+        return;
+      }
 
       // Validación fuerte: solo permitir contratos vigentes del conector
       const agreementsResp = await callApi('POST', '/v3/contractagreements/request', q());
@@ -1087,6 +1175,24 @@
         return;
       }
 
+      const activeTransfersResp = await callApi('POST', '/v3/transferprocesses/request', q(), { retries: 0 });
+      const activeByContract = unwrap(activeTransfersResp).find(tp => {
+        const tpContractId = tp.contractId || tp['edc:contractId'] || '';
+        const tpState = tp.state || tp['edc:state'] || '';
+        return tpContractId === contractId && !isTransferTerminalState(tpState);
+      });
+      if (activeByContract) {
+        const activeState = normalizeTransferState(activeByContract.state || activeByContract['edc:state'] || '-');
+        showInfoPopup('Transferencia ya en curso', {
+          message: 'Ya existe una transferencia activa para este contrato. Espera a que termine antes de crear otra.',
+          contractId,
+          activeTransferId: activeByContract['@id'] || activeByContract.id || '',
+          activeState
+        });
+        writeOut({ status: 409, error: 'Ya hay una transferencia activa para este contrato.', contractId, activeState });
+        return;
+      }
+
       const body = {
         '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
         '@type': 'TransferRequest',
@@ -1096,7 +1202,7 @@
         transferType: 'HttpData-PUSH',
         dataDestination: {
           type: 'HttpData',
-          baseUrl: document.getElementById('sinkBaseUrl').value.trim(),
+          baseUrl: sinkBaseUrl,
           method: 'POST',
           path: '/'
         }
