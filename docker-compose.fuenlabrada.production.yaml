@@ -87,6 +87,7 @@ services:
       - ./caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.final.html:ro
       - ./caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.html:ro
       - ./caas/edc-ui/public/config.template.js:/usr/share/nginx/html/config.template.js:ro
+      - ./caas/edc-ui/public/assets:/usr/share/nginx/html/assets:ro
     networks:
       - edc-fuenlabrada-net
 
