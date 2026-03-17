@@ -10,7 +10,14 @@ winget install --id NSSM.NSSM -e --source winget
 
 Then reboot if requested and ensure Docker is running in Linux containers mode.
 
-## 2) Clone repo
+## 2) Docker Hub login
+The EDC runtime image (`eitel/eclipse-edc-runtime`) is hosted on Docker Hub and requires authentication:
+```powershell
+docker login
+```
+Enter your Docker Hub username and password when prompted. This only needs to be done once per machine.
+
+## 3) Clone repo
 ```powershell
 New-Item -ItemType Directory -Path "C:\eitel" -Force | Out-Null
 Set-Location "C:\eitel"
@@ -18,7 +25,7 @@ git clone https://github.com/mariwogr/EITELConnector.git
 Set-Location "C:\eitel\EITELConnector"
 ```
 
-## 3) Configure production env
+## 4) Configure production env
 ```powershell
 Copy-Item ".env.production.example" ".env.production"
 notepad ".env.production"
@@ -40,7 +47,7 @@ Important:
 - If a secret contains `$`, write it as `$$` in `.env.production`.
 - This avoids warnings like: `The "bKC" variable is not set...`.
 
-## 4) Build and start stack
+## 5) Build and start stack
 ```powershell
 docker compose --env-file .env.production -f docker-compose.production.yaml build --no-cache
 docker compose --env-file .env.production -f docker-compose.production.yaml up -d
@@ -58,14 +65,14 @@ Persistence rule (important):
 Note:
 - The production Postgres init script is `deploy/aws/init-conectoruc3m.sql` and creates `conectoruc3m_db`.
 
-## 5) Validate locally on server
+## 6) Validate locally on server
 ```powershell
 Invoke-WebRequest "http://localhost:12000/health" -UseBasicParsing
 Invoke-WebRequest "http://localhost:12000/conectoruc3m/" -UseBasicParsing
 Invoke-WebRequest "http://localhost:12000/conectoruc3m/api/check/health" -UseBasicParsing
 ```
 
-## 6) Keep it always running after reboot (Windows Task Scheduler watchdog)
+## 7) Keep it always running after reboot (Windows Task Scheduler watchdog)
 Create launcher script:
 ```powershell
 @'
@@ -94,7 +101,7 @@ Start-Service com.docker.service
 Note:
 - This watchdog is idempotent: repeated `docker compose ... up -d` is safe and only reconciles desired state.
 
-## 7) Update procedure
+## 8) Update procedure
 ```powershell
 Set-Location "C:\eitel\EITELConnector"
 git pull origin main
