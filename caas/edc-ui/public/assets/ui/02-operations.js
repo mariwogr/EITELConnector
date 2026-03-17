@@ -310,16 +310,27 @@
       document.getElementById('kpiTransfers').textContent = unwrap(tps).length;
     }
 
+    let lastArcgisPublishToken = '';
+
     function getArcgisAccessTokenForPublish() {
       try {
         if (typeof getStoredArcgisToken === 'function') {
-          return (getStoredArcgisToken() || '').trim();
+          const token = (getStoredArcgisToken() || '').trim();
+          if (token) {
+            lastArcgisPublishToken = token;
+            return token;
+          }
         }
       } catch {}
       try {
-        return (sessionStorage.getItem('eitel.arcgis.access_token') || '').trim();
+        const token = (sessionStorage.getItem('eitel.arcgis.access_token') || '').trim();
+        if (token) {
+          lastArcgisPublishToken = token;
+          return token;
+        }
+        return lastArcgisPublishToken;
       } catch {
-        return '';
+        return lastArcgisPublishToken;
       }
     }
 
@@ -341,6 +352,7 @@
         const data = await res.json();
         const token = (data?.token || '').trim();
         if (token) {
+          lastArcgisPublishToken = token;
           try { sessionStorage.setItem('eitel.arcgis.access_token', token); } catch {}
         }
         return token;
@@ -357,7 +369,7 @@
 
     function resolveAuthTokenForPublish(authType) {
       if (authType === 'arcgis-login') {
-        return getArcgisAccessTokenForPublish();
+        return getArcgisAccessTokenForPublish() || lastArcgisPublishToken;
       }
       return (document.getElementById('pubAuthToken')?.value || '').trim();
     }
@@ -371,7 +383,12 @@
       const headers = { ...baseHeaders };
 
       if (authType === 'none') return headers;
-      if (authType === 'arcgis-login') return headers;
+      if (authType === 'arcgis-login') {
+        if (authToken) {
+          headers.token = authToken;
+        }
+        return headers;
+      }
 
       let authValue = '';
       if (authToken) {
@@ -652,12 +669,7 @@
       let path = document.getElementById('assetPath').value.trim();
 
       if (authType === 'arcgis-login') {
-        // ArcGIS style auth: query param token (+ f=json) and token header.
-        const hasF = /[?&]f=/i.test(baseUrl);
-        const sepF = baseUrl.includes('?') ? '&' : '?';
-        if (!hasF) baseUrl = `${baseUrl}${sepF}f=json`;
-        const sepToken = baseUrl.includes('?') ? '&' : '?';
-        baseUrl = `${baseUrl}${sepToken}token=${encodeURIComponent(authToken)}`;
+        // ArcGIS mode requested by user: keep baseUrl as-is and send token in header only.
         headers = {
           token: authToken
         };
@@ -690,15 +702,14 @@
       };
       const publishResp = await callApi('POST', '/v3/assets', JSON.stringify(body));
       if (authType === 'arcgis-login') {
-        const safeBaseUrl = String(baseUrl || '').replace(/([?&]token=)[^&]+/i, '$1<<access token>>');
         return {
           ...publishResp,
           requestPreview: {
-            authMode: 'arcgis-query-token',
-            baseUrl: safeBaseUrl,
+            authMode: 'arcgis-header-token',
+            baseUrl,
             path,
             headers: {
-              token: '<<access token>>'
+              token: authToken
             }
           },
         };
