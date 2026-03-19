@@ -764,6 +764,14 @@
       return { ok: false, state: 'TIMEOUT', error: 'La transferencia no finalizó a tiempo.' };
     }
 
+    async function getLatestDownloadSinkRecord(contractId) {
+      const sinkBaseUrl = buildLocalDownloadSinkBaseUrl();
+      const recordsRes = await fetch(`${sinkBaseUrl}/records?contractId=${encodeURIComponent(contractId)}`);
+      const recordsData = await recordsRes.json();
+      const records = Array.isArray(recordsData?.items) ? recordsData.items : [];
+      return records[0] || null;
+    }
+
     function triggerBrowserDownload(url, filename = '') {
       const anchor = document.createElement('a');
       anchor.href = url;
@@ -772,6 +780,47 @@
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
+    }
+
+    async function monitorRemoteDownloadAndFetch(contractId, transferId, assetId) {
+      const finished = await waitTransferToFinish(transferId, 120000);
+      if (!finished.ok) {
+        writeOut({
+          status: 502,
+          error: 'La transferencia remota para descarga local no finalizó correctamente.',
+          transferId,
+          state: finished.state,
+          detail: finished.error,
+        });
+        return;
+      }
+
+      const latest = await getLatestDownloadSinkRecord(contractId);
+      if (!latest) {
+        writeOut({
+          status: 404,
+          error: 'La transferencia completó pero no se encontró archivo en el sink local.',
+          transferId,
+          contractId,
+          assetId,
+        });
+        return;
+      }
+
+      const relativePublicPath = String(latest.publicPath || '').replace(/^\/local-assets\/?/, '');
+      const fileUrl = `${window.location.origin}${getUiPrefix()}/local-assets/${relativePublicPath}`;
+      triggerBrowserDownload(fileUrl, latest.filename || 'download.bin');
+      writeOut({
+        status: 200,
+        downloaded: true,
+        remoteTransfer: true,
+        transferId,
+        contractId,
+        assetId,
+        filename: latest.filename,
+        bytes: latest.bytes,
+        sourceUrl: fileUrl,
+      });
     }
 
     async function downloadRemoteAssetViaTransfer(contractId, assetId) {
@@ -783,6 +832,16 @@
 
       // Limpiar registros previos del sink para evitar descargar archivos antiguos por error.
       try { await fetch(`${sinkBaseUrl}/records`, { method: 'DELETE' }); } catch {}
+
+      const dataplanesResp = await callApi('GET', '/v3/dataplanes', undefined, { silent: true, retries: 0 });
+      const dataplanes = Array.isArray(dataplanesResp?.data) ? dataplanesResp.data : [];
+      if (dataplanesResp.status >= 200 && dataplanesResp.status < 300 && dataplanes.length === 0) {
+        return {
+          status: 503,
+          error: 'No hay dataplanes registrados en este conector para ejecutar la descarga remota.',
+          transferAddress,
+        };
+      }
 
       const path = `/ingest?contractId=${encodeURIComponent(contractId)}&assetId=${encodeURIComponent(assetId || '')}`;
       const transferReq = {
@@ -811,8 +870,26 @@
         };
       }
 
-      const finished = await waitTransferToFinish(transferId, 120000);
+      writeOut({
+        status: 202,
+        info: 'Transferencia remota iniciada para descarga local.',
+        transferId,
+        contractId,
+        assetId,
+      });
+
+      const finished = await waitTransferToFinish(transferId, 30000);
       if (!finished.ok) {
+        if (finished.state === 'TIMEOUT') {
+          return {
+            status: 202,
+            pendingRemoteTransfer: true,
+            transferId,
+            contractId,
+            assetId,
+            message: 'Transferencia iniciada. Sigue en progreso; se continuará en segundo plano.',
+          };
+        }
         return {
           status: 502,
           error: 'La transferencia remota no finalizó correctamente.',
@@ -822,10 +899,7 @@
         };
       }
 
-      const recordsRes = await fetch(`${sinkBaseUrl}/records?contractId=${encodeURIComponent(contractId)}`);
-      const recordsData = await recordsRes.json();
-      const records = Array.isArray(recordsData?.items) ? recordsData.items : [];
-      const latest = records[0];
+      const latest = await getLatestDownloadSinkRecord(contractId);
       if (!latest) {
         return {
           status: 404,
@@ -1694,6 +1768,9 @@
         // Si el asset no existe localmente (contrato remoto), usar transferencia EDC al sink local.
         if (downloadResp?.status === 404) {
           downloadResp = await downloadRemoteAssetViaTransfer(contractId, agreementAssetId);
+          if (downloadResp?.pendingRemoteTransfer && downloadResp?.transferId) {
+            monitorRemoteDownloadAndFetch(contractId, downloadResp.transferId, agreementAssetId);
+          }
         }
         const localTransfer = addLocalTransferRecord(buildLocalTransferRecord(downloadResp));
         writeOut(downloadResp);
