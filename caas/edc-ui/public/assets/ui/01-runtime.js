@@ -75,46 +75,44 @@
       const raw = String(rawUrl || '').trim();
       if (!raw) return '/api/management';
 
-      // Already correct shape.
+      // Si tiene protocolo y host, devolverla tal cual
+      if (raw.startsWith('http://') || raw.startsWith('https://')) {
+        return raw.replace(/\/+$/, '');
+      }
+
+      // Si es relativa y termina en /api/management, es correcta
       if (raw.includes('/api/management')) return raw.replace(/\/+$/, '');
 
-      const firstSegment = (window.location.pathname || '/')
-        .split('/')
-        .filter(Boolean)[0] || '';
-      const prefix = firstSegment ? `/${firstSegment}` : '';
-
-      // Common misconfiguration: absolute .../management (missing connector prefix + /api).
+      // Si solo tiene /management, agregar /api/
       if (/\/management\/?$/i.test(raw)) {
-        try {
-          const u = new URL(raw, window.location.origin);
-          const fixedPath = `${prefix}/api/management` || '/api/management';
-          return `${u.origin}${fixedPath}`.replace(/\/+$/, '');
-        } catch {
-          return `${prefix}/api/management`.replace(/\/+$/, '') || '/api/management';
-        }
+        return raw.replace(/\/management\/?$/i, '/api/management').replace(/\/+$/, '');
       }
 
       return raw.replace(/\/+$/, '');
     }
 
     function buildSafeManagementApiBaseUrl() {
+      // Primero intentar usar la URL del config (NEXT_PUBLIC_MANAGEMENT_API_URL)
       const configured = normalizeManagementApiBaseUrl(cfg.managementApiUrl || '');
-      if (configured.includes('/api/management')) return configured;
+      if (configured) return configured;
 
+      // Fallback: extraer del pathname actual
       const origin = window.location.origin;
       const pathParts = (window.location.pathname || '/').split('/').filter(Boolean);
       const pathPrefix = pathParts[0] || '';
-      if (pathPrefix) return `${origin}/${pathPrefix}/api/management`;
+      
+      if (pathPrefix) {
+        // Estamos bajo un prefijo como /conectorFuenlabrada/
+        return `/${pathPrefix}/api/management`;
+      }
 
-      const connectorPrefix = String(cfg.connectorName || '').trim().toLowerCase();
-      if (connectorPrefix) return `${origin}/${connectorPrefix}/api/management`;
-
-      return `${origin}/api/management`;
+      // Último recurso: solo /api/management
+      return '/api/management';
     }
 
     const getApiBaseUrl = () => {
-      const persisted = normalizeManagementApiBaseUrl(settings.apiBaseUrl || '');
-      if (persisted.includes('/api/management')) return persisted;
+      const configured = normalizeManagementApiBaseUrl(cfg.managementApiUrl || '');
+      if (configured) return configured;
       return buildSafeManagementApiBaseUrl();
     };
     const getApiKey = () => (settings.apiKeyOverride || cfg.apiKey || '').trim();
