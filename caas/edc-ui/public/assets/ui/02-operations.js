@@ -1219,52 +1219,53 @@
       `).join('');
     }
 
-    // Construir URL del DSP dinámicamente basada en el connector ID
+    function ensureDspVersion(url) {
+      const trimmed = String(url || '').replace(/\/+$/, '');
+      if (!trimmed) return trimmed;
+      if (/\/api\/v1\/dsp\/2025-1$/i.test(trimmed)) return trimmed;
+      if (/\/api\/v1\/dsp$/i.test(trimmed)) return `${trimmed}/2025-1`;
+      return trimmed;
+    }
+
+    // Construir URL DSP absoluta en base al conector remoto indicado por el usuario.
     function buildDspUrl(connectorId) {
-      if (!connectorId) connectorId = 'provider';
-      
-      // Si es una URL completa, devolverla tal cual
-      if (connectorId.startsWith('http://') || connectorId.startsWith('https://')) {
-        return connectorId;
+      const raw = String(connectorId || 'provider').trim();
+      if (!raw) return 'http://provider-connector:19103/api/v1/dsp/2025-1';
+
+      // Si llega URL absoluta, normalizarla.
+      if (raw.startsWith('http://') || raw.startsWith('https://')) {
+        return ensureDspVersion(raw);
       }
-      
-      const connectorIdLower = connectorId.toLowerCase();
-      
-      // Conectores locales de desarrollo
-      if (connectorIdLower === 'provider') {
-        return 'http://provider-connector:19103/api/v1/dsp/2025-1';
+
+      // Si llega ruta relativa (/conectorX/...), convertirla a absoluta en el host actual.
+      if (raw.startsWith('/')) {
+        return ensureDspVersion(`${window.location.origin}${raw}`);
       }
-      if (connectorIdLower === 'consumer') {
-        return 'http://consumer-connector:19203/api/v1/dsp/2025-1';
+
+      const connectorIdLower = raw.toLowerCase();
+      if (connectorIdLower === 'provider') return 'http://provider-connector:19103/api/v1/dsp/2025-1';
+      if (connectorIdLower === 'consumer') return 'http://consumer-connector:19203/api/v1/dsp/2025-1';
+
+      const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname.startsWith('127.');
+      if (isLocalHost) {
+        return ensureDspVersion(`http://${raw}-connector:19103/api/v1/dsp/2025-1`);
       }
-      
-      // Conectores en producción
-      // Obtener la base URL del host actual para conectores remotos
-      const currentPathname = window.location.pathname || '/';
-      const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.startsWith('127.');
-      
-      if (connectorIdLower === 'conectoruc3m') {
-        // Si estamos en producción, usar URL relativa, sino usar PROD_DSP_URL
-        if (isProduction) {
-          return `/conectoruc3m/api/v1/dsp/`;
-        }
-        return PROD_DSP_URL;
+
+      // Producción: resolver por mismo dominio público y prefijo del conector remoto.
+      const connectorPrefix = connectorIdLower.startsWith('conector') ? connectorIdLower : `conector${connectorIdLower}`;
+      return ensureDspVersion(`${window.location.origin}/${connectorPrefix}/api/v1/dsp/2025-1`);
+    }
+
+    function resolveCounterPartyId(connectorId, address) {
+      const raw = String(connectorId || '').trim();
+      if (raw && !raw.startsWith('http://') && !raw.startsWith('https://') && !raw.startsWith('/')) return raw;
+      try {
+        const url = new URL(address);
+        const segment = (url.pathname || '/').split('/').filter(Boolean)[0] || '';
+        return segment || PROD_CONNECTOR_ID;
+      } catch {
+        return PROD_CONNECTOR_ID;
       }
-      
-      const connectorAliasLower = connectorIdLower.replace(/^conector/i, '');
-      
-      // Para otros conectores remotos (conocidos), construir URL relativa
-      if (isProduction && connectorIdLower.startsWith('conector')) {
-        return `/${connectorIdLower}/api/v1/dsp/`;
-      }
-      
-      // Para nombres simples de conectores remotos (sólo el nombre sin 'conector-')
-      if (isProduction && (connectorIdLower === 'fuenlabrada' || connectorIdLower === 'uc3m')) {
-        return `/conector${connectorIdLower}/api/v1/dsp/`;
-      }
-      
-      // Fallback: intentar construcción local
-      return `http://${connectorId}-connector:19103/api/v1/dsp/2025-1`;
     }
 
     async function loadCatalogs(showOutput = true) {
@@ -1273,10 +1274,11 @@
       document.getElementById('resolvedAddress').value = address;
       document.getElementById('transferAddress').value = address;
 
+      const counterPartyId = resolveCounterPartyId(connectorId, address);
       const r = await callApi('POST', '/v3/catalog/request', JSON.stringify({
         '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
         '@type': 'CatalogRequest',
-        counterPartyId: connectorId.startsWith('http://') || connectorId.startsWith('https://') ? PROD_CONNECTOR_ID : connectorId,
+        counterPartyId,
         counterPartyAddress: address,
         protocol: 'dataspace-protocol-http:2025-1'
       }));
