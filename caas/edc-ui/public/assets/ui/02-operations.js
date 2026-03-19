@@ -744,6 +744,42 @@
       return lower.startsWith('conector') ? raw : `conector${raw}`;
     }
 
+    function extractConnectorIdHint(rawValue) {
+      const raw = String(rawValue || '').trim();
+      if (!raw) return '';
+
+      const direct = raw.match(/conector[a-z0-9-]+/i);
+      if (direct?.[0]) return canonicalConnectorPrefix(direct[0]);
+
+      const short = raw.toLowerCase();
+      if (short === 'uc3m' || short === 'fuenlabrada' || short === 'provider' || short === 'consumer') return short;
+
+      return '';
+    }
+
+    function resolveAgreementPartnerConnector(agreementId) {
+      const row = (state.agreementRows || []).find(a => a.id === agreementId);
+      if (!row) return '';
+      const candidates = [row.provider, row.consumer, row.cp, row.asset];
+      for (const candidate of candidates) {
+        const hint = extractConnectorIdHint(candidate);
+        if (hint) return hint;
+      }
+      return '';
+    }
+
+    function syncTransferAddressFromAgreement(agreementId) {
+      const contractId = String(agreementId || '').trim();
+      if (!contractId) return;
+      const partnerConnector = resolveAgreementPartnerConnector(contractId);
+      if (!partnerConnector) return;
+
+      const resolved = buildDspUrl(partnerConnector);
+      if (!resolved) return;
+      const transferInput = document.getElementById('transferAddress');
+      if (transferInput) transferInput.value = resolved;
+    }
+
     function getUiPrefix() {
       const configured = canonicalConnectorPrefix(cfg.connectorName || '');
       if (configured) return `/${configured}`;
@@ -1680,6 +1716,8 @@
         }).join('');
       }
       const deduplicated = raw.length - state.agreementRows.length;
+      const selectedNow = (document.getElementById('agreementSelect')?.value || '').trim();
+      if (selectedNow) syncTransferAddressFromAgreement(selectedNow);
       writeOut({ ...r, deduplicated });
       showInfoPopup('Contratos cargados', {
         total: state.agreementRows.length,

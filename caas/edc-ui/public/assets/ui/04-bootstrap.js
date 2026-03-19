@@ -26,6 +26,11 @@
       document.getElementById('catalogAcceptTerms').addEventListener('change', syncCatalogSelectionState);
       document.getElementById('btnRequestContract').onclick = requestContractByAsset;
       document.getElementById('btnListAgreements').onclick = listAgreements;
+      document.getElementById('agreementSelect').addEventListener('change', (e) => {
+        const contractId = (e.target?.value || '').trim();
+        if (!contractId) return;
+        if (typeof syncTransferAddressFromAgreement === 'function') syncTransferAddressFromAgreement(contractId);
+      });
       document.getElementById('btnStartTransfer').onclick = startTransfer;
       document.getElementById('btnListTransfers').onclick = listTransfers;
       if (document.getElementById('transferMode')) document.getElementById('transferMode').addEventListener('change', syncTransferModeUi);
@@ -126,6 +131,7 @@
     window.useAgreement = (id) => {
       document.getElementById('agreementId').value = id;
       document.getElementById('agreementSelect').value = id;
+      if (typeof syncTransferAddressFromAgreement === 'function') syncTransferAddressFromAgreement(id);
       activateView('transfers');
     };
     window.checkTransfer = checkTransfer;
