@@ -735,9 +735,20 @@
       }
     }
 
+    function canonicalConnectorPrefix(input) {
+      const raw = String(input || '').trim();
+      if (!raw) return '';
+      const lower = raw.toLowerCase();
+      if (lower === 'conectorfuenlabrada' || lower === 'fuenlabrada') return 'conectorFuenlabrada';
+      if (lower === 'conectoruc3m' || lower === 'uc3m') return 'conectoruc3m';
+      return lower.startsWith('conector') ? raw : `conector${raw}`;
+    }
+
     function getUiPrefix() {
+      const configured = canonicalConnectorPrefix(cfg.connectorName || '');
+      if (configured) return `/${configured}`;
       const first = (window.location.pathname || '/').split('/').filter(Boolean)[0] || '';
-      return first ? `/${first}` : '';
+      return first ? `/${canonicalConnectorPrefix(first) || first}` : '';
     }
 
     function buildLocalDownloadSinkBaseUrl() {
@@ -1406,8 +1417,8 @@
         return ensureDspVersion(`http://${raw}-connector:19103/api/v1/dsp/2025-1`);
       }
 
-      // Producción: resolver por mismo dominio público y prefijo del conector remoto.
-      const connectorPrefix = connectorIdLower.startsWith('conector') ? connectorIdLower : `conector${connectorIdLower}`;
+      // Producción: resolver por mismo dominio público y prefijo canónico del conector remoto.
+      const connectorPrefix = canonicalConnectorPrefix(raw);
       return ensureDspVersion(`${window.location.origin}/${connectorPrefix}/api/v1/dsp/2025-1`);
     }
 
