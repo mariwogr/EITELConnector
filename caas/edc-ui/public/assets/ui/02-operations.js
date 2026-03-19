@@ -1297,7 +1297,9 @@
           const target = perms.find(p => p?.['odrl:target'] || p?.target)?.['odrl:target'] || perms.find(p => p?.['odrl:target'] || p?.target)?.target || datasetId;
           return {
             offerId: pol?.['@id'] || pol?.id || '',
-            assetId: target || datasetId,
+            // Priorizar siempre el ID del dataset del catálogo para evitar targets dummy en policies.
+            assetId: datasetId || target,
+            policyTarget: target || '',
             assigner: pol?.assigner || pol?.['odrl:assigner'] || connectorId,
             policySummary: summarizePolicyTerms(pol),
             policyRaw: pol,
@@ -1369,10 +1371,22 @@
       policy['@type'] = 'odrl:Offer';
       policy['@id'] = policy['@id'] || selected.offerId;
       policy.assigner = policy.assigner || policy['odrl:assigner'] || selected.assigner || 'provider';
-      policy.target = policy.target || policy['odrl:target'] || selected.assetId;
+      // Forzar el asset real del dataset seleccionado; algunas policies publicadas traen target placeholder.
+      policy.target = selected.assetId || policy.target || policy['odrl:target'] || selected.policyTarget;
+      policy['odrl:target'] = selected.assetId || policy['odrl:target'] || selected.policyTarget;
+
+      const normalizeRuleTarget = (rule) => {
+        if (!rule || typeof rule !== 'object') return rule;
+        const resolved = selected.assetId || rule.target || rule['odrl:target'] || selected.policyTarget;
+        return { ...rule, target: resolved, 'odrl:target': resolved };
+      };
+
       if (!Array.isArray(policy.permission)) policy.permission = policy.permission ? [policy.permission] : [];
       if (!Array.isArray(policy.prohibition)) policy.prohibition = policy.prohibition ? [policy.prohibition] : [];
       if (!Array.isArray(policy.obligation)) policy.obligation = policy.obligation ? [policy.obligation] : [];
+      policy.permission = policy.permission.map(normalizeRuleTarget);
+      policy.prohibition = policy.prohibition.map(normalizeRuleTarget);
+      policy.obligation = policy.obligation.map(normalizeRuleTarget);
 
       const beforeAgreementsResp = await callApi('POST', '/v3/contractagreements/request', q());
       const beforeAgreementIds = new Set(unwrap(beforeAgreementsResp).map(a => a['@id'] || a.id).filter(Boolean));
