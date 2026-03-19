@@ -735,6 +735,122 @@
       }
     }
 
+    function getUiPrefix() {
+      const first = (window.location.pathname || '/').split('/').filter(Boolean)[0] || '';
+      return first ? `/${first}` : '';
+    }
+
+    function buildLocalDownloadSinkBaseUrl() {
+      return `${window.location.origin}${getUiPrefix()}/local-assets/download-sink`;
+    }
+
+    function sleepMs(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function waitTransferToFinish(transferId, maxWaitMs = 120000) {
+      const started = Date.now();
+      while (Date.now() - started < maxWaitMs) {
+        await sleepMs(2500);
+        const stateResp = await callApi('GET', `/v3/transferprocesses/${encodeURIComponent(transferId)}/state`, undefined, { silent: true, retries: 0 });
+        const st = normalizeTransferState(stateResp?.data?.state || stateResp?.data?.['edc:state'] || '');
+        if (st === 'COMPLETED') return { ok: true, state: st };
+        if (st === 'FAILED' || st === 'TERMINATED') {
+          const detailResp = await callApi('GET', `/v3/transferprocesses/${encodeURIComponent(transferId)}`, undefined, { silent: true, retries: 0 });
+          const err = detailResp?.data?.errorDetail || detailResp?.data?.['edc:errorDetail'] || 'Sin detalle de error.';
+          return { ok: false, state: st, error: err };
+        }
+      }
+      return { ok: false, state: 'TIMEOUT', error: 'La transferencia no finalizó a tiempo.' };
+    }
+
+    function triggerBrowserDownload(url, filename = '') {
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      if (filename) anchor.download = filename;
+      anchor.style.display = 'none';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+    }
+
+    async function downloadRemoteAssetViaTransfer(contractId, assetId) {
+      const sinkBaseUrl = buildLocalDownloadSinkBaseUrl();
+      const transferAddress = (document.getElementById('transferAddress').value || '').trim();
+      if (!transferAddress) {
+        return { status: 400, error: 'Falta dirección DSP del partner para la transferencia remota.' };
+      }
+
+      // Limpiar registros previos del sink para evitar descargar archivos antiguos por error.
+      try { await fetch(`${sinkBaseUrl}/records`, { method: 'DELETE' }); } catch {}
+
+      const path = `/ingest?contractId=${encodeURIComponent(contractId)}&assetId=${encodeURIComponent(assetId || '')}`;
+      const transferReq = {
+        '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+        '@type': 'TransferRequest',
+        protocol: 'dataspace-protocol-http:2025-1',
+        counterPartyAddress: transferAddress,
+        contractId,
+        transferType: 'HttpData-PUSH',
+        dataDestination: {
+          type: 'HttpData',
+          baseUrl: sinkBaseUrl,
+          method: 'POST',
+          path,
+        }
+      };
+
+      const startResp = await callApi('POST', '/v3/transferprocesses', JSON.stringify(transferReq), { retries: 0 });
+      const transferId = startResp?.data?.['@id'] || startResp?.data?.id || '';
+      if (!(startResp.status >= 200 && startResp.status < 300) || !transferId) {
+        return {
+          status: startResp.status || 500,
+          error: 'No se pudo iniciar la transferencia remota para descarga local.',
+          transferRequest: transferReq,
+          response: startResp,
+        };
+      }
+
+      const finished = await waitTransferToFinish(transferId, 120000);
+      if (!finished.ok) {
+        return {
+          status: 502,
+          error: 'La transferencia remota no finalizó correctamente.',
+          transferId,
+          state: finished.state,
+          detail: finished.error,
+        };
+      }
+
+      const recordsRes = await fetch(`${sinkBaseUrl}/records?contractId=${encodeURIComponent(contractId)}`);
+      const recordsData = await recordsRes.json();
+      const records = Array.isArray(recordsData?.items) ? recordsData.items : [];
+      const latest = records[0];
+      if (!latest) {
+        return {
+          status: 404,
+          error: 'La transferencia terminó pero no se encontró archivo en el sink local.',
+          transferId,
+        };
+      }
+
+      const relativePublicPath = String(latest.publicPath || '').replace(/^\/local-assets\/?/, '');
+      const fileUrl = `${window.location.origin}${getUiPrefix()}/local-assets/${relativePublicPath}`;
+      triggerBrowserDownload(fileUrl, latest.filename || 'download.bin');
+
+      return {
+        status: 200,
+        downloaded: true,
+        remoteTransfer: true,
+        transferId,
+        contractId,
+        assetId,
+        filename: latest.filename,
+        bytes: latest.bytes,
+        sourceUrl: fileUrl,
+      };
+    }
+
     function looksLikeSourceErrorPayload(text, contentType) {
       const sample = String(text || '').slice(0, 5000);
       const lower = sample.toLowerCase();
@@ -1574,7 +1690,11 @@
       }
 
       if (transferMode === 'local-download') {
-        const downloadResp = await downloadAssetLocally(contractId, agreementAssetId);
+        let downloadResp = await downloadAssetLocally(contractId, agreementAssetId);
+        // Si el asset no existe localmente (contrato remoto), usar transferencia EDC al sink local.
+        if (downloadResp?.status === 404) {
+          downloadResp = await downloadRemoteAssetViaTransfer(contractId, agreementAssetId);
+        }
         const localTransfer = addLocalTransferRecord(buildLocalTransferRecord(downloadResp));
         writeOut(downloadResp);
         await refreshOverview();

@@ -120,11 +120,32 @@ class ConnectorPlanRequest(BaseModel):
 
 dummy_sink_records: list[dict] = []
 MAX_DUMMY_RECORDS = 200
+local_download_records: list[dict] = []
+MAX_LOCAL_DOWNLOAD_RECORDS = 200
 
 
 def _safe_upload_name(name: str) -> str:
     candidate = Path(name or 'upload.bin').name.strip()
     return candidate or 'upload.bin'
+
+
+def _safe_local_download_filename(content_disposition: str, fallback: str = 'download.bin') -> str:
+    value = str(content_disposition or '')
+    filename = ''
+    if 'filename*=' in value:
+        try:
+            encoded = value.split('filename*=')[-1].split(';')[0].strip().strip('"')
+            if "''" in encoded:
+                encoded = encoded.split("''", 1)[1]
+            filename = encoded
+        except Exception:
+            filename = ''
+    if not filename and 'filename=' in value:
+        try:
+            filename = value.split('filename=')[-1].split(';')[0].strip().strip('"')
+        except Exception:
+            filename = ''
+    return _safe_upload_name(filename or fallback)
 
 
 def _prefix_for(tenant: str) -> str:
@@ -328,6 +349,78 @@ def get_local_asset(file_id: str, filename: str):
 
     if root_path not in target_path.parents or not target_path.exists() or not target_path.is_file():
         raise HTTPException(status_code=404, detail='Archivo local no encontrado')
+
+    media_type = guess_type(safe_name)[0] or 'application/octet-stream'
+    return FileResponse(target_path, media_type=media_type, filename=safe_name)
+
+
+@app.api_route('/v1/local-assets/download-sink/ingest', methods=['POST', 'PUT'])
+async def ingest_local_download(request: Request):
+    raw = await request.body()
+    if not raw:
+        raise HTTPException(status_code=400, detail='Payload vacío en download-sink')
+
+    contract_id = str(request.query_params.get('contractId') or '').strip()
+    asset_id = str(request.query_params.get('assetId') or '').strip()
+    transfer_id = str(request.query_params.get('transferId') or '').strip()
+    content_type = request.headers.get('content-type', 'application/octet-stream')
+    content_disposition = request.headers.get('content-disposition', '')
+    filename = _safe_local_download_filename(content_disposition, 'download.bin')
+
+    file_id = uuid4().hex
+    target_dir = Path(settings.local_assets_dir) / 'download-sink' / file_id
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target_path = target_dir / filename
+    target_path.write_bytes(raw)
+
+    record = {
+        'id': file_id,
+        'received_at': datetime.now(UTC).isoformat(),
+        'method': request.method,
+        'contractId': contract_id,
+        'assetId': asset_id,
+        'transferId': transfer_id,
+        'filename': filename,
+        'bytes': len(raw),
+        'contentType': content_type,
+        'path': f'/v1/local-assets/download-sink/files/{file_id}/{filename}',
+        'publicPath': f'/local-assets/download-sink/files/{file_id}/{filename}',
+    }
+    local_download_records.append(record)
+    if len(local_download_records) > MAX_LOCAL_DOWNLOAD_RECORDS:
+        del local_download_records[: len(local_download_records) - MAX_LOCAL_DOWNLOAD_RECORDS]
+
+    return {
+        'ok': True,
+        'stored': len(local_download_records),
+        'record': record,
+    }
+
+
+@app.get('/v1/local-assets/download-sink/records')
+def list_local_download_records(contractId: str | None = None):
+    items = list(reversed(local_download_records))
+    if contractId:
+        cid = str(contractId).strip()
+        items = [r for r in items if str(r.get('contractId') or '').strip() == cid]
+    return {'count': len(items), 'items': items}
+
+
+@app.delete('/v1/local-assets/download-sink/records')
+def clear_local_download_records():
+    cleared = len(local_download_records)
+    local_download_records.clear()
+    return {'ok': True, 'cleared': cleared}
+
+
+@app.get('/v1/local-assets/download-sink/files/{file_id}/{filename}')
+def get_local_download_file(file_id: str, filename: str):
+    safe_name = _safe_upload_name(filename)
+    target_path = (Path(settings.local_assets_dir) / 'download-sink' / file_id / safe_name).resolve()
+    root_path = (Path(settings.local_assets_dir) / 'download-sink').resolve()
+
+    if root_path not in target_path.parents or not target_path.exists() or not target_path.is_file():
+        raise HTTPException(status_code=404, detail='Archivo de download-sink no encontrado')
 
     media_type = guess_type(safe_name)[0] or 'application/octet-stream'
     return FileResponse(target_path, media_type=media_type, filename=safe_name)
