@@ -367,6 +367,32 @@ async def upload_local_asset(file: UploadFile = File(...)):
     }
 
 
+@app.put('/v1/local-assets/upload-raw')
+async def upload_local_asset_raw(request: Request, filename: str | None = None):
+    raw = await request.body()
+    if not raw:
+        raise HTTPException(status_code=400, detail='Payload vacío')
+
+    safe_filename = _safe_upload_name(filename or request.headers.get('x-filename') or 'upload.bin')
+    file_id = uuid4().hex
+    target_dir = Path(settings.local_assets_dir) / file_id
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target_path = target_dir / safe_filename
+    target_path.write_bytes(raw)
+
+    path = f'/{file_id}/{safe_filename}'
+    media_type = request.headers.get('content-type') or guess_type(safe_filename)[0] or 'application/octet-stream'
+    return {
+        'fileId': file_id,
+        'filename': safe_filename,
+        'contentType': media_type,
+        'bytes': len(raw),
+        'path': path,
+        'internalBaseUrl': settings.local_assets_internal_base_url.rstrip('/'),
+        'publicUrl': f"{settings.local_assets_public_base_url.rstrip('/')}{path}",
+    }
+
+
 @app.get('/v1/local-assets/files/{file_id}/{filename}')
 def get_local_asset(file_id: str, filename: str):
     safe_name = _safe_upload_name(filename)

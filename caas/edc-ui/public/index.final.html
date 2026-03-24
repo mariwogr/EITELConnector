@@ -66,6 +66,34 @@
               <button class="primary" id="btnRefreshOverview" data-i18n="dash.refresh">Actualizar</button>
             </div>
           </section>
+          <section class="card">
+            <h3 style="margin-top:0">Assets publicados</h3>
+            <table>
+              <thead><tr><th>Nombre</th><th>ID</th><th>Tipo</th></tr></thead>
+              <tbody id="dashAssetsBody"><tr><td colspan="3" class="muted">Pulsa "Actualizar".</td></tr></tbody>
+            </table>
+          </section>
+          <section class="card">
+            <h3 style="margin-top:0">Policies activas</h3>
+            <table>
+              <thead><tr><th>Policy</th><th>Activo</th><th>Caduca</th></tr></thead>
+              <tbody id="dashPoliciesBody"><tr><td colspan="3" class="muted">Pulsa "Actualizar".</td></tr></tbody>
+            </table>
+          </section>
+          <section class="card">
+            <h3 style="margin-top:0">Contratos vigentes</h3>
+            <table>
+              <thead><tr><th>Contrato</th><th>Asset</th><th>Fecha</th></tr></thead>
+              <tbody id="dashContractsBody"><tr><td colspan="3" class="muted">Pulsa "Actualizar".</td></tr></tbody>
+            </table>
+          </section>
+          <section class="card">
+            <h3 style="margin-top:0">Transferencias</h3>
+            <table>
+              <thead><tr><th>ID</th><th>Estado</th><th>Contrato</th></tr></thead>
+              <tbody id="dashTransfersBody"><tr><td colspan="3" class="muted">Pulsa "Actualizar".</td></tr></tbody>
+            </table>
+          </section>
           <section class="card wide tutorial">
             <h3>Mini tutorial</h3>
             <ol>
@@ -168,7 +196,7 @@
         <div class="grid">
           <section class="card wide">
             <h2>Definir política</h2>
-            <p class="muted">Puedes crear la policy con formulario guiado o pegando JSON-LD puro.</p>
+            <p class="muted">Define condiciones de uso con un formulario simple (sin términos técnicos) o pega JSON-LD si lo necesitas.</p>
             <div class="grid">
               <div><label>Asset ID</label><input id="policyAssetPreview" readonly /></div>
               <div><label>Policy ID</label><input id="policyIdMirror" readonly /></div>
@@ -182,28 +210,55 @@
                 </select>
               </div>
               <div>
-                <label>Plantilla de policy</label>
-                <select id="policyTemplate">
-                  <option value="gaiax-open">Gaia-X Open (sin restricciones)</option>
-                  <option value="gaiax-participant">Gaia-X por participante</option>
-                  <option value="gaiax-purpose">Gaia-X por propósito</option>
-                  <option value="gaiax-participant-purpose">Gaia-X participante + propósito</option>
+                <label>Nivel de acceso</label>
+                <select id="policyAccessLevel">
+                  <option value="public">Publico</option>
+                  <option value="partners">Solo entidades colaboradoras</option>
+                  <option value="internal">Uso interno del proyecto</option>
                 </select>
               </div>
             </div>
             <div id="policyFormBlock">
               <div class="grid">
                 <div>
-                  <label>Participant ID (si aplica)</label>
-                  <input id="policyParticipantId" placeholder="did:web:consumer.example" />
+                  <label>Finalidad de uso</label>
+                  <select id="policyUsagePurpose">
+                    <option value="analytics">Analitica e indicadores</option>
+                    <option value="operations">Operacion municipal</option>
+                    <option value="reporting">Informes oficiales</option>
+                    <option value="research">Investigacion e innovacion</option>
+                  </select>
                 </div>
                 <div>
-                  <label>Purpose (si aplica)</label>
-                  <input id="policyPurpose" placeholder="ej: analytics" />
+                  <label>Ambito geografico</label>
+                  <select id="policyGeography">
+                    <option value="local">Municipio</option>
+                    <option value="regional">Regional</option>
+                    <option value="national">Nacional</option>
+                    <option value="eu">Union Europea</option>
+                  </select>
                 </div>
               </div>
-              <label>Geography (opcional)</label>
-              <input id="policyGeography" placeholder="EU" />
+              <div class="grid">
+                <div>
+                  <label>Categoria del dato</label>
+                  <select id="policyDataCategory">
+                    <option value="energy">Energia</option>
+                    <option value="mobility">Movilidad</option>
+                    <option value="environment">Medio ambiente</option>
+                    <option value="other">Otra</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Uso comercial permitido</label>
+                  <select id="policyCommercialUse">
+                    <option value="no">No</option>
+                    <option value="yes">Si</option>
+                  </select>
+                </div>
+              </div>
+              <label>Fecha de expiracion de la política (opcional)</label>
+              <input id="policyExpiration" type="datetime-local" />
             </div>
             <div id="policyJsonBlock" style="display:none">
               <label>Policy JSON-LD</label>
@@ -220,7 +275,8 @@
           <section class="card wide tutorial">
             <h3>Mini tutorial</h3>
             <ol>
-              <li>En modo formulario, define restricciones minimas (participant, purpose o geography).</li>
+              <li>Selecciona acceso, finalidad, ambito y categoria del dato.</li>
+              <li>Si necesitas una fecha de fin, usa "Fecha de expiracion".</li>
               <li>En modo JSON-LD, pega la policy final sin ejemplos de prueba.</li>
               <li>Pulsa "Crear/Actualizar policy" y valida que queda asociada al asset.</li>
             </ol>
@@ -542,11 +598,11 @@
     </div>
   </div>
 
-    <script src="config.js?v=20260324s"></script>
-  <script src="assets/ui/01-runtime.js?v=20260324s"></script>
-  <script src="assets/ui/02-operations.js?v=20260324s"></script>
-  <script src="assets/ui/03-secrets.js?v=20260324s"></script>
-  <script src="assets/ui/04-bootstrap.js?v=20260324s"></script>
+    <script src="config.js?v=20260324t"></script>
+  <script src="assets/ui/01-runtime.js?v=20260324t"></script>
+  <script src="assets/ui/02-operations.js?v=20260324t"></script>
+  <script src="assets/ui/03-secrets.js?v=20260324t"></script>
+  <script src="assets/ui/04-bootstrap.js?v=20260324t"></script>
 </body>
 </html>
 

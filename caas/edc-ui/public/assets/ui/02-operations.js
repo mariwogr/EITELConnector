@@ -795,10 +795,83 @@
         callApi('POST', '/v3/contractagreements/request', q()),
         callApi('POST', '/v3/transferprocesses/request', q()),
       ]);
-      document.getElementById('kpiAssets').textContent = unwrap(a).length;
-      document.getElementById('kpiPolicies').textContent = unwrap(p).length;
-      document.getElementById('kpiContracts').textContent = unwrap(ags).length;
-      document.getElementById('kpiTransfers').textContent = getAllTransferRows(unwrap(tps)).length;
+      const assets = unwrap(a);
+      const policies = unwrap(p);
+      const agreements = unwrap(ags);
+      const transfers = getAllTransferRows(unwrap(tps));
+
+      document.getElementById('kpiAssets').textContent = assets.length;
+      document.getElementById('kpiPolicies').textContent = policies.length;
+      document.getElementById('kpiContracts').textContent = agreements.length;
+      document.getElementById('kpiTransfers').textContent = transfers.length;
+
+      const assetsBody = document.getElementById('dashAssetsBody');
+      const policiesBody = document.getElementById('dashPoliciesBody');
+      const contractsBody = document.getElementById('dashContractsBody');
+      const transfersBody = document.getElementById('dashTransfersBody');
+
+      if (assetsBody) {
+        if (!assets.length) {
+          assetsBody.innerHTML = '<tr><td colspan="3" class="muted">No hay assets publicados.</td></tr>';
+        } else {
+          assetsBody.innerHTML = assets.slice(0, 10).map((asset) => {
+            const id = asset?.['@id'] || asset?.id || '';
+            const props = asset?.properties || asset?.['edc:properties'] || {};
+            const name = props?.name || props?.title || clean(id);
+            const type = props?.contenttype || asset?.dataAddress?.type || '-';
+            return `<tr><td class="title-cell" title="${htmlEscape(name)}">${htmlEscape(name)}</td><td title="${htmlEscape(id)}">${htmlEscape(clean(id))}</td><td>${htmlEscape(String(type || '-'))}</td></tr>`;
+          }).join('');
+        }
+      }
+
+      if (policiesBody) {
+        if (!policies.length) {
+          policiesBody.innerHTML = '<tr><td colspan="3" class="muted">No hay policies activas.</td></tr>';
+        } else {
+          policiesBody.innerHTML = policies.slice(0, 10).map((policyDef) => {
+            const pid = policyDef?.['@id'] || policyDef?.id || '';
+            const policy = policyDef?.policy || {};
+            const permsRaw = policy?.permission || policy?.['odrl:permission'] || [];
+            const perms = Array.isArray(permsRaw) ? permsRaw : [permsRaw];
+            const assetId = perms.find(p => p?.target || p?.['odrl:target'])?.target || perms.find(p => p?.target || p?.['odrl:target'])?.['odrl:target'] || '-';
+            const constraints = perms.flatMap(p => {
+              const c = p?.constraint || p?.['odrl:constraint'] || [];
+              return Array.isArray(c) ? c : [c];
+            }).filter(Boolean);
+            const expiration = constraints.find(c => {
+              const left = String(c?.leftOperand || c?.['odrl:leftOperand'] || '').toLowerCase();
+              return left.includes('datetime') || left.includes('validuntil') || left.includes('expiration');
+            })?.rightOperand || policy?.['dct:validUntil'] || '-';
+            return `<tr><td class="title-cell" title="${htmlEscape(pid)}">${htmlEscape(clean(pid))}</td><td title="${htmlEscape(assetId)}">${htmlEscape(clean(assetId))}</td><td>${htmlEscape(expiration === '-' ? '-' : fmtDate(expiration))}</td></tr>`;
+          }).join('');
+        }
+      }
+
+      if (contractsBody) {
+        if (!agreements.length) {
+          contractsBody.innerHTML = '<tr><td colspan="3" class="muted">No hay contratos vigentes.</td></tr>';
+        } else {
+          contractsBody.innerHTML = agreements.slice(0, 10).map((agreement) => {
+            const id = agreement?.['@id'] || agreement?.id || '';
+            const assetId = agreement?.assetId || agreement?.['edc:assetId'] || '-';
+            const publishedAt = agreement?.contractSigningDate || agreement?.['edc:contractSigningDate'] || agreement?.createdAt || agreement?.['edc:createdAt'] || '';
+            return `<tr><td class="title-cell" title="${htmlEscape(id)}">${htmlEscape(clean(id))}</td><td title="${htmlEscape(assetId)}">${htmlEscape(clean(assetId))}</td><td>${htmlEscape(fmtDate(publishedAt))}</td></tr>`;
+          }).join('');
+        }
+      }
+
+      if (transfersBody) {
+        if (!transfers.length) {
+          transfersBody.innerHTML = '<tr><td colspan="3" class="muted">No hay transferencias.</td></tr>';
+        } else {
+          transfersBody.innerHTML = transfers.slice(0, 10).map((transfer) => {
+            const id = transfer?.['@id'] || transfer?.id || '';
+            const state = normalizeTransferState(transfer?.state || transfer?.['edc:state'] || '-');
+            const contract = transfer?.contractId || transfer?.['edc:contractId'] || '-';
+            return `<tr><td class="title-cell" title="${htmlEscape(id)}">${htmlEscape(clean(id))}</td><td>${htmlEscape(state)}</td><td title="${htmlEscape(contract)}">${htmlEscape(clean(contract))}</td></tr>`;
+          }).join('');
+        }
+      }
     }
 
     let lastArcgisPublishToken = '';
@@ -1535,8 +1608,29 @@
         return { status: 400, error: 'Selecciona un archivo local antes de publicar el asset.' };
       }
 
+      const filename = file.name || `${assetId || 'asset'}.bin`;
+
+      // First try raw upload to avoid multipart/proxy edge cases.
+      try {
+        const rawUrl = `${getLocalAssetsApiBaseUrl()}/upload-raw?filename=${encodeURIComponent(filename)}`;
+        const rawRes = await fetch(rawUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': file.type || 'application/octet-stream',
+            'X-Filename': filename,
+          },
+          body: file,
+        });
+        const rawText = await rawRes.text();
+        let rawData = rawText;
+        try { rawData = JSON.parse(rawText); } catch {}
+        if (rawRes.status >= 200 && rawRes.status < 300) {
+          return { status: rawRes.status, data: rawData };
+        }
+      } catch {}
+
       const formData = new FormData();
-      formData.append('file', file, file.name || `${assetId || 'asset'}.bin`);
+      formData.append('file', file, filename);
 
       try {
         const res = await fetch(`${getLocalAssetsApiBaseUrl()}/upload`, {
@@ -1670,31 +1764,40 @@
         return custom;
       }
 
-      const tpl = document.getElementById('policyTemplate')?.value || 'gaiax-open';
-      const participantId = (document.getElementById('policyParticipantId')?.value || '').trim();
-      const purpose = (document.getElementById('policyPurpose')?.value || '').trim();
-      const geography = (document.getElementById('policyGeography')?.value || '').trim();
+      const accessLevel = (document.getElementById('policyAccessLevel')?.value || 'public').trim();
+      const purpose = (document.getElementById('policyUsagePurpose')?.value || 'analytics').trim();
+      const geography = (document.getElementById('policyGeography')?.value || 'local').trim();
+      const dataCategory = (document.getElementById('policyDataCategory')?.value || 'energy').trim();
+      const commercialUse = (document.getElementById('policyCommercialUse')?.value || 'no').trim();
+      const expirationRaw = (document.getElementById('policyExpiration')?.value || '').trim();
+      let expirationIso = '';
+      if (expirationRaw) {
+        const parsedDate = new Date(expirationRaw);
+        if (!Number.isNaN(parsedDate.getTime())) expirationIso = parsedDate.toISOString();
+      }
 
       const constraints = [];
-      if (tpl === 'gaiax-participant' || tpl === 'gaiax-participant-purpose') {
-        constraints.push({ leftOperand: 'gx:participantId', operator: 'eq', rightOperand: participantId || 'did:web:participant.example' });
-      }
-      if (tpl === 'gaiax-purpose' || tpl === 'gaiax-participant-purpose') {
-        constraints.push({ leftOperand: 'gx:purpose', operator: 'eq', rightOperand: purpose || 'analytics' });
-      }
-      if (geography) {
-        constraints.push({ leftOperand: 'gx:location', operator: 'eq', rightOperand: geography });
-      }
+      constraints.push({ leftOperand: 'dct:accessRights', operator: 'eq', rightOperand: accessLevel });
+      constraints.push({ leftOperand: 'dct:purpose', operator: 'eq', rightOperand: purpose });
+      constraints.push({ leftOperand: 'dct:spatial', operator: 'eq', rightOperand: geography });
+      constraints.push({ leftOperand: 'dcat:theme', operator: 'eq', rightOperand: dataCategory });
+      constraints.push({ leftOperand: 'eitel:commercialUse', operator: 'eq', rightOperand: commercialUse });
+      if (expirationIso) constraints.push({ leftOperand: 'odrl:dateTime', operator: 'lteq', rightOperand: expirationIso });
 
       return {
         '@context': {
           odrl: 'http://www.w3.org/ns/odrl/2/',
           dcat: 'https://www.w3.org/ns/dcat#',
           dct: 'http://purl.org/dc/terms/',
-          gx: 'https://w3id.org/gaia-x/policy/v1#'
+          eitel: 'https://w3id.org/eitel/ns/'
         },
         '@id': policyId,
         '@type': 'http://www.w3.org/ns/odrl/2/Set',
+        'dct:accessRights': accessLevel,
+        'dct:purpose': purpose,
+        'dct:spatial': geography,
+        'dcat:theme': dataCategory,
+        ...(expirationIso ? { 'dct:validUntil': expirationIso } : {}),
         permission: [{
           action: 'use',
           target: assetId,
