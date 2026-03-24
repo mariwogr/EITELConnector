@@ -41,6 +41,12 @@
         .replace(/'/g, '&#39;');
     }
 
+    function resolveAssetImageUrl(rawImageUrl) {
+      const candidate = String(rawImageUrl || '').trim();
+      if (candidate) return candidate;
+      return 'assets/eitel-logo-brand.png';
+    }
+
     function extractDatasetMetadata(dataset) {
       const d = dataset || {};
       const props = d?.properties || d?.['dct:properties'] || d?.['edc:properties'] || {};
@@ -609,12 +615,10 @@
         const connector = htmlEscape(safeText(row.connectorId, row.assigner || '-'));
         const connectorBadge = htmlEscape(safeText(row.connectorId, row.assigner || '-').replace(/^conector/i, '').trim() || 'connector');
         const desc = htmlEscape(safeText(row.assetDescription, 'Sin descripción publicada.'));
-        const image = String(row.assetImageUrl || '').trim();
+        const image = resolveAssetImageUrl(row.assetImageUrl);
         const keywords = Array.isArray(row.assetKeywords) ? row.assetKeywords.slice(0, 8) : [];
         const delayMs = Math.min(idx * 55, 550);
-        const media = image
-          ? `<div class="asset-card-media"><img src="${htmlEscape(image)}" alt="Imagen del asset ${title}" /><span class="asset-card-badge">${connectorBadge}</span><div class="asset-card-media-overlay"><span class="asset-card-media-title">${title}</span></div></div>`
-          : `<div class="asset-card-media">SIN IMAGEN<span class="asset-card-badge">${connectorBadge}</span><div class="asset-card-media-overlay"><span class="asset-card-media-title">${title}</span></div></div>`;
+        const media = `<div class="asset-card-media"><img src="${htmlEscape(image)}" alt="Imagen del asset ${title}" /><span class="asset-card-badge">${connectorBadge}</span><div class="asset-card-media-overlay"><span class="asset-card-media-title">${title}</span></div></div>`;
         const chips = keywords.length
           ? `<div class="asset-card-keywords">${keywords.map(k => `<span class="asset-chip">${htmlEscape(k)}</span>`).join('')}</div>`
           : '<div class="asset-card-meta">Sin keywords</div>';
@@ -717,11 +721,9 @@
         const title = htmlEscape(safeText(row.title, clean(row.id)));
         const desc = htmlEscape(safeText(row.description, 'Sin descripción.'));
         const id = htmlEscape(row.id || '');
-        const image = String(row.imageUrl || '').trim();
+        const image = resolveAssetImageUrl(row.imageUrl);
         const delayMs = Math.min(idx * 40, 480);
-        const media = image
-          ? `<div class="asset-card-media"><img src="${htmlEscape(image)}" alt="Imagen del asset ${title}" /><span class="asset-card-badge">MI ASSET</span><div class="asset-card-media-overlay"><span class="asset-card-media-title">${title}</span></div></div>`
-          : `<div class="asset-card-media">SIN IMAGEN<span class="asset-card-badge">MI ASSET</span><div class="asset-card-media-overlay"><span class="asset-card-media-title">${title}</span></div></div>`;
+        const media = `<div class="asset-card-media"><img src="${htmlEscape(image)}" alt="Imagen del asset ${title}" /><span class="asset-card-badge">MI ASSET</span><div class="asset-card-media-overlay"><span class="asset-card-media-title">${title}</span></div></div>`;
         const chips = row.keywords.length
           ? `<div class="asset-card-keywords">${row.keywords.slice(0, 8).map(k => `<span class="asset-chip">${htmlEscape(k)}</span>`).join('')}</div>`
           : '<div class="asset-card-meta">Sin keywords</div>';
@@ -2159,23 +2161,32 @@
         ? JSON.parse(JSON.stringify(selected.policyRaw))
         : {};
 
-      policy['@context'] = {
-        odrl: 'http://www.w3.org/ns/odrl/2/',
-        dcat: 'https://www.w3.org/ns/dcat#',
-        dct: 'http://purl.org/dc/terms/'
-      };
+      // Para ContractRequest, EDC espera los términos ODRL compactados (assigner/target)
+      // con el contexto oficial ODRL JSON-LD.
+      policy['@context'] = 'http://www.w3.org/ns/odrl.jsonld';
       policy['@type'] = 'odrl:Offer';
       policy['@id'] = policy['@id'] || selected.offerId;
-      policy.assigner = policy.assigner || policy['odrl:assigner'] || selected.assigner || 'provider';
+      const resolvedAssigner = (policy.assigner || policy['odrl:assigner'] || selected.assigner || 'provider').toString().trim();
+      policy.assigner = resolvedAssigner || 'provider';
       // Forzar el asset real del dataset seleccionado; algunas policies publicadas traen target placeholder.
-      policy.target = selected.assetId || policy.target || policy['odrl:target'] || selected.policyTarget;
-      policy['odrl:target'] = selected.assetId || policy['odrl:target'] || selected.policyTarget;
+      const resolvedTarget = (selected.assetId || policy.target || policy['odrl:target'] || selected.policyTarget || '').toString().trim();
+      policy.target = resolvedTarget;
+      policy['odrl:target'] = resolvedTarget;
 
       const normalizeRuleTarget = (rule) => {
         if (!rule || typeof rule !== 'object') return rule;
-        const resolved = selected.assetId || rule.target || rule['odrl:target'] || selected.policyTarget;
+        const resolved = (selected.assetId || rule.target || rule['odrl:target'] || selected.policyTarget || '').toString().trim();
         return { ...rule, target: resolved, 'odrl:target': resolved };
       };
+
+      if (!resolvedTarget) {
+        writeOut({ status: 400, error: 'No se pudo determinar el target del asset para la negociación.' });
+        if (actionBtn) {
+          actionBtn.disabled = false;
+          actionBtn.textContent = 'Realizar contrato';
+        }
+        return;
+      }
 
       if (!Array.isArray(policy.permission)) policy.permission = policy.permission ? [policy.permission] : [];
       if (!Array.isArray(policy.prohibition)) policy.prohibition = policy.prohibition ? [policy.prohibition] : [];
