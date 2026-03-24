@@ -258,8 +258,8 @@
       <section class="panel" id="panel-catalog">
         <div class="grid">
           <section class="card wide">
-            <h2 data-i18n="catalog.title">Escaparate de catálogo</h2>
-            <p class="muted" data-i18n="catalog.subtitle">Vista tipo revista: cada asset aparece como tarjeta con imagen, nombre y detalles desplegables.</p>
+            <h2 data-i18n="catalog.title">Catalogo de activos</h2>
+            <p class="muted" data-i18n="catalog.subtitle">Consulta activos disponibles, filtra resultados y prepara la contratacion desde esta vista.</p>
             <div class="grid">
               <div><label data-i18n="catalog.connector">Conector remoto</label><input id="searchConnectorId" placeholder="ej: conectoruc3m" /></div>
               <div><label data-i18n="catalog.dsp">URL DSP</label><input id="resolvedAddress" readonly /></div>
@@ -267,16 +267,16 @@
             <div class="row" style="margin-top:8px">
               <button class="primary" id="btnSearchOffers" data-i18n="catalog.load">Ver catálogos</button>
               <button class="ghost" id="btnRefreshCatalog" data-i18n="catalog.refresh">Actualizar</button>
-              <button class="ghost" id="btnLoadShowcase">Cargar escaparate completo</button>
+              <button class="ghost" id="btnLoadShowcase">Cargar catalogo completo</button>
             </div>
             <div id="catalogShowcase" class="asset-showcase"></div>
 
             <section class="catalog-filters" style="margin-top:10px">
-              <h3 style="margin:0 0 8px">Filtros del escaparate</h3>
+              <h3 style="margin:0 0 8px">Busqueda y filtros</h3>
               <label>Conectores del espacio de datos (uno por línea o separados por coma)</label>
               <textarea id="catalogConnectorsList" rows="3" placeholder="conectoruc3m, conectorfuenlabrada"></textarea>
               <div class="grid">
-                <div><label>Buscar en escaparate</label><input id="catalogSearchText" placeholder="Filtra por nombre, keyword o descripción" /></div>
+                <div><label>Buscar activos</label><input id="catalogSearchText" placeholder="Filtra por nombre, keyword o descripcion" /></div>
                 <div><label>Filtrar por conector</label><input id="catalogFilterConnector" placeholder="ej: uc3m o fuenlabrada" /></div>
               </div>
               <div class="grid">
@@ -287,7 +287,7 @@
 
             <section id="catalogContractBox" class="contract-box" style="display:none">
               <h3 style="margin-top:14px">Preparar contrato del asset seleccionado</h3>
-              <p class="muted">Aquí se muestran las políticas solo cuando eliges un asset del escaparate.</p>
+              <p class="muted">Revisa la politica del activo seleccionado antes de iniciar la contratacion.</p>
               <label data-i18n="catalog.assetToContract">Asset a contratar</label>
               <select id="catalogAssetId">
                 <option value="">Primero carga data-offers</option>
@@ -308,9 +308,9 @@
           <section class="card wide tutorial">
             <h3>Mini tutorial</h3>
             <ol>
-              <li>Pulsa "Cargar escaparate completo" para traer assets de varios conectores.</li>
-              <li>Explora las tarjetas cuadradas y abre "Más información" en cada una.</li>
-              <li>Selecciona un asset; abajo se abrirá la zona para contratar y revisar su política.</li>
+              <li>Pulsa "Cargar catalogo completo" para consultar activos de los conectores configurados.</li>
+              <li>Aplica filtros por texto y conector para localizar el activo objetivo.</li>
+              <li>Selecciona un activo y completa la aceptacion de terminos para iniciar la contratacion.</li>
             </ol>
           </section>
         </div>
@@ -538,11 +538,11 @@
     </div>
   </div>
 
-    <script src="config.js?v=20260324m"></script>
-  <script src="assets/ui/01-runtime.js?v=20260324m"></script>
-  <script src="assets/ui/02-operations.js?v=20260324m"></script>
-  <script src="assets/ui/03-secrets.js?v=20260324m"></script>
-  <script src="assets/ui/04-bootstrap.js?v=20260324m"></script>
+    <script src="config.js?v=20260324n"></script>
+  <script src="assets/ui/01-runtime.js?v=20260324n"></script>
+  <script src="assets/ui/02-operations.js?v=20260324n"></script>
+  <script src="assets/ui/03-secrets.js?v=20260324n"></script>
+  <script src="assets/ui/04-bootstrap.js?v=20260324n"></script>
 </body>
 </html>
 

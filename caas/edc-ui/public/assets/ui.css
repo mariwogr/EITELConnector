@@ -410,7 +410,7 @@
       border: 1px solid color-mix(in srgb, var(--line) 85%, var(--primary) 15%);
       border-radius: 18px;
       background: radial-gradient(circle at 15% 12%, color-mix(in srgb, var(--primary-soft) 45%, var(--surface)) 0%, var(--surface) 52%);
-      overflow: hidden;
+      overflow: auto;
       display: flex;
       flex-direction: column;
       aspect-ratio: 1 / 1;
@@ -428,7 +428,8 @@
       box-shadow: 0 22px 34px rgba(15, 37, 80, .2);
     }
     .asset-card-media {
-      flex: 1 1 auto;
+      flex: 0 0 58%;
+      min-height: 138px;
       background: linear-gradient(140deg, color-mix(in srgb, var(--primary-soft) 72%, #f7fbff), color-mix(in srgb, var(--surface-2) 78%, #eef5ff));
       border-bottom: 1px solid color-mix(in srgb, var(--line) 80%, var(--primary) 20%);
       display: flex;
@@ -461,8 +462,9 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
-      flex: 0;
-      min-height: 142px;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: auto;
     }
     .asset-card-badge {
       position: absolute;
