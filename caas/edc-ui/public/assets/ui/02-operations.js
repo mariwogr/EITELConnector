@@ -2128,7 +2128,16 @@
       // Si el catalogo puntual falla (502) o no trae datos, usar fallback del catalogo completo.
       if (!(response?.status >= 200 && response?.status < 300) || !rows.length) {
         await loadCatalogShowcase(false);
-        if (showOutput) writeOut(response);
+        if (showOutput) {
+          writeOut({
+            status: 200,
+            action: 'catalog-fallback',
+            connectorId,
+            requestedDsp: address,
+            originalStatus: response?.status || 0,
+            message: 'El catalogo remoto no respondio correctamente. Se muestran resultados disponibles por fallback operativo.'
+          });
+        }
         return;
       }
 
