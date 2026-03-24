@@ -403,9 +403,10 @@
     .asset-showcase {
       margin-top: 12px;
       display: grid;
-      grid-template-columns: repeat(3, minmax(280px, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 18px;
       align-items: stretch;
+      min-width: 0;
     }
     .asset-card {
       border: 1px solid color-mix(in srgb, var(--line) 85%, var(--primary) 15%);
@@ -414,11 +415,11 @@
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      aspect-ratio: 1 / 1;
       min-height: 420px;
-      max-height: 520px;
+      height: 100%;
       box-shadow: 0 14px 28px rgba(19, 42, 87, .12);
       position: relative;
+      min-width: 0;
       opacity: 0;
       transform: translateY(14px) scale(.985);
       animation: catalogCardIn .46s ease forwards;
@@ -430,14 +431,16 @@
       box-shadow: 0 22px 34px rgba(15, 37, 80, .2);
     }
     .asset-card-media {
-      flex: 0 0 58%;
-      min-height: 138px;
+      flex: 0 0 auto;
+      min-height: 170px;
+      max-height: 190px;
       background: linear-gradient(140deg, color-mix(in srgb, var(--primary-soft) 72%, #f7fbff), color-mix(in srgb, var(--surface-2) 78%, #eef5ff));
       border-bottom: 1px solid color-mix(in srgb, var(--line) 80%, var(--primary) 20%);
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
+      padding: 10px;
       color: var(--muted);
       font-size: 12px;
       font-weight: 700;
@@ -445,10 +448,14 @@
       position: relative;
     }
     .asset-card-media img {
-      width: 100%;
-      height: 100%;
+      width: clamp(110px, 60%, 170px);
+      aspect-ratio: 1 / 1;
+      height: auto;
       object-fit: cover;
       display: block;
+      border-radius: 12px;
+      border: 1px solid color-mix(in srgb, var(--line) 80%, var(--primary) 20%);
+      background: #fff;
       transition: transform .24s ease;
     }
     .asset-card:hover .asset-card-media img {
@@ -456,7 +463,7 @@
     }
     .asset-card-media.is-default img {
       object-fit: contain;
-      padding: 24px;
+      padding: 8px;
       filter: contrast(1.06) saturate(1.05);
     }
     .asset-card-body {
@@ -468,6 +475,7 @@
       min-height: 130px;
       overflow-y: auto;
       overflow-x: hidden;
+      min-width: 0;
     }
     .asset-card-badge {
       position: absolute;
@@ -610,9 +618,13 @@
       line-height: 1.35;
     }
 
-    @media (max-width: 1024px) {
+    @media (max-width: 1700px) {
       .asset-showcase { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .asset-card { max-height: none; }
+    }
+
+    @media (max-width: 1100px) {
+      .asset-showcase { grid-template-columns: 1fr; }
+      .asset-card-media { min-height: 156px; max-height: 176px; }
     }
 
     @media (max-width: 1200px) {
@@ -637,8 +649,8 @@
     }
 
     @media (max-width: 740px) {
-      .asset-showcase { grid-template-columns: 1fr; }
-      .asset-card { min-height: 360px; aspect-ratio: auto; }
+      .asset-card { min-height: 360px; }
       .asset-card-body { min-height: 132px; }
+      .asset-card-media img { width: clamp(96px, 62%, 150px); }
     }
 

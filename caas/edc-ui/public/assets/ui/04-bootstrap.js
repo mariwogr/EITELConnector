@@ -191,7 +191,7 @@
       document.getElementById('searchConnectorId').value = '';
       document.getElementById('transferAddress').value = '';
       if (document.getElementById('catalogConnectorsList')) {
-        document.getElementById('catalogConnectorsList').value = 'conectoruc3m, conectorfuenlabrada';
+        document.getElementById('catalogConnectorsList').value = 'conectoruc3m, conectorFuenlabrada';
       }
       if (document.getElementById('catalogFilterConnector')) {
         document.getElementById('catalogFilterConnector').value = '';

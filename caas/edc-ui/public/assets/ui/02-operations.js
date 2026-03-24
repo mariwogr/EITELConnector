@@ -129,11 +129,25 @@
       const values = listRaw
         .split(/[\n,;]+/g)
         .map(v => String(v || '').trim())
-        .filter(Boolean);
+        .filter(Boolean)
+        .map(v => {
+          if (v.startsWith('http://') || v.startsWith('https://') || v.startsWith('/')) return v;
+          return canonicalConnectorPrefix(v) || v;
+        });
       const single = String(document.getElementById('searchConnectorId')?.value || '').trim();
-      if (single) values.unshift(single);
-      if (!values.length) values.push('conectoruc3m', 'conectorfuenlabrada');
+      if (single) values.unshift(canonicalConnectorPrefix(single) || single);
+      if (!values.length) values.push('conectoruc3m', 'conectorFuenlabrada');
       return [...new Set(values)];
+    }
+
+    function getPublicConnectorOrigin() {
+      try {
+        const cfgDsp = String(cfg?.dspUrl || '').trim();
+        if (cfgDsp.startsWith('http://') || cfgDsp.startsWith('https://')) {
+          return new URL(cfgDsp).origin;
+        }
+      } catch {}
+      return window.location.origin;
     }
 
     let transferStartInFlight = false;
@@ -2198,7 +2212,8 @@
 
       // Producción: resolver por mismo dominio público y prefijo canónico del conector remoto.
       const connectorPrefix = canonicalConnectorPrefix(raw);
-      return ensureDspVersion(`${window.location.origin}/${connectorPrefix}/api/v1/dsp/2025-1`);
+      const publicOrigin = getPublicConnectorOrigin();
+      return ensureDspVersion(`${publicOrigin}/${connectorPrefix}/api/v1/dsp/2025-1`);
     }
 
     function resolveCounterPartyId(connectorId, address) {
