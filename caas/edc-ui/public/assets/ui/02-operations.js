@@ -936,53 +936,59 @@
 
     async function monitorRemoteDownloadAndFetch(contractId, transferId, assetId) {
       try {
-        let finished = await waitTransferToFinish(transferId, 120000);
-        if (!finished.ok && finished.state === 'TIMEOUT') {
-          // En despliegues productivos entre máquinas la transferencia puede tardar bastante más.
-          writeOut({
-            status: 202,
-            info: 'La descarga remota sigue en curso. Continuando monitorización extendida en segundo plano.',
-            transferId,
-            contractId,
-            assetId,
-          });
-          finished = await waitTransferToFinish(transferId, 480000);
-        }
-        if (!finished.ok) {
-          writeOut({
-            status: 502,
-            error: 'La transferencia remota para descarga local no finalizó correctamente.',
-            transferId,
-            state: finished.state,
-            detail: finished.error,
-          });
-          return;
+        const started = Date.now();
+        const maxWaitMs = 600000; // 10 minutos
+        let loops = 0;
+
+        while (Date.now() - started < maxWaitMs) {
+          // 1) Prioridad: si el sink ya recibió archivo, descargar inmediatamente.
+          const latest = await getLatestDownloadSinkRecord(contractId).catch(() => null);
+          if (latest && latest.downloadPath) {
+            const fileUrl = `${buildLocalDownloadSinkPublicBaseUrl()}${latest.downloadPath || ''}`;
+            triggerBrowserDownload(fileUrl, latest.filename || 'download.bin');
+            writeOut({
+              status: 200,
+              downloaded: true,
+              remoteTransfer: true,
+              transferId,
+              contractId,
+              assetId,
+              filename: latest.filename,
+              bytes: latest.bytes,
+              sourceUrl: fileUrl,
+            });
+            return;
+          }
+
+          // 2) Cada pocas iteraciones, revisar estado de transferencia para detectar fallo terminal.
+          if (loops % 3 === 0) {
+            const stateResp = await callApi('GET', `/v3/transferprocesses/${encodeURIComponent(transferId)}/state`, undefined, { silent: true, retries: 0 });
+            const st = normalizeTransferState(stateResp?.data?.state || stateResp?.data?.['edc:state'] || '');
+            if (st === 'FAILED' || st === 'TERMINATED') {
+              const detailResp = await callApi('GET', `/v3/transferprocesses/${encodeURIComponent(transferId)}`, undefined, { silent: true, retries: 0 });
+              const err = detailResp?.data?.errorDetail || detailResp?.data?.['edc:errorDetail'] || 'Sin detalle de error.';
+              writeOut({
+                status: 502,
+                error: 'La transferencia remota para descarga local no finalizó correctamente.',
+                transferId,
+                state: st,
+                detail: err,
+              });
+              return;
+            }
+          }
+
+          loops += 1;
+          await sleepMs(3000);
         }
 
-        const latest = await getLatestDownloadSinkRecord(contractId);
-        if (!latest) {
-          writeOut({
-            status: 404,
-            error: 'La transferencia completó pero no se encontró archivo en el sink local.',
-            transferId,
-            contractId,
-            assetId,
-          });
-          return;
-        }
-
-        const fileUrl = `${buildLocalDownloadSinkPublicBaseUrl()}${latest.downloadPath || ''}`;
-        triggerBrowserDownload(fileUrl, latest.filename || 'download.bin');
         writeOut({
-          status: 200,
-          downloaded: true,
-          remoteTransfer: true,
+          status: 504,
+          error: 'La descarga remota sigue en curso y no llegó archivo al sink a tiempo.',
           transferId,
           contractId,
           assetId,
-          filename: latest.filename,
-          bytes: latest.bytes,
-          sourceUrl: fileUrl,
+          hint: 'Comprueba /download-sink/records y conectividad entre conectores hacia el sink.',
         });
       } finally {
         _remoteLocalDownloadInFlightByContract.delete(contractId);
