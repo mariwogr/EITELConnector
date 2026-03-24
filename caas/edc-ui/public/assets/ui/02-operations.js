@@ -823,6 +823,12 @@
       return `http://${normalized}-local-assets:8081/v1/local-assets/download-sink`;
     }
 
+    function shouldUsePublicSinkForRemoteTransfer(transferAddress) {
+      const addr = String(transferAddress || '').trim().toLowerCase();
+      // Si el partner viene por URL pública, el sink también debe ser público para que sea alcanzable entre máquinas.
+      return addr.startsWith('http://') || addr.startsWith('https://');
+    }
+
     function sleepMs(ms) {
       return new Promise(resolve => setTimeout(resolve, ms));
     }
@@ -863,7 +869,18 @@
 
     async function monitorRemoteDownloadAndFetch(contractId, transferId, assetId) {
       try {
-        const finished = await waitTransferToFinish(transferId, 120000);
+        let finished = await waitTransferToFinish(transferId, 120000);
+        if (!finished.ok && finished.state === 'TIMEOUT') {
+          // En despliegues productivos entre máquinas la transferencia puede tardar bastante más.
+          writeOut({
+            status: 202,
+            info: 'La descarga remota sigue en curso. Continuando monitorización extendida en segundo plano.',
+            transferId,
+            contractId,
+            assetId,
+          });
+          finished = await waitTransferToFinish(transferId, 480000);
+        }
         if (!finished.ok) {
           writeOut({
             status: 502,
@@ -935,6 +952,10 @@
         };
       }
 
+      const sinkBaseUrlForTransfer = shouldUsePublicSinkForRemoteTransfer(transferAddress)
+        ? sinkPublicBaseUrl
+        : sinkInternalBaseUrl;
+
       const path = `/ingest?contractId=${encodeURIComponent(contractId)}&assetId=${encodeURIComponent(assetId || '')}`;
       const transferReq = {
         '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
@@ -946,7 +967,7 @@
         transferType: 'HttpData-PUSH',
         dataDestination: {
           type: 'HttpData',
-          baseUrl: sinkInternalBaseUrl,
+          baseUrl: sinkBaseUrlForTransfer,
           method: 'POST',
           path,
         }
@@ -981,6 +1002,7 @@
         contractId,
         assetId,
         message: 'Transferencia remota iniciada en segundo plano. El archivo se descargará al completarse.',
+        sinkBaseUrl: sinkBaseUrlForTransfer,
       };
     }
 
