@@ -881,13 +881,13 @@
     }
 
     function buildLocalDownloadSinkPublicBaseUrl() {
-      return `${window.location.origin}${getUiPrefix()}/local-assets/download-sink`;
+      return `${window.location.origin}${getUiPrefix()}/download-sink`;
     }
 
     function buildLocalDownloadSinkInternalBaseUrl() {
       const connector = String(cfg.connectorName || '').trim().toLowerCase();
       const normalized = connector ? connector.replace(/[^a-z0-9-]/g, '') : 'conectoruc3m';
-      return `http://${normalized}-local-assets:8081/v1/local-assets/download-sink`;
+      return `http://${normalized}-download-sink:8082`;
     }
 
     function shouldUsePublicSinkForRemoteTransfer(transferAddress) {
@@ -971,8 +971,7 @@
           return;
         }
 
-        const relativePublicPath = String(latest.publicPath || '').replace(/^\/local-assets\/?/, '');
-        const fileUrl = `${window.location.origin}${getUiPrefix()}/local-assets/${relativePublicPath}`;
+        const fileUrl = `${buildLocalDownloadSinkPublicBaseUrl()}${latest.downloadPath || ''}`;
         triggerBrowserDownload(fileUrl, latest.filename || 'download.bin');
         writeOut({
           status: 200,

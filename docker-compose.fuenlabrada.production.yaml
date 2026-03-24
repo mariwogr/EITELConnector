@@ -105,6 +105,17 @@ services:
     networks:
       - edc-fuenlabrada-net
 
+  conectorfuenlabrada-download-sink:
+    build:
+      context: ./caas/download-sink
+      dockerfile: Dockerfile
+    container_name: conectorfuenlabrada-download-sink
+    restart: always
+    volumes:
+      - conectorfuenlabrada_download_sink_data:/app/data
+    networks:
+      - edc-fuenlabrada-net
+
   conectorfuenlabrada-gateway:
     image: nginx:1.27-alpine
     container_name: conectorfuenlabrada-gateway
@@ -113,6 +124,7 @@ services:
       - conectorfuenlabrada-ui
       - conectorfuenlabrada
       - conectorfuenlabrada-local-assets
+      - conectorfuenlabrada-download-sink
     ports:
       - "12000:80"
     volumes:
@@ -130,6 +142,8 @@ volumes:
     name: conectorfuenlabrada_pg_data
   conectorfuenlabrada_local_assets_data:
     name: conectorfuenlabrada_local_assets_data
+  conectorfuenlabrada_download_sink_data:
+    name: conectorfuenlabrada_download_sink_data
 
 networks:
   edc-fuenlabrada-net:
