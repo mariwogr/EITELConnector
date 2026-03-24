@@ -403,18 +403,20 @@
     .asset-showcase {
       margin-top: 12px;
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(280px, 1fr));
       gap: 18px;
+      align-items: stretch;
     }
     .asset-card {
       border: 1px solid color-mix(in srgb, var(--line) 85%, var(--primary) 15%);
       border-radius: 18px;
       background: radial-gradient(circle at 15% 12%, color-mix(in srgb, var(--primary-soft) 45%, var(--surface)) 0%, var(--surface) 52%);
-      overflow: auto;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
       aspect-ratio: 1 / 1;
-      min-height: 0;
+      min-height: 420px;
+      max-height: 520px;
       box-shadow: 0 14px 28px rgba(19, 42, 87, .12);
       position: relative;
       opacity: 0;
@@ -463,8 +465,9 @@
       flex-direction: column;
       gap: 6px;
       flex: 1 1 auto;
-      min-height: 0;
-      overflow: auto;
+      min-height: 130px;
+      overflow-y: auto;
+      overflow-x: hidden;
     }
     .asset-card-badge {
       position: absolute;
@@ -543,6 +546,7 @@
       border-radius: 10px;
       padding: 6px 8px;
       background: color-mix(in srgb, var(--surface-2) 72%, var(--surface));
+      overflow: auto;
     }
     .asset-card summary {
       cursor: pointer;
@@ -608,6 +612,7 @@
 
     @media (max-width: 1024px) {
       .asset-showcase { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .asset-card { max-height: none; }
     }
 
     @media (max-width: 1200px) {
@@ -633,6 +638,7 @@
 
     @media (max-width: 740px) {
       .asset-showcase { grid-template-columns: 1fr; }
+      .asset-card { min-height: 360px; aspect-ratio: auto; }
       .asset-card-body { min-height: 132px; }
     }
 
