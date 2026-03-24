@@ -10,6 +10,7 @@
     }
 
     let transferStartInFlight = false;
+    const _remoteLocalDownloadInFlightByContract = new Set();
     const localTransferStorageKey = `eitel.ui.localTransfers.${connectorName}`;
 
     function normalizeTransferState(raw) {
@@ -787,8 +788,14 @@
       return first ? `/${canonicalConnectorPrefix(first) || first}` : '';
     }
 
-    function buildLocalDownloadSinkBaseUrl() {
+    function buildLocalDownloadSinkPublicBaseUrl() {
       return `${window.location.origin}${getUiPrefix()}/local-assets/download-sink`;
+    }
+
+    function buildLocalDownloadSinkInternalBaseUrl() {
+      const connector = String(cfg.connectorName || '').trim().toLowerCase();
+      const normalized = connector ? connector.replace(/[^a-z0-9-]/g, '') : 'conectoruc3m';
+      return `http://${normalized}-local-assets:8081/v1/local-assets/download-sink`;
     }
 
     function sleepMs(ms) {
@@ -812,7 +819,7 @@
     }
 
     async function getLatestDownloadSinkRecord(contractId) {
-      const sinkBaseUrl = buildLocalDownloadSinkBaseUrl();
+      const sinkBaseUrl = buildLocalDownloadSinkPublicBaseUrl();
       const recordsRes = await fetch(`${sinkBaseUrl}/records?contractId=${encodeURIComponent(contractId)}`);
       const recordsData = await recordsRes.json();
       const records = Array.isArray(recordsData?.items) ? recordsData.items : [];
@@ -830,59 +837,71 @@
     }
 
     async function monitorRemoteDownloadAndFetch(contractId, transferId, assetId) {
-      const finished = await waitTransferToFinish(transferId, 120000);
-      if (!finished.ok) {
-        writeOut({
-          status: 502,
-          error: 'La transferencia remota para descarga local no finalizó correctamente.',
-          transferId,
-          state: finished.state,
-          detail: finished.error,
-        });
-        return;
-      }
+      try {
+        const finished = await waitTransferToFinish(transferId, 120000);
+        if (!finished.ok) {
+          writeOut({
+            status: 502,
+            error: 'La transferencia remota para descarga local no finalizó correctamente.',
+            transferId,
+            state: finished.state,
+            detail: finished.error,
+          });
+          return;
+        }
 
-      const latest = await getLatestDownloadSinkRecord(contractId);
-      if (!latest) {
+        const latest = await getLatestDownloadSinkRecord(contractId);
+        if (!latest) {
+          writeOut({
+            status: 404,
+            error: 'La transferencia completó pero no se encontró archivo en el sink local.',
+            transferId,
+            contractId,
+            assetId,
+          });
+          return;
+        }
+
+        const relativePublicPath = String(latest.publicPath || '').replace(/^\/local-assets\/?/, '');
+        const fileUrl = `${window.location.origin}${getUiPrefix()}/local-assets/${relativePublicPath}`;
+        triggerBrowserDownload(fileUrl, latest.filename || 'download.bin');
         writeOut({
-          status: 404,
-          error: 'La transferencia completó pero no se encontró archivo en el sink local.',
+          status: 200,
+          downloaded: true,
+          remoteTransfer: true,
           transferId,
           contractId,
           assetId,
+          filename: latest.filename,
+          bytes: latest.bytes,
+          sourceUrl: fileUrl,
         });
-        return;
+      } finally {
+        _remoteLocalDownloadInFlightByContract.delete(contractId);
       }
-
-      const relativePublicPath = String(latest.publicPath || '').replace(/^\/local-assets\/?/, '');
-      const fileUrl = `${window.location.origin}${getUiPrefix()}/local-assets/${relativePublicPath}`;
-      triggerBrowserDownload(fileUrl, latest.filename || 'download.bin');
-      writeOut({
-        status: 200,
-        downloaded: true,
-        remoteTransfer: true,
-        transferId,
-        contractId,
-        assetId,
-        filename: latest.filename,
-        bytes: latest.bytes,
-        sourceUrl: fileUrl,
-      });
     }
 
     async function downloadRemoteAssetViaTransfer(contractId, assetId) {
-      const sinkBaseUrl = buildLocalDownloadSinkBaseUrl();
+      if (_remoteLocalDownloadInFlightByContract.has(contractId)) {
+        return { status: 409, error: 'Ya hay una descarga remota en curso para este contrato.', contractId, assetId };
+      }
+      _remoteLocalDownloadInFlightByContract.add(contractId);
+
+      const sinkPublicBaseUrl = buildLocalDownloadSinkPublicBaseUrl();
+      const sinkInternalBaseUrl = buildLocalDownloadSinkInternalBaseUrl();
       const transferAddress = (document.getElementById('transferAddress').value || '').trim();
       if (!transferAddress) {
+        _remoteLocalDownloadInFlightByContract.delete(contractId);
         return { status: 400, error: 'Falta dirección DSP del partner para la transferencia remota.' };
       }
 
       // Limpiar registros previos del sink para evitar descargar archivos antiguos por error.
-      try { await fetch(`${sinkBaseUrl}/records`, { method: 'DELETE' }); } catch {}
+      try { await fetch(`${sinkPublicBaseUrl}/records`, { method: 'DELETE' }); } catch {}
 
       const dataplanesResp = await callApi('GET', '/v3/dataplanes', undefined, { silent: true, retries: 0 });
       const dataplanes = Array.isArray(dataplanesResp?.data) ? dataplanesResp.data : [];
       if (dataplanesResp.status >= 200 && dataplanesResp.status < 300 && dataplanes.length === 0) {
+        _remoteLocalDownloadInFlightByContract.delete(contractId);
         return {
           status: 503,
           error: 'No hay dataplanes registrados en este conector para ejecutar la descarga remota.',
@@ -900,7 +919,7 @@
         transferType: 'HttpData-PUSH',
         dataDestination: {
           type: 'HttpData',
-          baseUrl: sinkBaseUrl,
+          baseUrl: sinkInternalBaseUrl,
           method: 'POST',
           path,
         }
@@ -909,6 +928,7 @@
       const startResp = await callApi('POST', '/v3/transferprocesses', JSON.stringify(transferReq), { retries: 0 });
       const transferId = startResp?.data?.['@id'] || startResp?.data?.id || '';
       if (!(startResp.status >= 200 && startResp.status < 300) || !transferId) {
+        _remoteLocalDownloadInFlightByContract.delete(contractId);
         return {
           status: startResp.status || 500,
           error: 'No se pudo iniciar la transferencia remota para descarga local.',
@@ -1777,6 +1797,24 @@
         return;
       }
 
+      const activeTransfersResp = await callApi('POST', '/v3/transferprocesses/request', q(), { retries: 0 });
+      const activeByContract = unwrap(activeTransfersResp).find(tp => {
+        const tpContractId = tp.contractId || tp['edc:contractId'] || '';
+        const tpState = tp.state || tp['edc:state'] || '';
+        return tpContractId === contractId && !isTransferTerminalState(tpState);
+      });
+      if (activeByContract || _remoteLocalDownloadInFlightByContract.has(contractId)) {
+        const activeState = normalizeTransferState(activeByContract?.state || activeByContract?.['edc:state'] || '-');
+        showInfoPopup('Transferencia ya en curso', {
+          message: 'Ya existe una transferencia activa para este contrato. Espera a que termine antes de crear otra.',
+          contractId,
+          activeTransferId: activeByContract?.['@id'] || activeByContract?.id || '',
+          activeState
+        });
+        writeOut({ status: 409, error: 'Ya hay una transferencia activa para este contrato.', contractId, activeState });
+        return;
+      }
+
       if (transferMode === 'local-download') {
         let downloadResp = await downloadAssetLocally(contractId, agreementAssetId);
         // Si el asset no existe localmente (contrato remoto), usar transferencia EDC al sink local.
@@ -1812,24 +1850,6 @@
           hint: 'Despliega/activa dataplane y vuelve a intentar. Puedes usar el botón "⚙️ Dataplanes" para verificarlo.'
         });
         writeOut({ status: 503, error: 'No hay dataplanes registrados en este conector.' });
-        return;
-      }
-
-      const activeTransfersResp = await callApi('POST', '/v3/transferprocesses/request', q(), { retries: 0 });
-      const activeByContract = unwrap(activeTransfersResp).find(tp => {
-        const tpContractId = tp.contractId || tp['edc:contractId'] || '';
-        const tpState = tp.state || tp['edc:state'] || '';
-        return tpContractId === contractId && !isTransferTerminalState(tpState);
-      });
-      if (activeByContract) {
-        const activeState = normalizeTransferState(activeByContract.state || activeByContract['edc:state'] || '-');
-        showInfoPopup('Transferencia ya en curso', {
-          message: 'Ya existe una transferencia activa para este contrato. Espera a que termine antes de crear otra.',
-          contractId,
-          activeTransferId: activeByContract['@id'] || activeByContract.id || '',
-          activeState
-        });
-        writeOut({ status: 409, error: 'Ya hay una transferencia activa para este contrato.', contractId, activeState });
         return;
       }
 

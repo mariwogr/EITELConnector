@@ -5,6 +5,7 @@ from mimetypes import guess_type
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
+import json
 import shutil
 
 import yaml
@@ -104,6 +105,7 @@ def startup_event():
     Base.metadata.create_all(bind=engine)
     Path(settings.generated_output_dir).mkdir(parents=True, exist_ok=True)
     Path(settings.local_assets_dir).mkdir(parents=True, exist_ok=True)
+    _load_download_sink_records()
 
 
 class TenantCreate(BaseModel):
@@ -122,6 +124,30 @@ dummy_sink_records: list[dict] = []
 MAX_DUMMY_RECORDS = 200
 local_download_records: list[dict] = []
 MAX_LOCAL_DOWNLOAD_RECORDS = 200
+
+
+def _download_sink_index_path() -> Path:
+    return Path(settings.local_assets_dir) / 'download-sink' / 'index.json'
+
+
+def _load_download_sink_records() -> None:
+    path = _download_sink_index_path()
+    try:
+        if not path.exists():
+            return
+        parsed = json.loads(path.read_text(encoding='utf-8'))
+        if isinstance(parsed, list):
+            local_download_records.clear()
+            local_download_records.extend(parsed[-MAX_LOCAL_DOWNLOAD_RECORDS:])
+    except Exception:
+        local_download_records.clear()
+
+
+def _save_download_sink_records() -> None:
+    path = _download_sink_index_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = local_download_records[-MAX_LOCAL_DOWNLOAD_RECORDS:]
+    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding='utf-8')
 
 
 def _safe_upload_name(name: str) -> str:
@@ -389,6 +415,7 @@ async def ingest_local_download(request: Request):
     local_download_records.append(record)
     if len(local_download_records) > MAX_LOCAL_DOWNLOAD_RECORDS:
         del local_download_records[: len(local_download_records) - MAX_LOCAL_DOWNLOAD_RECORDS]
+    _save_download_sink_records()
 
     return {
         'ok': True,
@@ -410,6 +437,7 @@ def list_local_download_records(contractId: str | None = None):
 def clear_local_download_records():
     cleared = len(local_download_records)
     local_download_records.clear()
+    _save_download_sink_records()
     return {'ok': True, 'cleared': cleared}
 
 
