@@ -503,7 +503,16 @@
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       document.querySelector(`.nav button[data-view="${view}"]`)?.classList.add('active');
       document.getElementById(`panel-${resolved}`)?.classList.add('active');
-      if (resolved === 'catalog') loadCatalogs(false);
+      if (resolved === 'catalog') {
+        if (state.catalogShowcaseLoaded) {
+          renderCatalogShowcase(state.catalogRows || []);
+        } else {
+          loadCatalogShowcase(false);
+        }
+      }
+      if (resolved === 'asset') {
+        loadPublishedAssets(false);
+      }
       if (resolved === 'secrets') {
         discoverSecretsApi(false).then((r) => {
           if (!(r.status >= 200 && r.status < 300)) {
@@ -568,9 +577,14 @@
       const wrap = document.getElementById('catalogShowcase');
       if (!wrap) return;
       const query = String(document.getElementById('catalogSearchText')?.value || '').trim().toLowerCase();
+      const connectorFilter = String(document.getElementById('catalogFilterConnector')?.value || '').trim().toLowerCase();
 
       const indexed = state.catalogRows.map((row, idx) => ({ row, idx }));
       const filtered = indexed.filter(({ row }) => {
+        if (connectorFilter) {
+          const connectorText = String(row.connectorId || row.assigner || '').toLowerCase();
+          if (!connectorText.includes(connectorFilter)) return false;
+        }
         if (!query) return true;
         const haystack = [
           row.assetTitle,
@@ -642,6 +656,8 @@
 
       const selectedConnector = document.getElementById('catalogSelectedConnector');
       if (selectedConnector) selectedConnector.value = selected?.connectorId || '';
+      const selectedDsp = document.getElementById('catalogSelectedDsp');
+      if (selectedDsp) selectedDsp.value = selected?.counterPartyAddress || '';
       if (selected?.counterPartyAddress) {
         const resolved = document.getElementById('resolvedAddress');
         const transferAddress = document.getElementById('transferAddress');
@@ -652,6 +668,87 @@
       }
 
       // Explicit flow: contract is only requested when user clicks "Realizar contrato".
+    }
+
+    function mapPublishedAssetRows(rawAssets = []) {
+      return (Array.isArray(rawAssets) ? rawAssets : []).map((a) => {
+        const props = a?.properties || a?.['edc:properties'] || {};
+        const id = a?.['@id'] || a?.id || '';
+        const title = firstNonEmpty([
+          props?.name,
+          props?.['dct:title'],
+          props?.title,
+          id,
+        ]);
+        const description = firstNonEmpty([
+          props?.['dct:description'],
+          props?.['eitel:description'],
+          props?.description,
+        ]);
+        const imageUrl = firstNonEmpty([
+          props?.['schema:image'],
+          props?.['eitel:image'],
+          props?.image,
+        ]);
+        const keywords = [
+          ...parseKeywordList(props?.['dcat:keyword']),
+          ...parseKeywordList(props?.['eitel:keywords']),
+          ...parseKeywordList(props?.keywords),
+        ];
+        return {
+          id,
+          title,
+          description,
+          imageUrl,
+          keywords: [...new Set(keywords)],
+        };
+      });
+    }
+
+    function renderPublishedAssets(rows = []) {
+      const wrap = document.getElementById('publishedAssetsGrid');
+      if (!wrap) return;
+      if (!rows.length) {
+        wrap.innerHTML = '<div class="card" style="box-shadow:none"><p class="muted" style="margin:0">No hay assets publicados todavía en este conector.</p></div>';
+        return;
+      }
+
+      wrap.innerHTML = rows.map((row, idx) => {
+        const title = htmlEscape(safeText(row.title, clean(row.id)));
+        const desc = htmlEscape(safeText(row.description, 'Sin descripción.'));
+        const id = htmlEscape(row.id || '');
+        const image = String(row.imageUrl || '').trim();
+        const delayMs = Math.min(idx * 40, 480);
+        const media = image
+          ? `<div class="asset-card-media"><img src="${htmlEscape(image)}" alt="Imagen del asset ${title}" /><span class="asset-card-badge">MI ASSET</span><div class="asset-card-media-overlay"><span class="asset-card-media-title">${title}</span></div></div>`
+          : `<div class="asset-card-media">SIN IMAGEN<span class="asset-card-badge">MI ASSET</span><div class="asset-card-media-overlay"><span class="asset-card-media-title">${title}</span></div></div>`;
+        const chips = row.keywords.length
+          ? `<div class="asset-card-keywords">${row.keywords.slice(0, 8).map(k => `<span class="asset-chip">${htmlEscape(k)}</span>`).join('')}</div>`
+          : '<div class="asset-card-meta">Sin keywords</div>';
+
+        return `
+          <article class="asset-card" style="--delay:${delayMs}ms">
+            ${media}
+            <div class="asset-card-body">
+              <div class="asset-card-title">${title}</div>
+              <div class="asset-card-meta">${id}</div>
+              <details>
+                <summary>Mas informacion</summary>
+                <div class="asset-card-desc">${desc}</div>
+                ${chips}
+              </details>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    async function loadPublishedAssets(showOutput = false) {
+      const r = await callApi('POST', '/v3/assets/request', q());
+      const rows = mapPublishedAssetRows(unwrap(r));
+      renderPublishedAssets(rows);
+      if (showOutput) writeOut({ ...r, totalPublishedAssets: rows.length });
+      return r;
     }
 
     async function refreshOverview() {
@@ -1994,6 +2091,7 @@
           totalAssets: state.catalogRows.length,
         });
       }
+      state.catalogShowcaseLoaded = true;
     }
 
     async function requestContractByAsset() {
@@ -2021,7 +2119,7 @@
         }
         return;
       }
-      if (!state.catalogRows.length) await loadCatalogs(false);
+      if (!state.catalogRows.length) await loadCatalogShowcase(false);
 
       const selected = state.catalogRows[Number(selectedIdxRaw)];
       if (!selected) {

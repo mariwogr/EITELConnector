@@ -63,6 +63,7 @@
 
     const state = {
       catalogRows: [],
+      catalogShowcaseLoaded: false,
       agreementRows: [],
       transferRows: [],
       secretNames: [],

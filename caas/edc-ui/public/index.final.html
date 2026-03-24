@@ -264,18 +264,26 @@
               <div><label data-i18n="catalog.connector">Conector remoto</label><input id="searchConnectorId" placeholder="ej: conectoruc3m" /></div>
               <div><label data-i18n="catalog.dsp">URL DSP</label><input id="resolvedAddress" readonly /></div>
             </div>
-            <label>Conectores del espacio de datos (uno por línea o separados por coma)</label>
-            <textarea id="catalogConnectorsList" rows="3" placeholder="conectoruc3m, conectorfuenlabrada"></textarea>
-            <div class="grid">
-              <div><label>Buscar en escaparate</label><input id="catalogSearchText" placeholder="Filtra por nombre, keyword o descripción" /></div>
-              <div><label>Conector seleccionado</label><input id="catalogSelectedConnector" readonly placeholder="Se rellena al elegir un asset" /></div>
-            </div>
             <div class="row" style="margin-top:8px">
               <button class="primary" id="btnSearchOffers" data-i18n="catalog.load">Ver catálogos</button>
               <button class="ghost" id="btnRefreshCatalog" data-i18n="catalog.refresh">Actualizar</button>
               <button class="ghost" id="btnLoadShowcase">Cargar escaparate completo</button>
             </div>
             <div id="catalogShowcase" class="asset-showcase"></div>
+
+            <section class="catalog-filters" style="margin-top:10px">
+              <h3 style="margin:0 0 8px">Filtros del escaparate</h3>
+              <label>Conectores del espacio de datos (uno por línea o separados por coma)</label>
+              <textarea id="catalogConnectorsList" rows="3" placeholder="conectoruc3m, conectorfuenlabrada"></textarea>
+              <div class="grid">
+                <div><label>Buscar en escaparate</label><input id="catalogSearchText" placeholder="Filtra por nombre, keyword o descripción" /></div>
+                <div><label>Filtrar por conector</label><input id="catalogFilterConnector" placeholder="ej: uc3m o fuenlabrada" /></div>
+              </div>
+              <div class="grid">
+                <div><label>Conector seleccionado</label><input id="catalogSelectedConnector" readonly placeholder="Se rellena al elegir un asset" /></div>
+                <div><label>URL DSP seleccionada</label><input id="catalogSelectedDsp" readonly placeholder="Se rellena al elegir un asset" /></div>
+              </div>
+            </section>
 
             <section id="catalogContractBox" class="contract-box" style="display:none">
               <h3 style="margin-top:14px">Preparar contrato del asset seleccionado</h3>
@@ -420,9 +428,14 @@
             <div class="row" style="margin-top:10px">
               <button class="primary" id="btnEitelPortal">Ir al portal EITEL</button>
               <button class="ghost" id="btnEitelProyecto">Ver página de proyecto</button>
+              <button class="ghost" id="btnRefreshPublishedAssets">Ver mis assets publicados</button>
               <button class="ghost" id="btnEitelCatalogo">Ver catálogo público</button>
             </div>
           </section>
+
+            <h3 style="margin-top:14px">Mis assets publicados en este conector</h3>
+            <p class="muted">Lista visual de los assets que ya tienes publicados en el runtime actual.</p>
+            <div id="publishedAssetsGrid" class="asset-showcase"></div>
           <section class="card wide tutorial">
             <h3>Mini tutorial</h3>
             <ol>
@@ -525,11 +538,11 @@
     </div>
   </div>
 
-    <script src="config.js?v=20260324j"></script>
-  <script src="assets/ui/01-runtime.js?v=20260324j"></script>
-  <script src="assets/ui/02-operations.js?v=20260324j"></script>
-  <script src="assets/ui/03-secrets.js?v=20260324j"></script>
-  <script src="assets/ui/04-bootstrap.js?v=20260324j"></script>
+    <script src="config.js?v=20260324k"></script>
+  <script src="assets/ui/01-runtime.js?v=20260324k"></script>
+  <script src="assets/ui/02-operations.js?v=20260324k"></script>
+  <script src="assets/ui/03-secrets.js?v=20260324k"></script>
+  <script src="assets/ui/04-bootstrap.js?v=20260324k"></script>
 </body>
 </html>
 

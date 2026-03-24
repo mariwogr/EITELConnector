@@ -17,6 +17,11 @@
           if (typeof renderCatalogShowcase === 'function') renderCatalogShowcase(state.catalogRows || []);
         });
       }
+      if (document.getElementById('catalogFilterConnector')) {
+        document.getElementById('catalogFilterConnector').addEventListener('input', () => {
+          if (typeof renderCatalogShowcase === 'function') renderCatalogShowcase(state.catalogRows || []);
+        });
+      }
       
       // Actualizar URL DSP dinámicamente cuando cambia el connector ID
       document.getElementById('searchConnectorId').addEventListener('input', (e) => {
@@ -66,9 +71,21 @@
       document.getElementById('btnCreateAsset').onclick = async () => {
         writeOut(await createOrUpdateAsset());
         await refreshOverview();
+        if (typeof loadPublishedAssets === 'function') await loadPublishedAssets(false);
       };
-      document.getElementById('btnListAssets').onclick = async () => writeOut(await callApi('POST', '/v3/assets/request', q()));
-      document.getElementById('btnDeleteAsset').onclick = async () => writeOut(await callApi('DELETE', `/v3/assets/${encodeURIComponent(document.getElementById('assetIdPreview').value)}`));
+      document.getElementById('btnListAssets').onclick = async () => {
+        writeOut(await callApi('POST', '/v3/assets/request', q()));
+        if (typeof loadPublishedAssets === 'function') await loadPublishedAssets(false);
+      };
+      if (document.getElementById('btnRefreshPublishedAssets')) {
+        document.getElementById('btnRefreshPublishedAssets').onclick = async () => {
+          if (typeof loadPublishedAssets === 'function') await loadPublishedAssets(true);
+        };
+      }
+      document.getElementById('btnDeleteAsset').onclick = async () => {
+        writeOut(await callApi('DELETE', `/v3/assets/${encodeURIComponent(document.getElementById('assetIdPreview').value)}`));
+        if (typeof loadPublishedAssets === 'function') await loadPublishedAssets(false);
+      };
       document.getElementById('btnExplorerSend').onclick = async () => writeOut(await callApi(document.getElementById('explMethod').value, document.getElementById('explPath').value.trim(), document.getElementById('explBody').value));
 
       document.getElementById('btnOpenSettings').onclick = openSettings;
@@ -176,6 +193,9 @@
       if (document.getElementById('catalogConnectorsList')) {
         document.getElementById('catalogConnectorsList').value = 'conectoruc3m, conectorfuenlabrada';
       }
+      if (document.getElementById('catalogFilterConnector')) {
+        document.getElementById('catalogFilterConnector').value = '';
+      }
       document.getElementById('btnEitelPortal').onclick = () => window.open('https://uc3m-espacioeitel.hub.arcgis.com/', '_blank');
       document.getElementById('btnEitelProyecto').onclick = () => window.open('https://uc3m-espacioeitel.hub.arcgis.com/pages/proyecto', '_blank');
       document.getElementById('btnEitelCatalogo').onclick = () => window.open('https://uc3m-espacioeitel.hub.arcgis.com/search', '_blank');
@@ -203,7 +223,8 @@
         }
         if (typeof applyAuthTypeForm === 'function') applyAuthTypeForm();
         refreshOverview();
-        loadCatalogs(false);
+        loadCatalogShowcase(false);
+        loadPublishedAssets(false);
         listSecrets(false);
       });
     }
