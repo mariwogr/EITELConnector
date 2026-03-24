@@ -12,6 +12,7 @@
     let transferStartInFlight = false;
     const _remoteLocalDownloadInFlightByContract = new Set();
     const localTransferStorageKey = `eitel.ui.localTransfers.${connectorName}`;
+    const hiddenTransferStorageKey = `eitel.ui.hiddenTransfers.${connectorName}`;
 
     function normalizeTransferState(raw) {
       if (raw === undefined || raw === null) return '-';
@@ -57,6 +58,36 @@
       return record;
     }
 
+    function getHiddenTransferIds() {
+      try {
+        const raw = localStorage.getItem(hiddenTransferStorageKey);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveHiddenTransferIds(ids) {
+      try {
+        const unique = Array.from(new Set((Array.isArray(ids) ? ids : []).filter(Boolean))).slice(-500);
+        localStorage.setItem(hiddenTransferStorageKey, JSON.stringify(unique));
+      } catch {}
+    }
+
+    function removeLocalTransferRecordById(transferId) {
+      const current = getLocalTransferRecords();
+      const next = current.filter(t => (t['@id'] || t.id || '') !== transferId);
+      saveLocalTransferRecords(next);
+      return next.length !== current.length;
+    }
+
+    function hideTransferRecordById(transferId) {
+      const hidden = getHiddenTransferIds();
+      if (!hidden.includes(transferId)) hidden.push(transferId);
+      saveHiddenTransferIds(hidden);
+    }
+
     function buildLocalTransferRecord(result) {
       const status = Number(result?.status || 0);
       const localTransferId = `local-download-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -97,7 +128,10 @@
     function getAllTransferRows(remoteRows = []) {
       const localRows = getLocalTransferRecords().map(normalizeTransferRow);
       const normalizedRemote = (Array.isArray(remoteRows) ? remoteRows : []).map(normalizeTransferRow);
-      return [...localRows, ...normalizedRemote].sort((a, b) => {
+      const hidden = new Set(getHiddenTransferIds());
+      return [...localRows, ...normalizedRemote]
+      .filter(r => !hidden.has(r['@id'] || r.id || ''))
+      .sort((a, b) => {
         const aTime = Date.parse(a.createdAt || 0) || 0;
         const bTime = Date.parse(b.createdAt || 0) || 0;
         return bTime - aTime;
@@ -165,6 +199,39 @@
           });
           clearTimeout(timeout);
           let text = await res.text();
+
+          // Some deployments return 502 on one connector-prefix variant; try alternates for catalog calls.
+          if (res.status === 502 && path === '/v3/catalog/request' && !options.noAutoBaseFallback) {
+            const candidates = [];
+            const fixed = getAutoFixedApiBaseUrl();
+            if (fixed) candidates.push(fixed);
+            if (primaryBase.includes('/conectorFuenlabrada/')) candidates.push(primaryBase.replace('/conectorFuenlabrada/', '/conectorfuenlabrada/'));
+            if (primaryBase.includes('/conectorfuenlabrada/')) candidates.push(primaryBase.replace('/conectorfuenlabrada/', '/conectorFuenlabrada/'));
+            const uiPrefix = getUiPrefixPath().replace(/\/+$/, '');
+            if (uiPrefix) candidates.push(`${window.location.origin}${uiPrefix}/api/management`);
+
+            for (const candidateBase of [...new Set(candidates)].filter(x => x && x !== primaryBase)) {
+              try {
+                const fallbackUrl = `${candidateBase}${path}`;
+                const fallbackRes = await fetch(fallbackUrl, {
+                  method,
+                  headers: {
+                    'x-api-key': getApiKey(),
+                    'content-type': 'application/json',
+                    ...(options.headers || {}),
+                  },
+                  body: method === 'GET' || method === 'DELETE' ? undefined : body,
+                  signal: controller.signal,
+                });
+                const fallbackText = await fallbackRes.text();
+                if (fallbackRes.status >= 200 && fallbackRes.status < 300) {
+                  res = fallbackRes;
+                  text = fallbackText;
+                  break;
+                }
+              } catch {}
+            }
+          }
 
           if ((res.status === 404 || res.status === 405) && !options.noAutoBaseFallback) {
             const fallbackBase = getAutoFixedApiBaseUrl();
@@ -1979,7 +2046,6 @@
           const errorTip = errorDetail ? ` title="${errorDetail.replace(/"/g, '&quot;')}"` : '';
           const isTerminal = isTransferTerminalState(t.state || t['edc:state'] || '');
           const title = t.localDownload ? `Descarga local · ${clean(t.filename || id)}` : `Transferencia ${i + 1}`;
-          const monitorLabel = t.localDownload ? 'Estado' : '↺ Monitor';
           return `
             <tr>
               <td class="title-cell" title="${id}">${title}</td>
@@ -1987,9 +2053,9 @@
               <td class="title-cell" title="${contract}">${clean(contract)}</td>
               <td>
                 <button class="ghost" onclick="window.showTransferDetail(${i})">Detalle</button>
-                <button class="ghost" onclick="window.checkTransfer('${id.replace(/'/g, "\\'")}')">Estado</button>
-                <button class="ghost" onclick="window.retryTransferMonitor('${id.replace(/'/g, "\\'")}')">${monitorLabel}</button>
+                <button class="ghost" onclick="window.retryTransferMonitor('${id.replace(/'/g, "\\'")}')">Estado</button>
                 ${!isTerminal && !t.localDownload ? `<button class="danger" onclick="window.terminateTransfer('${id.replace(/'/g, "\\'")}')">Terminar</button>` : ''}
+                <button class="danger" onclick="window.deleteTransferRecord('${id.replace(/'/g, "\\'")}', ${t.localDownload ? 'true' : 'false'})">Borrar</button>
               </td>
             </tr>
           `;
@@ -2057,6 +2123,29 @@
       await listTransfers();
     }
     window.terminateTransfer = terminateTransfer;
+
+    async function deleteTransferRecord(transferId, isLocal = false) {
+      if (!transferId) return;
+
+      const localDeleted = removeLocalTransferRecordById(transferId);
+      if (!localDeleted && !isLocal) {
+        hideTransferRecordById(transferId);
+      }
+
+      writeOut({
+        status: 200,
+        action: 'delete-transfer-record',
+        transferId,
+        localDeleted,
+        hidden: !localDeleted,
+        note: localDeleted
+          ? 'Registro local eliminado.'
+          : 'Transferencia remota ocultada de la tabla (no se puede borrar del historial del runtime EDC).'
+      });
+
+      await listTransfers();
+    }
+    window.deleteTransferRecord = deleteTransferRecord;
 
     async function checkDataplanes() {
       const r = await callApi('GET', '/v3/dataplanes');
