@@ -523,13 +523,13 @@
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       document.querySelector(`.nav button[data-view="${view}"]`)?.classList.add('active');
       document.getElementById(`panel-${resolved}`)?.classList.add('active');
-      if (resolved === 'catalog') {
-        if (state.catalogShowcaseLoaded) {
-          renderCatalogShowcase(state.catalogRows || []);
-        } else {
-          loadCatalogShowcase(false);
+        if (resolved === 'catalog') {
+          if (state.catalogShowcaseLoaded && Array.isArray(state.catalogRows) && state.catalogRows.length) {
+            renderCatalogShowcase(state.catalogRows || []);
+          } else {
+            loadCatalogShowcase(false);
+          }
         }
-      }
       if (resolved === 'asset') {
         loadPublishedAssets(false);
       }
@@ -633,6 +633,7 @@
         const defaultImageClass = isDefaultAssetImage(image) ? ' is-default' : '';
         const keywords = Array.isArray(row.assetKeywords) ? row.assetKeywords.slice(0, 8) : [];
         const delayMs = Math.min(idx * 55, 550);
+        const canContract = Boolean(row.offerId);
         const media = `<div class="asset-card-media${defaultImageClass}"><img src="${htmlEscape(image)}" alt="Imagen del asset ${title}" /><span class="asset-card-badge">${connectorBadge}</span><div class="asset-card-media-overlay"><span class="asset-card-media-title">${title}</span></div></div>`;
         const chips = keywords.length
           ? `<div class="asset-card-keywords">${keywords.map(k => `<span class="asset-chip">${htmlEscape(k)}</span>`).join('')}</div>`
@@ -650,7 +651,7 @@
                 ${chips}
               </details>
               <div class="row">
-                <button class="primary" onclick="window.useCatalogAssetByIndex(${idx})">Iniciar contratacion</button>
+                <button class="primary" onclick="window.useCatalogAssetByIndex(${idx})" ${canContract ? '' : 'disabled'}>${canContract ? 'Iniciar contratacion' : 'Solo visualizacion local'}</button>
               </div>
             </div>
           </article>
@@ -722,6 +723,24 @@
           keywords: [...new Set(keywords)],
         };
       });
+    }
+
+    function mapPublishedAssetsToCatalogVisualRows(rawAssets = []) {
+      return mapPublishedAssetRows(rawAssets).map((row) => ({
+        offerId: '',
+        assetId: row.id || '',
+        policyTarget: row.id || '',
+        assigner: PROD_CONNECTOR_ID,
+        connectorId: PROD_CONNECTOR_ID,
+        counterPartyAddress: '',
+        policySummary: 'Visualización local. Este asset no tiene una oferta remota de catálogo activa.',
+        policyRaw: null,
+        sourceHintUrl: '',
+        assetTitle: row.title,
+        assetDescription: row.description,
+        assetKeywords: row.keywords,
+        assetImageUrl: row.imageUrl,
+      }));
     }
 
     function renderPublishedAssets(rows = []) {
@@ -2127,6 +2146,12 @@
         if (!dedupe.has(key)) dedupe.set(key, row);
       });
       state.catalogRows = [...dedupe.values()];
+      if (!state.catalogRows.length) {
+        const localAssetsResp = await callApi('POST', '/v3/assets/request', q(), { silent: true, retries: 0 });
+        const localAssets = unwrap(localAssetsResp);
+        state.catalogRows = mapPublishedAssetsToCatalogVisualRows(localAssets);
+      }
+
       renderCatalogShowcase(state.catalogRows);
       refreshCatalogAssetOptions();
       syncCatalogSelectionState();
@@ -2139,7 +2164,7 @@
           totalAssets: state.catalogRows.length,
         });
       }
-      state.catalogShowcaseLoaded = true;
+      state.catalogShowcaseLoaded = state.catalogRows.length > 0;
     }
 
     async function requestContractByAsset() {
