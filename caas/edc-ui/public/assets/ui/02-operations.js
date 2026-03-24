@@ -2042,6 +2042,19 @@
       const raw = String(connectorId || 'provider').trim();
       if (!raw) return 'http://provider-connector:19103/api/v1/dsp/2025-1';
 
+      const currentConnectorRaw = String(cfg?.connectorName || '').trim();
+      const currentCanonical = canonicalConnectorPrefix(currentConnectorRaw).toLowerCase();
+      const targetCanonical = canonicalConnectorPrefix(raw).toLowerCase();
+
+      // Si el usuario consulta el mismo conector que aloja esta UI, usar DSP interno
+      // para evitar pasar por WAF/proxy publico y reducir 502 intermitentes.
+      if (currentCanonical && targetCanonical && currentCanonical === targetCanonical) {
+        const internalHost = currentConnectorRaw.toLowerCase();
+        if (internalHost) {
+          return ensureDspVersion(`http://${internalHost}:11003/api/v1/dsp/2025-1`);
+        }
+      }
+
       // Si llega URL absoluta, normalizarla.
       if (raw.startsWith('http://') || raw.startsWith('https://')) {
         return ensureDspVersion(raw);
