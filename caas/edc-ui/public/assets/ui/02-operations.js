@@ -781,6 +781,31 @@
       if (transferInput) transferInput.value = resolved;
     }
 
+    function resolveTransferParty(contractId, selectedAgreement = null) {
+      const currentTransferAddress = (document.getElementById('transferAddress')?.value || '').trim();
+      const row = selectedAgreement || (state.agreementRows || []).find(a => a.id === contractId) || null;
+
+      const providerRaw = row?.providerId || row?.['edc:providerId'] || row?.provider || row?.cp || '';
+      const hint = extractConnectorIdHint(providerRaw);
+      const resolvedAddress = hint ? buildDspUrl(hint) : currentTransferAddress;
+
+      let counterPartyId = String(providerRaw || '').trim();
+      if (!counterPartyId && hint) {
+        counterPartyId = String(hint).trim();
+      }
+
+      // If provider is a URL path/host alias, use connector hint as participant id fallback.
+      if (counterPartyId.startsWith('http://') || counterPartyId.startsWith('https://') || counterPartyId.startsWith('/')) {
+        counterPartyId = String(hint || '').trim();
+      }
+
+      return {
+        address: resolvedAddress,
+        counterPartyId,
+        providerRaw,
+      };
+    }
+
     function getUiPrefix() {
       const configured = canonicalConnectorPrefix(cfg.connectorName || '');
       if (configured) return `/${configured}`;
@@ -881,7 +906,7 @@
       }
     }
 
-    async function downloadRemoteAssetViaTransfer(contractId, assetId) {
+    async function downloadRemoteAssetViaTransfer(contractId, assetId, transferParty = null) {
       if (_remoteLocalDownloadInFlightByContract.has(contractId)) {
         return { status: 409, error: 'Ya hay una descarga remota en curso para este contrato.', contractId, assetId };
       }
@@ -889,7 +914,8 @@
 
       const sinkPublicBaseUrl = buildLocalDownloadSinkPublicBaseUrl();
       const sinkInternalBaseUrl = buildLocalDownloadSinkInternalBaseUrl();
-      const transferAddress = (document.getElementById('transferAddress').value || '').trim();
+      const transferAddress = String(transferParty?.address || '').trim() || (document.getElementById('transferAddress').value || '').trim();
+      const counterPartyId = String(transferParty?.counterPartyId || '').trim();
       if (!transferAddress) {
         _remoteLocalDownloadInFlightByContract.delete(contractId);
         return { status: 400, error: 'Falta dirección DSP del partner para la transferencia remota.' };
@@ -915,6 +941,7 @@
         '@type': 'TransferRequest',
         protocol: 'dataspace-protocol-http:2025-1',
         counterPartyAddress: transferAddress,
+        ...(counterPartyId ? { counterPartyId } : {}),
         contractId,
         transferType: 'HttpData-PUSH',
         dataDestination: {
@@ -1780,6 +1807,11 @@
       );
       const selectedAgreement = unwrap(agreementsResp).find(a => (a['@id'] || a.id || '') === contractId) || null;
       const agreementAssetId = selectedAgreement?.assetId || selectedAgreement?.['edc:assetId'] || state.agreementRows.find(a => a.id === contractId)?.asset || '';
+      const transferParty = resolveTransferParty(contractId, selectedAgreement);
+      if (transferParty?.address) {
+        const transferAddressInput = document.getElementById('transferAddress');
+        if (transferAddressInput) transferAddressInput.value = transferParty.address;
+      }
 
       if (!validAgreementIds.has(contractId)) {
         showInfoPopup('Contrato no reconocido', {
@@ -1819,7 +1851,7 @@
         let downloadResp = await downloadAssetLocally(contractId, agreementAssetId);
         // Si el asset no existe localmente (contrato remoto), usar transferencia EDC al sink local.
         if (downloadResp?.status === 404) {
-          downloadResp = await downloadRemoteAssetViaTransfer(contractId, agreementAssetId);
+          downloadResp = await downloadRemoteAssetViaTransfer(contractId, agreementAssetId, transferParty);
         }
         const localTransfer = addLocalTransferRecord(buildLocalTransferRecord(downloadResp));
         writeOut(downloadResp);
@@ -1857,7 +1889,8 @@
         '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
         '@type': 'TransferRequest',
         protocol: 'dataspace-protocol-http:2025-1',
-        counterPartyAddress: document.getElementById('transferAddress').value.trim(),
+        counterPartyAddress: transferParty?.address || document.getElementById('transferAddress').value.trim(),
+        ...(transferParty?.counterPartyId ? { counterPartyId: transferParty.counterPartyId } : {}),
         contractId,
         transferType: 'HttpData-PUSH',
         dataDestination: {
