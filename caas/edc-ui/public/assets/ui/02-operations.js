@@ -1558,6 +1558,28 @@
       }
     }
 
+    async function uploadLocalAssetImage(assetId) {
+      const fileInput = document.getElementById('assetImageFile');
+      const file = fileInput?.files?.[0];
+      if (!file) return { status: 204, skipped: true };
+
+      const formData = new FormData();
+      formData.append('file', file, file.name || `${assetId || 'asset'}-image.png`);
+
+      try {
+        const res = await fetch(`${getLocalAssetsApiBaseUrl()}/upload`, {
+          method: 'POST',
+          body: formData,
+        });
+        const text = await res.text();
+        let data = text;
+        try { data = JSON.parse(text); } catch {}
+        return { status: res.status, data };
+      } catch (error) {
+        return { status: 500, error: `No se pudo subir la imagen local: ${String(error)}` };
+      }
+    }
+
     function syncAuthHeadersJson() {
       // Prevent recursive re-entry (e.g. if input events trigger sync again).
       if (syncAuthHeadersJson._running) return;
@@ -1783,7 +1805,7 @@
       const assetName = (document.getElementById('assetName').value || '').trim();
       const assetDescription = (document.getElementById('assetDescription')?.value || '').trim();
       const assetKeywords = parseKeywordList(document.getElementById('assetKeywords')?.value || '');
-      const assetImageUrl = (document.getElementById('assetImageUrl')?.value || '').trim();
+      let assetImageUrl = '';
       const sourceMode = getSelectedAssetSourceMode();
 
       const authType = sourceMode === 'local-file'
@@ -1869,6 +1891,17 @@
           writeOut({ status: 400, error: 'Endpoint origen no válido para transferencia', sourcePreview });
           return { status: 400, data: { sourcePreview } };
         }
+      }
+
+      const imageUploadResp = await uploadLocalAssetImage(id);
+      if (imageUploadResp.status >= 400) {
+        writeOut(imageUploadResp);
+        showInfoPopup('Error subiendo imagen local', imageUploadResp);
+        return imageUploadResp;
+      }
+      if (imageUploadResp.status >= 200 && imageUploadResp.status < 300) {
+        const data = imageUploadResp.data || {};
+        assetImageUrl = String(data.publicUrl || '').trim();
       }
 
       const body = {
@@ -2091,6 +2124,14 @@
       const { response, rows, address } = await fetchCatalogRowsForConnector(connectorId);
       document.getElementById('resolvedAddress').value = address;
       document.getElementById('transferAddress').value = address;
+
+      // Si el catalogo puntual falla (502) o no trae datos, usar fallback del catalogo completo.
+      if (!(response?.status >= 200 && response?.status < 300) || !rows.length) {
+        await loadCatalogShowcase(false);
+        if (showOutput) writeOut(response);
+        return;
+      }
+
       state.catalogRows = rows;
       renderCatalogShowcase(state.catalogRows);
       refreshCatalogAssetOptions();

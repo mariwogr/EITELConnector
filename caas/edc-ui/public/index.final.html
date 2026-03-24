@@ -95,7 +95,11 @@
             <textarea id="assetDescription" rows="3" placeholder="Describe qué datos contiene este asset, su periodicidad y para qué sirve."></textarea>
             <div class="grid">
               <div><label>Keywords (separadas por coma)</label><input id="assetKeywords" placeholder="energia, consumo, municipio, clima" /></div>
-              <div><label>Foto (URL opcional)</label><input id="assetImageUrl" placeholder="https://.../imagen.jpg" /></div>
+              <div>
+                <label>Foto del asset (archivo local)</label>
+                <input id="assetImageFile" type="file" accept="image/*" />
+                <p class="muted" style="margin-top:6px">La imagen se sube al servicio local del conector y se publica automaticamente en el metadata del asset.</p>
+              </div>
             </div>
             <label>Origen del asset</label>
             <select id="assetSourceMode">
@@ -538,11 +542,11 @@
     </div>
   </div>
 
-    <script src="config.js?v=20260324n"></script>
-  <script src="assets/ui/01-runtime.js?v=20260324n"></script>
-  <script src="assets/ui/02-operations.js?v=20260324n"></script>
-  <script src="assets/ui/03-secrets.js?v=20260324n"></script>
-  <script src="assets/ui/04-bootstrap.js?v=20260324n"></script>
+    <script src="config.js?v=20260324o"></script>
+  <script src="assets/ui/01-runtime.js?v=20260324o"></script>
+  <script src="assets/ui/02-operations.js?v=20260324o"></script>
+  <script src="assets/ui/03-secrets.js?v=20260324o"></script>
+  <script src="assets/ui/04-bootstrap.js?v=20260324o"></script>
 </body>
 </html>
 
