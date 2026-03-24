@@ -1885,36 +1885,20 @@
         '@type': 'Asset',
         properties: {
           name: assetName,
-          'dct:title': assetName,
-          'dct:description': assetDescription,
-          'dcat:keyword': assetKeywords.join(', '),
-          'schema:image': assetImageUrl,
+          title: assetName,
+          description: assetDescription,
+          keywords: assetKeywords.join(', '),
+          image: assetImageUrl,
           contenttype: contentType,
           'eitel:authType': authType,
           'eitel:sourceMode': sourceMode,
           'eitel:localAssetPublicUrl': localUploadInfo?.publicUrl || '',
           'eitel:localAssetFilename': localUploadInfo?.filename || '',
-          'eitel:description': assetDescription,
-          'eitel:keywords': assetKeywords.join(', '),
-          'eitel:image': assetImageUrl,
           'eitel:authSecret': document.getElementById('pubAuthSecret')?.value || '',
           'eitel:authClientId': document.getElementById('pubAuthClientId')?.value.trim() || '',
           'eitel:authClientSecret': document.getElementById('pubAuthClientSecret')?.value.trim() || '',
           'eitel:authToken': authType === 'arcgis-login' ? '' : (document.getElementById('pubAuthToken')?.value.trim() || ''),
-          'eitel:authTokenSource': authType === 'arcgis-login' ? 'arcgis-login' : '',
-          'eitel:dcatJsonLd': JSON.stringify({
-            '@context': {
-              dcat: 'https://www.w3.org/ns/dcat#',
-              dct: 'http://purl.org/dc/terms/',
-              schema: 'https://schema.org/'
-            },
-            '@id': id,
-            '@type': 'dcat:Dataset',
-            'dct:title': assetName,
-            'dct:description': assetDescription,
-            'dcat:keyword': assetKeywords,
-            ...(assetImageUrl ? { 'schema:image': assetImageUrl } : {}),
-          })
+          'eitel:authTokenSource': authType === 'arcgis-login' ? 'arcgis-login' : ''
         },
         dataAddress: {
           '@type': 'DataAddress',
