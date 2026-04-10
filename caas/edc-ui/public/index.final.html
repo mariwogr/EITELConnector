@@ -425,13 +425,25 @@
             <div id="arcgisUploadWrap" style="display:none">
               <div class="grid">
                 <div><label>Titulo del item ArcGIS</label><input id="arcgisUploadTitle" placeholder="Ej: Dataset energia conector UC3M" /></div>
-                <div><label>Tipo ArcGIS</label><input id="arcgisUploadType" placeholder="CSV | GeoJson | PDF | Shapefile | File" /></div>
+                <div>
+                  <label>Tipo ArcGIS</label>
+                  <select id="arcgisUploadType">
+                    <option value="">Automatico (recomendado)</option>
+                    <option value="File">File</option>
+                    <option value="CSV">CSV</option>
+                    <option value="GeoJson">GeoJson</option>
+                    <option value="Shapefile">Shapefile</option>
+                    <option value="PDF">PDF</option>
+                    <option value="Microsoft Excel">Microsoft Excel</option>
+                    <option value="KML">KML</option>
+                  </select>
+                </div>
               </div>
               <div class="grid">
                 <div><label>Tags (coma)</label><input id="arcgisUploadTags" placeholder="eitel, energia, municipio" /></div>
                 <div><label>Descripcion</label><input id="arcgisUploadDescription" placeholder="Datos recibidos por transferencia EDC" /></div>
               </div>
-              <p class="muted" style="margin-top:6px">Usa la sesión ArcGIS activa para crear un item nuevo con el archivo recibido del contrato.</p>
+              <p class="muted" style="margin-top:6px">Si dejas campos vacíos, la UI autocompleta metadatos (titulo, tags, descripcion y snippet) para que el item no se publique sin contexto.</p>
             </div>
             <div class="row" style="margin-top:8px">
               <button class="primary" id="btnStartTransfer" data-i18n="transfer.start">Iniciar transferencia</button>
@@ -616,11 +628,11 @@
     </div>
   </div>
 
-    <script src="config.js?v=20260410b"></script>
-  <script src="assets/ui/01-runtime.js?v=20260410b"></script>
-  <script src="assets/ui/02-operations.js?v=20260410b"></script>
-  <script src="assets/ui/03-secrets.js?v=20260410b"></script>
-  <script src="assets/ui/04-bootstrap.js?v=20260410b"></script>
+    <script src="config.js?v=20260410c"></script>
+  <script src="assets/ui/01-runtime.js?v=20260410c"></script>
+  <script src="assets/ui/02-operations.js?v=20260410c"></script>
+  <script src="assets/ui/03-secrets.js?v=20260410c"></script>
+  <script src="assets/ui/04-bootstrap.js?v=20260410c"></script>
 </body>
 </html>
 

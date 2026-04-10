@@ -1713,6 +1713,62 @@
       );
     }
 
+    async function resolveAssetMetadataForArcgis(assetId) {
+      const safeAssetId = String(assetId || '').trim();
+      if (!safeAssetId) return { title: '', description: '', keywords: [] };
+      try {
+        const assetsResp = await callApi('POST', '/v3/assets/request', q(), { silent: true, retries: 0 });
+        const assets = unwrap(assetsResp);
+        const asset = assets.find(a => (a['@id'] || a.id || '') === safeAssetId);
+        if (!asset) return { title: '', description: '', keywords: [] };
+        const props = asset?.properties || asset?.['edc:properties'] || {};
+        const title = firstNonEmpty([props?.title, props?.name, safeAssetId]);
+        const description = firstNonEmpty([props?.description, '']);
+        const keywords = [...new Set(parseKeywordList(props?.keywords || '').filter(Boolean))];
+        return { title, description, keywords };
+      } catch {
+        return { title: '', description: '', keywords: [] };
+      }
+    }
+
+    function buildArcgisMetadataEnvelope({
+      manualTitle,
+      manualTags,
+      manualDescription,
+      contractId,
+      assetId,
+      sourceUrl,
+      blobFilename,
+      fallbackTitle,
+      fallbackDescription,
+      fallbackKeywords,
+    }) {
+      const cleanAsset = clean(assetId || blobFilename || 'asset');
+      const today = new Date().toISOString().slice(0, 10);
+      const title = String(manualTitle || '').trim() || fallbackTitle || `EITEL ${cleanAsset} ${today}`;
+
+      const manualTagList = parseKeywordList(manualTags || '');
+      const autoTagList = [
+        ...(Array.isArray(fallbackKeywords) ? fallbackKeywords : []),
+        'eitel',
+        String(connectorName || '').toLowerCase(),
+        contractId ? `contract:${contractId}` : '',
+        assetId ? `asset:${assetId}` : '',
+      ].map(v => String(v || '').trim()).filter(Boolean);
+      const tags = [...new Set((manualTagList.length ? manualTagList : autoTagList).slice(0, 20))].join(', ');
+
+      const descriptionAuto = [
+        fallbackDescription || '',
+        `Asset: ${assetId || '-'}`,
+        `Contract: ${contractId || '-'}`,
+        sourceUrl ? `Origen: ${sourceUrl}` : '',
+      ].filter(Boolean).join(' | ');
+      const description = String(manualDescription || '').trim() || descriptionAuto || 'Item creado desde transferencia EDC.';
+
+      const snippet = `${title} · ${contractId ? `Contrato ${clean(contractId)}` : 'Sin contrato'} · ${cleanAsset}`.slice(0, 240);
+      return { title, tags, description, snippet };
+    }
+
     async function fetchAssetBlobForArcgisUpload(contractId, assetId) {
       if (!assetId) return { status: 404, error: 'No se pudo resolver el asset asociado al contrato.' };
 
@@ -1866,7 +1922,6 @@
       const tags = String(document.getElementById('arcgisUploadTags')?.value || '').trim();
       const description = String(document.getElementById('arcgisUploadDescription')?.value || '').trim();
 
-      if (!title) return { status: 400, error: 'El título del item ArcGIS es obligatorio.' };
       if (!arcgis?.portalUrl) return { status: 400, error: 'Falta ARCGIS_PORTAL_URL en configuración.' };
       if (!authState?.username) return { status: 401, error: 'No hay sesión ArcGIS activa para subir el item.' };
 
@@ -1879,17 +1934,32 @@
       }
       if (!(blobResult.status >= 200 && blobResult.status < 300)) return blobResult;
 
+      const assetMeta = await resolveAssetMetadataForArcgis(assetId);
+      const arcgisMeta = buildArcgisMetadataEnvelope({
+        manualTitle: title,
+        manualTags: tags,
+        manualDescription: description,
+        contractId,
+        assetId,
+        sourceUrl: blobResult.sourceUrl,
+        blobFilename: blobResult.filename,
+        fallbackTitle: assetMeta.title,
+        fallbackDescription: assetMeta.description,
+        fallbackKeywords: assetMeta.keywords,
+      });
+
       const resolvedType = normalizeArcgisItemType(typeInput, blobResult.filename, blobResult.contentType);
       const autoMode = !String(typeInput || '').trim();
       const buildForm = (itemType) => {
         const form = new FormData();
         form.append('f', 'json');
         form.append('token', token);
-        form.append('title', title);
+        form.append('title', arcgisMeta.title);
         const normalizedType = String(itemType || '').trim();
         if (normalizedType) form.append('type', normalizedType);
-        form.append('tags', tags || 'eitel,edc');
-        form.append('description', description || 'Item generado desde transferencia del conector EITEL');
+        form.append('tags', arcgisMeta.tags || 'eitel,edc');
+        form.append('description', arcgisMeta.description || 'Item generado desde transferencia del conector EITEL');
+        form.append('snippet', arcgisMeta.snippet || 'Item publicado desde EITEL Connector');
         form.append('file', blobResult.blob, blobResult.filename || `${assetId || 'asset'}.bin`);
         return form;
       };
@@ -1925,7 +1995,9 @@
           contractId,
           assetId,
           itemId: result.data?.id || '',
-          title,
+          title: arcgisMeta.title,
+          tags: arcgisMeta.tags,
+          description: arcgisMeta.description,
           filename: blobResult.filename,
           contentType: blobResult.contentType,
           usedType: result.itemType,
