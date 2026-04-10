@@ -316,6 +316,12 @@
         pushIfValid(`${window.location.origin}/${configuredPrefix.toLowerCase()}/local-assets`);
       }
 
+      // Compatibilidad: históricamente hubo despliegues con rutas en raíz o con prefijos distintos.
+      pushIfValid(`${window.location.origin}/local-assets`);
+      pushIfValid(`${window.location.origin}/conectoruc3m/local-assets`);
+      pushIfValid(`${window.location.origin}/conectorFuenlabrada/local-assets`);
+      pushIfValid(`${window.location.origin}/conectorfuenlabrada/local-assets`);
+
       return candidates;
     }
 
@@ -1899,6 +1905,7 @@
 
       const filename = file.name || `${assetId || 'asset'}.bin`;
       const baseCandidates = getLocalAssetsApiBaseUrlCandidates();
+      let lastHttpFailure = null;
 
       // First try raw upload to avoid multipart/proxy edge cases.
       for (const baseUrl of baseCandidates) {
@@ -1918,13 +1925,18 @@
           if (rawRes.status >= 200 && rawRes.status < 300) {
             return { status: rawRes.status, data: rawData };
           }
+          lastHttpFailure = {
+            status: rawRes.status,
+            error: 'Upload raw rechazado por el gateway/servicio local-assets.',
+            endpoint: rawUrl,
+            data: rawData,
+          };
         } catch {}
       }
 
-      const formData = new FormData();
-      formData.append('file', file, filename);
-
       for (const baseUrl of baseCandidates) {
+        const formData = new FormData();
+        formData.append('file', file, filename);
         try {
           const res = await fetch(`${baseUrl}/upload`, {
             method: 'POST',
@@ -1936,14 +1948,27 @@
           if (res.status >= 200 && res.status < 300) {
             return { status: res.status, data };
           }
-          if (res.status >= 400 && res.status < 500) {
-            return { status: res.status, data };
-          }
+          lastHttpFailure = {
+            status: res.status,
+            error: 'Upload multipart rechazado por el gateway/servicio local-assets.',
+            endpoint: `${baseUrl}/upload`,
+            data,
+          };
         } catch (error) {
           if (baseUrl === baseCandidates[baseCandidates.length - 1]) {
             return { status: 500, error: `No se pudo subir el archivo local: ${String(error)}` };
           }
         }
+      }
+
+      if (lastHttpFailure) {
+        return {
+          status: Number(lastHttpFailure.status || 502),
+          error: lastHttpFailure.error,
+          endpoint: lastHttpFailure.endpoint,
+          data: lastHttpFailure.data,
+          tried: baseCandidates,
+        };
       }
 
       return { status: 502, error: 'No se pudo resolver una ruta de upload local-assets válida desde la UI.', tried: baseCandidates };
