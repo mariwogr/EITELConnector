@@ -742,6 +742,7 @@
         'Transferencias': 'Transfers',
         'Política': 'Policy',
         'Contrato': 'Contract',
+        'Mis assets': 'My assets',
         'Secretos': 'Secrets',
         'Sobre EITEL': 'About EITEL',
         'Actualizar': 'Refresh',
@@ -817,12 +818,15 @@
         ? esToEn
         : Object.fromEntries(Object.entries(esToEn).map(([es, en]) => [en, es]));
 
-      const textNodes = document.querySelectorAll('button span, .nav-group-title, h2, h3, p, label, button, option, summary, th');
+      const textNodes = document.querySelectorAll('.nav-group-title, h2, h3, p, label, button, option, summary, th');
       textNodes.forEach((el) => {
-        const raw = String(el.textContent || '').trim();
+        const isButton = el.tagName === 'BUTTON';
+        const spanInIconButton = isButton ? el.querySelector('svg + span, span') : null;
+        const target = isButton && spanInIconButton ? spanInIconButton : el;
+        const raw = String(target.textContent || '').trim();
         if (!raw) return;
         const translated = activeMap[raw];
-        if (translated) el.textContent = translated;
+        if (translated) target.textContent = translated;
       });
 
       const placeholders = {
