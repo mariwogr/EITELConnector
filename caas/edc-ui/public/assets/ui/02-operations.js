@@ -318,6 +318,8 @@
 
     function getLocalAssetsApiBaseUrlCandidates() {
       const candidates = [];
+      const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname.startsWith('127.');
+      const hasConnectorPrefixInPath = (window.location.pathname || '/').toLowerCase().split('/').filter(Boolean)[0]?.startsWith('conector');
       const pushIfValid = (value) => {
         const txt = String(value || '').trim();
         if (!txt) return;
@@ -338,12 +340,19 @@
       }
 
       // Compatibilidad: algunos despliegues publican local-assets en raíz.
-      pushIfValid(`${window.location.origin}/local-assets`);
+      // Evitar este fallback cuando la UI ya está bajo un prefijo /conector*,
+      // porque en producción suele devolver páginas 404/ArcGIS engañosas.
+      if (isLocalHost || !hasConnectorPrefixInPath) {
+        pushIfValid(`${window.location.origin}/local-assets`);
+      }
 
       // Fallbacks explícitos para entornos mixtos UC3M/Fuenlabrada.
-      pushIfValid(`${window.location.origin}/conectoruc3m/local-assets`);
-      pushIfValid(`${window.location.origin}/conectorFuenlabrada/local-assets`);
-      pushIfValid(`${window.location.origin}/conectorfuenlabrada/local-assets`);
+      // Priorizar estos fallbacks solo en entorno local/dev.
+      if (isLocalHost) {
+        pushIfValid(`${window.location.origin}/conectoruc3m/local-assets`);
+        pushIfValid(`${window.location.origin}/conectorFuenlabrada/local-assets`);
+        pushIfValid(`${window.location.origin}/conectorfuenlabrada/local-assets`);
+      }
 
       return candidates;
     }
