@@ -251,7 +251,10 @@
     }
 
     function clearStoredArcgisToken() {
-      try { sessionStorage.removeItem(arcgisTokenStorageKey); } catch {}
+      try {
+        sessionStorage.removeItem(arcgisTokenStorageKey);
+        sessionStorage.removeItem('eitel.arcgis.access_token_expires');
+      } catch {}
     }
 
     async function fetchArcgisJson(path, { token = '', useCookies = true } = {}) {

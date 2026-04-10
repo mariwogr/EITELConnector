@@ -144,6 +144,37 @@
     }
     .top h1 { margin: 0; font-size: 24px; letter-spacing: .2px; }
     .top-right { display: flex; align-items: center; gap: 8px; }
+    .token-widget {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      background: linear-gradient(130deg, color-mix(in srgb, var(--primary-soft) 55%, var(--surface)), var(--surface));
+      border-radius: 999px;
+      padding: 4px 8px;
+      max-width: 100%;
+    }
+    .token-widget-label {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+    }
+    .token-widget-value {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--primary);
+      white-space: nowrap;
+    }
+    .token-widget-value.warn { color: var(--warn); }
+    .token-widget-value.danger { color: var(--danger); }
+    .token-widget-btn {
+      padding: 5px 9px !important;
+      font-size: 11px;
+      border-radius: 999px !important;
+      white-space: nowrap;
+    }
     .chip {
       border: 1px solid var(--line);
       background: var(--surface);

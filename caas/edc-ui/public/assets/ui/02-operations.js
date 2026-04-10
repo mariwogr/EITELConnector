@@ -154,7 +154,10 @@
     const _remoteLocalDownloadInFlightByContract = new Set();
     const localTransferStorageKey = `eitel.ui.localTransfers.${connectorName}`;
     const hiddenTransferStorageKey = `eitel.ui.hiddenTransfers.${connectorName}`;
+    const localAssetBundleStorageKey = `eitel.ui.assetBundles.${connectorName}`;
+    const arcgisTokenExpiresStorageKey = 'eitel.arcgis.access_token_expires';
     const agreementSourceHints = new Map();
+    let arcgisTokenUiTimer = null;
 
     function normalizeTransferState(raw) {
       if (raw === undefined || raw === null) return '-';
@@ -289,6 +292,122 @@
     function getLocalAssetsApiBaseUrl() {
       const prefix = getUiPrefixPath().replace(/\/+$/, '');
       return `${window.location.origin}${prefix}/local-assets`;
+    }
+
+    function getAssetBundleBackups() {
+      try {
+        const raw = localStorage.getItem(localAssetBundleStorageKey);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveAssetBundleBackups(rows) {
+      try {
+        const safeRows = Array.isArray(rows) ? rows.slice(0, 120) : [];
+        localStorage.setItem(localAssetBundleStorageKey, JSON.stringify(safeRows));
+      } catch {}
+    }
+
+    function upsertAssetBundleBackup(partialBundle = {}) {
+      const assetId = String(partialBundle?.assetId || '').trim();
+      if (!assetId) return;
+      const existing = getAssetBundleBackups();
+      const idx = existing.findIndex(row => String(row?.assetId || '') === assetId);
+      const merged = {
+        ...(idx >= 0 ? existing[idx] : {}),
+        ...partialBundle,
+        assetId,
+        updatedAt: new Date().toISOString(),
+      };
+      if (idx >= 0) existing.splice(idx, 1);
+      existing.unshift(merged);
+      saveAssetBundleBackups(existing);
+    }
+
+    function removeAssetBundleBackup(assetId) {
+      const target = String(assetId || '').trim();
+      if (!target) return;
+      const next = getAssetBundleBackups().filter(row => String(row?.assetId || '') !== target);
+      saveAssetBundleBackups(next);
+    }
+
+    function getStoredArcgisTokenExpiresAt() {
+      try {
+        const raw = sessionStorage.getItem(arcgisTokenExpiresStorageKey) || '';
+        const parsed = Number(raw);
+        if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+        return parsed;
+      } catch {
+        return 0;
+      }
+    }
+
+    function setStoredArcgisTokenExpiresAt(expiresAtMs) {
+      try {
+        const parsed = Number(expiresAtMs || 0);
+        if (!Number.isFinite(parsed) || parsed <= 0) {
+          sessionStorage.removeItem(arcgisTokenExpiresStorageKey);
+          return;
+        }
+        sessionStorage.setItem(arcgisTokenExpiresStorageKey, String(Math.floor(parsed)));
+      } catch {}
+    }
+
+    function formatRemainingTimeMs(ms) {
+      const total = Math.max(0, Math.floor(ms / 1000));
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const s = total % 60;
+      if (h > 0) return `${h}h ${m}m`;
+      if (m > 0) return `${m}m ${s}s`;
+      return `${s}s`;
+    }
+
+    function refreshArcgisTokenIndicator() {
+      const widget = document.getElementById('arcgisTokenWidget');
+      const value = document.getElementById('arcgisTokenRemaining');
+      if (!widget || !value) return;
+
+      const enabled = Boolean(arcgis?.enabled);
+      widget.style.display = enabled ? 'inline-flex' : 'none';
+      if (!enabled) return;
+
+      const token = getArcgisAccessTokenForPublish();
+      const expiresAt = getStoredArcgisTokenExpiresAt();
+      const remainingMs = expiresAt ? (expiresAt - Date.now()) : 0;
+      value.classList.remove('warn', 'danger');
+
+      if (!token) {
+        value.textContent = 'sin token';
+        value.classList.add('danger');
+        return;
+      }
+      if (!expiresAt) {
+        value.textContent = 'token activo';
+        return;
+      }
+      if (remainingMs <= 0) {
+        value.textContent = 'expirado';
+        value.classList.add('danger');
+        return;
+      }
+
+      value.textContent = formatRemainingTimeMs(remainingMs);
+      if (remainingMs < 5 * 60 * 1000) {
+        value.classList.add('danger');
+      } else if (remainingMs < 30 * 60 * 1000) {
+        value.classList.add('warn');
+      }
+    }
+
+    function ensureArcgisTokenIndicatorTimer() {
+      if (arcgisTokenUiTimer) return;
+      arcgisTokenUiTimer = setInterval(() => {
+        try { refreshArcgisTokenIndicator(); } catch {}
+      }, 1000);
     }
 
     function getAutoFixedApiBaseUrl() {
@@ -932,9 +1051,12 @@
         });
         const data = await res.json();
         const token = (data?.token || '').trim();
+        const expiresAt = Number(data?.expires || 0);
         if (token) {
           lastArcgisPublishToken = token;
           try { sessionStorage.setItem('eitel.arcgis.access_token', token); } catch {}
+          if (Number.isFinite(expiresAt) && expiresAt > 0) setStoredArcgisTokenExpiresAt(expiresAt);
+          refreshArcgisTokenIndicator();
         }
         return token;
       } catch {
@@ -1078,10 +1200,14 @@
     function syncTransferModeUi() {
       const mode = getSelectedTransferMode();
       const sinkWrap = document.getElementById('sinkBaseUrlWrap');
+      const arcgisWrap = document.getElementById('arcgisUploadWrap');
       const startBtn = document.getElementById('btnStartTransfer');
-      if (sinkWrap) sinkWrap.style.display = mode === 'local-download' ? 'none' : '';
+      if (sinkWrap) sinkWrap.style.display = mode === 'push' ? '' : 'none';
+      if (arcgisWrap) arcgisWrap.style.display = mode === 'arcgis-upload' ? '' : 'none';
       if (startBtn && !transferStartInFlight) {
-        startBtn.textContent = mode === 'local-download' ? 'Descargar en local' : 'Iniciar transferencia';
+        startBtn.textContent = mode === 'local-download'
+          ? 'Descargar en local'
+          : (mode === 'arcgis-upload' ? 'Subir a ArcGIS' : 'Iniciar transferencia');
       }
     }
 
@@ -1425,6 +1551,130 @@
       }
     }
 
+    function mapContentTypeToArcgisType(contentType, fallback = 'File') {
+      const txt = String(contentType || '').toLowerCase();
+      if (txt.includes('csv')) return 'CSV';
+      if (txt.includes('json')) return 'GeoJson';
+      if (txt.includes('zip')) return 'Shapefile';
+      if (txt.includes('pdf')) return 'PDF';
+      if (txt.includes('xml')) return 'File Geodatabase';
+      return fallback;
+    }
+
+    async function fetchAssetBlobForArcgisUpload(contractId, assetId) {
+      if (!assetId) return { status: 404, error: 'No se pudo resolver el asset asociado al contrato.' };
+
+      const assetsResp = await callApi('POST', '/v3/assets/request', q(), { silent: true, retries: 0 });
+      const assets = unwrap(assetsResp);
+      const asset = assets.find(a => (a['@id'] || a.id || '') === assetId);
+      if (!asset) {
+        const hintedUrl = agreementSourceHints.get(contractId) || '';
+        if (!hintedUrl) {
+          return { status: 404, error: 'El asset no está localmente y no hay URL alternativa para ArcGIS.' };
+        }
+        try {
+          const hintedRes = await fetch(hintedUrl, { method: 'GET', credentials: 'include' });
+          if (!hintedRes.ok) return { status: hintedRes.status, error: 'No se pudo descargar el asset remoto para subir a ArcGIS.' };
+          const hintedBlob = await hintedRes.blob();
+          return {
+            status: 200,
+            blob: hintedBlob,
+            filename: inferDownloadFilename(assetId, hintedUrl, hintedRes.headers.get('content-type') || hintedBlob.type, hintedRes.headers.get('content-disposition') || ''),
+            contentType: hintedRes.headers.get('content-type') || hintedBlob.type || 'application/octet-stream',
+            sourceUrl: hintedUrl,
+          };
+        } catch (error) {
+          return { status: 500, error: `Error descargando asset remoto: ${String(error)}` };
+        }
+      }
+
+      const props = asset.properties || {};
+      const dataAddress = asset.dataAddress || asset['edc:dataAddress'] || {};
+      const sourceMode = String(props['eitel:sourceMode'] || '').trim();
+      const baseUrl = String(dataAddress.baseUrl || '').trim();
+      let path = String(dataAddress.path || '').trim();
+      let headers = { ...(dataAddress.headers || {}) };
+      const authType = String(props['eitel:authType'] || '').trim();
+      if (!baseUrl || String(dataAddress.type || '').trim() !== 'HttpData') {
+        return { status: 400, error: 'El asset seleccionado no usa un origen HttpData válido.' };
+      }
+
+      if (authType === 'arcgis-login') {
+        const authToken = await resolveArcgisTokenForPublish();
+        if (!authToken) return { status: 401, error: 'No se pudo obtener token ArcGIS para leer el asset.' };
+        path = buildArcgisPathWithToken(removeQueryParams(path, ['token']), authToken);
+        headers = { ...headers, token: authToken };
+      }
+
+      const sourceUrl = sourceMode === 'local-file' && props['eitel:localAssetPublicUrl']
+        ? String(props['eitel:localAssetPublicUrl']).trim()
+        : `${baseUrl.replace(/\/+$/, '')}${path || ''}`;
+
+      try {
+        const response = await fetch(sourceUrl, { method: 'GET', headers, credentials: 'include' });
+        if (!response.ok) return { status: response.status, error: 'No se pudo descargar el asset para ArcGIS.' };
+        const blob = await response.blob();
+        const contentType = response.headers.get('content-type') || blob.type || 'application/octet-stream';
+        const filename = inferDownloadFilename(assetId, sourceUrl, contentType, response.headers.get('content-disposition') || '');
+        return { status: 200, blob, filename, contentType, sourceUrl };
+      } catch (error) {
+        return { status: 500, error: `Error descargando asset para ArcGIS: ${String(error)}` };
+      }
+    }
+
+    async function uploadTransferToArcgis(contractId, assetId) {
+      const title = String(document.getElementById('arcgisUploadTitle')?.value || '').trim();
+      const typeInput = String(document.getElementById('arcgisUploadType')?.value || '').trim();
+      const tags = String(document.getElementById('arcgisUploadTags')?.value || '').trim();
+      const description = String(document.getElementById('arcgisUploadDescription')?.value || '').trim();
+
+      if (!title) return { status: 400, error: 'El título del item ArcGIS es obligatorio.' };
+      if (!arcgis?.portalUrl) return { status: 400, error: 'Falta ARCGIS_PORTAL_URL en configuración.' };
+      if (!authState?.username) return { status: 401, error: 'No hay sesión ArcGIS activa para subir el item.' };
+
+      const token = await resolveArcgisTokenForPublish();
+      if (!token) return { status: 401, error: 'No se pudo obtener token ArcGIS para subida.' };
+
+      const blobResult = await fetchAssetBlobForArcgisUpload(contractId, assetId);
+      if (!(blobResult.status >= 200 && blobResult.status < 300)) return blobResult;
+
+      const form = new FormData();
+      form.append('f', 'json');
+      form.append('token', token);
+      form.append('title', title);
+      form.append('type', typeInput || mapContentTypeToArcgisType(blobResult.contentType));
+      form.append('tags', tags || 'eitel,edc');
+      form.append('description', description || 'Item generado desde transferencia del conector EITEL');
+      form.append('file', blobResult.blob, blobResult.filename || `${assetId || 'asset'}.bin`);
+
+      try {
+        const endpoint = `${arcgis.portalUrl}/sharing/rest/content/users/${encodeURIComponent(authState.username)}/addItem`;
+        const response = await fetch(endpoint, { method: 'POST', body: form, credentials: 'include' });
+        const data = await response.json();
+        if (!response.ok || data?.error || data?.success === false) {
+          return {
+            status: response.status || 500,
+            error: data?.error?.message || data?.error || 'ArcGIS no aceptó la subida del item.',
+            detail: data,
+          };
+        }
+        return {
+          status: 200,
+          uploaded: true,
+          contractId,
+          assetId,
+          itemId: data?.id || '',
+          title,
+          filename: blobResult.filename,
+          contentType: blobResult.contentType,
+          sourceUrl: blobResult.sourceUrl,
+          arcgisResponse: data,
+        };
+      } catch (error) {
+        return { status: 500, error: `Error subiendo item a ArcGIS: ${String(error)}` };
+      }
+    }
+
     async function monitorRemoteDownloadAndFetch(contractId, transferId, assetId) {
       try {
         const started = Date.now();
@@ -1764,6 +2014,7 @@
       }
 
       syncAuthHeadersJson();
+      refreshArcgisTokenIndicator();
     }
 
     function parseJsonSafe(text, fallback = null) {
@@ -1835,7 +2086,11 @@
         '@type': 'PolicyDefinition',
         policy
       };
-      return callApi('POST', '/v3/policydefinitions', JSON.stringify(body));
+      const response = await callApi('POST', '/v3/policydefinitions', JSON.stringify(body));
+      if (response.status >= 200 && response.status < 300) {
+        upsertAssetBundleBackup({ assetId, policyId, policyBody: body });
+      }
+      return response;
     }
 
     async function listPolicies() {
@@ -1858,14 +2113,19 @@
         writeOut({ status: 400, error: 'Faltan IDs de contractDef, asset o policy.' });
         return { status: 400 };
       }
-      return callApi('POST', '/v3/contractdefinitions', JSON.stringify({
+      const body = {
         '@context': { '@vocab': 'https://w3id.org/edc/v0.0.1/ns/' },
         '@id': contractDefId,
         '@type': 'ContractDefinition',
         accessPolicyId: policyId,
         contractPolicyId: policyId,
         assetsSelector: [[{ '@type': 'Criterion', operandLeft: 'https://w3id.org/edc/v0.0.1/ns/id', operator: '=', operandRight: assetId }]]
-      }));
+      };
+      const response = await callApi('POST', '/v3/contractdefinitions', JSON.stringify(body));
+      if (response.status >= 200 && response.status < 300) {
+        upsertAssetBundleBackup({ assetId, contractDefId, contractBody: body, policyId });
+      }
+      return response;
     }
 
     async function listContractDefinitions() {
@@ -2050,6 +2310,13 @@
       };
       const publishResp = await callApi('POST', '/v3/assets', JSON.stringify(body));
       if (publishResp.status >= 200 && publishResp.status < 300) {
+        upsertAssetBundleBackup({
+          assetId: id,
+          assetName,
+          authType,
+          sourceMode,
+          assetBody: body,
+        });
         showInfoPopup('Asset publicado', {
           status: publishResp.status,
           assetId: id,
@@ -2079,6 +2346,85 @@
         };
       }
       return publishResp;
+    }
+
+    async function deleteAssetAndCleanupBackup() {
+      const assetId = String(document.getElementById('assetIdPreview')?.value || '').trim();
+      if (!assetId) return { status: 400, error: 'Asset ID requerido.' };
+      const response = await callApi('DELETE', `/v3/assets/${encodeURIComponent(assetId)}`);
+      if (response.status >= 200 && response.status < 300) {
+        removeAssetBundleBackup(assetId);
+      }
+      return response;
+    }
+
+    async function restoreAssetsFromBackup(options = {}) {
+      const onlyIfEmpty = options.onlyIfEmpty !== false;
+      const backups = getAssetBundleBackups();
+      if (!backups.length) {
+        const response = { status: 404, action: 'restore-from-backup', restored: 0, skipped: 0, message: 'No hay backups locales de assets en este navegador.' };
+        if (!options.silent) writeOut(response);
+        return response;
+      }
+
+      const assetsResp = await callApi('POST', '/v3/assets/request', q(), { silent: true, retries: 0 });
+      const existingAssets = new Set(unwrap(assetsResp).map(a => a['@id'] || a.id).filter(Boolean));
+      if (onlyIfEmpty && existingAssets.size > 0) {
+        const response = { status: 200, action: 'restore-from-backup', restored: 0, skipped: backups.length, message: 'No se restaura porque el conector ya tiene assets publicados.' };
+        if (!options.silent) writeOut(response);
+        return response;
+      }
+
+      const policiesResp = await callApi('POST', '/v3/policydefinitions/request', q(), { silent: true, retries: 0 });
+      const contractsResp = await callApi('POST', '/v3/contractdefinitions/request', q(), { silent: true, retries: 0 });
+      const existingPolicies = new Set(unwrap(policiesResp).map(p => p['@id'] || p.id).filter(Boolean));
+      const existingContracts = new Set(unwrap(contractsResp).map(c => c['@id'] || c.id).filter(Boolean));
+
+      let restored = 0;
+      const errors = [];
+
+      for (const bundle of backups.slice(0, 80)) {
+        const assetId = String(bundle?.assetId || '').trim();
+        if (!assetId || !bundle?.assetBody) continue;
+
+        if (!existingAssets.has(assetId)) {
+          const assetResp = await callApi('POST', '/v3/assets', JSON.stringify(bundle.assetBody), { silent: true, retries: 0 });
+          if (assetResp.status >= 200 && assetResp.status < 300) {
+            existingAssets.add(assetId);
+            restored += 1;
+          } else {
+            errors.push({ assetId, stage: 'asset', status: assetResp.status, detail: assetResp.error || assetResp.message || '' });
+            continue;
+          }
+        }
+
+        const policyId = String(bundle?.policyId || bundle?.policyBody?.['@id'] || '').trim();
+        if (policyId && bundle?.policyBody && !existingPolicies.has(policyId)) {
+          const policyResp = await callApi('POST', '/v3/policydefinitions', JSON.stringify(bundle.policyBody), { silent: true, retries: 0 });
+          if (policyResp.status >= 200 && policyResp.status < 300) existingPolicies.add(policyId);
+        }
+
+        const contractDefId = String(bundle?.contractDefId || bundle?.contractBody?.['@id'] || '').trim();
+        if (contractDefId && bundle?.contractBody && !existingContracts.has(contractDefId)) {
+          const contractResp = await callApi('POST', '/v3/contractdefinitions', JSON.stringify(bundle.contractBody), { silent: true, retries: 0 });
+          if (contractResp.status >= 200 && contractResp.status < 300) existingContracts.add(contractDefId);
+        }
+      }
+
+      await refreshOverview();
+      await loadPublishedAssets(false);
+      const response = {
+        status: errors.length ? 207 : 200,
+        action: 'restore-from-backup',
+        restored,
+        skipped: Math.max(0, backups.length - restored),
+        errors,
+      };
+      if (!options.silent) {
+        writeOut(response);
+        showInfoPopup('Restauración de assets', response);
+      }
+      return response;
     }
 
     async function ensurePolicyAndContractDefinition() {
@@ -2544,7 +2890,7 @@
       const transferMode = getSelectedTransferMode();
       const sinkBaseUrl = (document.getElementById('sinkBaseUrl').value || '').trim();
       if (!contractId) { writeOut({ status: 400, error: 'Selecciona un contrato.' }); return; }
-      if (transferMode !== 'local-download' && (!sinkBaseUrl || !/^https?:\/\//i.test(sinkBaseUrl))) {
+      if (transferMode === 'push' && (!sinkBaseUrl || !/^https?:\/\//i.test(sinkBaseUrl))) {
         writeOut({ status: 400, error: 'Destination URL inválida. Debe empezar por http:// o https://.' });
         return;
       }
@@ -2633,6 +2979,27 @@
         return;
       }
 
+      if (transferMode === 'arcgis-upload') {
+        const uploadResp = await uploadTransferToArcgis(contractId, agreementAssetId);
+        const localTransfer = addLocalTransferRecord(buildLocalTransferRecord(uploadResp));
+        writeOut(uploadResp);
+        await refreshOverview();
+        await listTransfers();
+        if (uploadResp.status >= 200 && uploadResp.status < 300) {
+          showInfoPopup('Subida a ArcGIS completada', {
+            transferId: localTransfer.id,
+            contractId,
+            assetId: agreementAssetId,
+            itemId: uploadResp.itemId,
+            title: uploadResp.title,
+            filename: uploadResp.filename,
+          });
+        } else {
+          showInfoPopup('Error subiendo a ArcGIS', uploadResp);
+        }
+        return;
+      }
+
       const dataplanesResp = await callApi('GET', '/v3/dataplanes', undefined, { silent: true, retries: 0 });
       const dataplanes = Array.isArray(dataplanesResp?.data) ? dataplanesResp.data : [];
       if (dataplanesResp.status >= 200 && dataplanesResp.status < 300 && dataplanes.length === 0) {
@@ -2684,7 +3051,9 @@
         transferStartInFlight = false;
         if (startBtn) {
           startBtn.disabled = false;
-          startBtn.textContent = getSelectedTransferMode() === 'local-download' ? 'Descargar en local' : 'Iniciar transferencia';
+          startBtn.textContent = getSelectedTransferMode() === 'local-download'
+            ? 'Descargar en local'
+            : (getSelectedTransferMode() === 'arcgis-upload' ? 'Subir a ArcGIS' : 'Iniciar transferencia');
         }
       }
     }

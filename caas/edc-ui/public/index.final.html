@@ -45,6 +45,11 @@
       <div class="top">
         <h1 id="title">Conector EITEL</h1>
         <div class="top-right">
+          <div class="token-widget" id="arcgisTokenWidget" style="display:none">
+            <span class="token-widget-label">Token ArcGIS</span>
+            <span class="token-widget-value" id="arcgisTokenRemaining">sin validar</span>
+            <button class="ghost token-widget-btn" id="btnArcgisTokenRefresh">Regenerar</button>
+          </div>
           <span class="chip" id="badge"></span>
           <button class="ghost" id="btnArcgisLogout" style="display:none">Salir</button>
           <button class="ghost" id="btnOpenSettings">⚙️ Ajustes</button>
@@ -64,6 +69,7 @@
             </div>
             <div class="row" style="margin-top:10px">
               <button class="primary" id="btnRefreshOverview" data-i18n="dash.refresh">Actualizar</button>
+              <button class="ghost" id="btnRestoreFromBackup">Restaurar assets desde backup</button>
             </div>
           </section>
           <section class="card">
@@ -411,9 +417,21 @@
             <select id="transferMode">
               <option value="push">Enviar a URL destino</option>
               <option value="local-download">Descargar en local</option>
+              <option value="arcgis-upload">Subir a ArcGIS</option>
             </select>
             <div id="sinkBaseUrlWrap">
               <label>Destination URL (produccion)</label><input id="sinkBaseUrl" placeholder="https://tu-destino.com/ingest" />
+            </div>
+            <div id="arcgisUploadWrap" style="display:none">
+              <div class="grid">
+                <div><label>Titulo del item ArcGIS</label><input id="arcgisUploadTitle" placeholder="Ej: Dataset energia conector UC3M" /></div>
+                <div><label>Tipo ArcGIS</label><input id="arcgisUploadType" placeholder="CSV | GeoJson | PDF | Shapefile | File" /></div>
+              </div>
+              <div class="grid">
+                <div><label>Tags (coma)</label><input id="arcgisUploadTags" placeholder="eitel, energia, municipio" /></div>
+                <div><label>Descripcion</label><input id="arcgisUploadDescription" placeholder="Datos recibidos por transferencia EDC" /></div>
+              </div>
+              <p class="muted" style="margin-top:6px">Usa la sesión ArcGIS activa para crear un item nuevo con el archivo recibido del contrato.</p>
             </div>
             <div class="row" style="margin-top:8px">
               <button class="primary" id="btnStartTransfer" data-i18n="transfer.start">Iniciar transferencia</button>
@@ -598,11 +616,11 @@
     </div>
   </div>
 
-    <script src="config.js?v=20260324u"></script>
-  <script src="assets/ui/01-runtime.js?v=20260324u"></script>
-  <script src="assets/ui/02-operations.js?v=20260324u"></script>
-  <script src="assets/ui/03-secrets.js?v=20260324u"></script>
-  <script src="assets/ui/04-bootstrap.js?v=20260324u"></script>
+    <script src="config.js?v=20260410a"></script>
+  <script src="assets/ui/01-runtime.js?v=20260410a"></script>
+  <script src="assets/ui/02-operations.js?v=20260410a"></script>
+  <script src="assets/ui/03-secrets.js?v=20260410a"></script>
+  <script src="assets/ui/04-bootstrap.js?v=20260410a"></script>
 </body>
 </html>
 

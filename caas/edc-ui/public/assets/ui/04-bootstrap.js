@@ -47,6 +47,22 @@
       document.getElementById('btnStartTransfer').onclick = startTransfer;
       document.getElementById('btnListTransfers').onclick = listTransfers;
       if (document.getElementById('transferMode')) document.getElementById('transferMode').addEventListener('change', syncTransferModeUi);
+      if (document.getElementById('btnRestoreFromBackup')) {
+        document.getElementById('btnRestoreFromBackup').onclick = async () => {
+          await restoreAssetsFromBackup({ onlyIfEmpty: false, silent: false });
+        };
+      }
+      if (document.getElementById('btnArcgisTokenRefresh')) {
+        document.getElementById('btnArcgisTokenRefresh').onclick = async () => {
+          const token = await fetchArcgisAccessTokenFromPortalSession();
+          refreshArcgisTokenIndicator();
+          if (!token) {
+            writeOut({ status: 401, error: 'No se pudo regenerar token ArcGIS. Revisa la sesión del portal.' });
+            return;
+          }
+          writeOut({ status: 200, message: 'Token ArcGIS regenerado correctamente.' });
+        };
+      }
       if (document.getElementById('btnSaveSecret')) document.getElementById('btnSaveSecret').onclick = saveSecret;
       if (document.getElementById('btnListSecrets')) document.getElementById('btnListSecrets').onclick = () => listSecrets(true);
       if (document.getElementById('btnDeleteSecret')) document.getElementById('btnDeleteSecret').onclick = deleteSecret;
@@ -83,7 +99,7 @@
         };
       }
       document.getElementById('btnDeleteAsset').onclick = async () => {
-        writeOut(await callApi('DELETE', `/v3/assets/${encodeURIComponent(document.getElementById('assetIdPreview').value)}`));
+        writeOut(await deleteAssetAndCleanupBackup());
         if (typeof loadPublishedAssets === 'function') await loadPublishedAssets(false);
       };
       document.getElementById('btnExplorerSend').onclick = async () => writeOut(await callApi(document.getElementById('explMethod').value, document.getElementById('explPath').value.trim(), document.getElementById('explBody').value));
@@ -213,6 +229,8 @@
       if (typeof syncAssetSourceModeUi === 'function') syncAssetSourceModeUi();
       if (typeof applyAuthTypeForm === 'function') applyAuthTypeForm();
       if (typeof syncTransferModeUi === 'function') syncTransferModeUi();
+      if (typeof ensureArcgisTokenIndicatorTimer === 'function') ensureArcgisTokenIndicatorTimer();
+      if (typeof refreshArcgisTokenIndicator === 'function') refreshArcgisTokenIndicator();
       applySettings();
 
       ensureArcgisLogin().then((ok) => {
@@ -222,9 +240,11 @@
           document.getElementById('btnArcgisLogout').style.display = 'inline-flex';
         }
         if (typeof applyAuthTypeForm === 'function') applyAuthTypeForm();
+        if (typeof refreshArcgisTokenIndicator === 'function') refreshArcgisTokenIndicator();
         refreshOverview();
         loadCatalogShowcase(false);
         loadPublishedAssets(false);
+        restoreAssetsFromBackup({ onlyIfEmpty: true, silent: true });
         listSecrets(false);
       });
     }
