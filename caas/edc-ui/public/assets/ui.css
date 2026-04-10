@@ -142,41 +142,8 @@
       gap: 10px;
       margin-bottom: 14px;
     }
-    .top-title-wrap {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      min-width: 0;
-    }
     .top h1 { margin: 0; font-size: 24px; letter-spacing: .2px; }
     .top-right { display: flex; align-items: center; gap: 8px; }
-    .arcgis-token-widget {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      border: 1px solid color-mix(in srgb, var(--line) 78%, var(--primary) 22%);
-      background: linear-gradient(140deg, color-mix(in srgb, var(--primary-soft) 60%, var(--surface)), var(--surface));
-      border-radius: 999px;
-      padding: 6px 8px;
-      box-shadow: 0 6px 16px rgba(19, 42, 87, .08);
-    }
-    .arcgis-token-widget button.primary {
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-    }
-    .token-remaining {
-      font-size: 12px;
-      color: var(--muted);
-      font-weight: 700;
-      min-width: 160px;
-      text-align: left;
-      white-space: nowrap;
-    }
-    .token-remaining.ok { color: var(--ok); }
-    .token-remaining.warn { color: var(--warn); }
-    .token-remaining.danger { color: var(--danger); }
     .chip {
       border: 1px solid var(--line);
       background: var(--surface);
@@ -669,12 +636,6 @@
       .kpis { grid-template-columns: 1fr 1fr; }
       .tutorial ol { margin-left: 14px; }
       .main { padding-bottom: 44vh; }
-      .top-title-wrap { width: 100%; }
-      .arcgis-token-widget {
-        width: 100%;
-        justify-content: space-between;
-      }
-      .token-remaining { min-width: 0; }
       .console { position: fixed; inset: auto 0 0 0; height: min(42vh, 360px); z-index: 50; border-left: 0; border-top: 1px solid var(--line); }
       .app.console-hidden .console { display: none; }
       .console-handle { left: auto; right: 10px; top: -42px; flex-direction: row; }
