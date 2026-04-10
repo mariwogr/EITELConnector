@@ -285,13 +285,38 @@
 
     function getUiPrefixPath() {
       const parts = (window.location.pathname || '/').split('/').filter(Boolean);
-      if (!parts.length) return '/';
-      return `/${parts[0]}/`;
+      const first = String(parts[0] || '').trim();
+      if (first.toLowerCase().startsWith('conector')) return `/${first}/`;
+
+      const fromConfig = canonicalConnectorPrefix(cfg?.connectorName || '');
+      if (fromConfig) return `/${fromConfig}/`;
+
+      const fallback = canonicalConnectorPrefix(PROD_CONNECTOR_ID || 'conectoruc3m') || 'conectoruc3m';
+      return `/${fallback}/`;
     }
 
     function getLocalAssetsApiBaseUrl() {
       const prefix = getUiPrefixPath().replace(/\/+$/, '');
       return `${window.location.origin}${prefix}/local-assets`;
+    }
+
+    function getLocalAssetsApiBaseUrlCandidates() {
+      const candidates = [];
+      const pushIfValid = (value) => {
+        const txt = String(value || '').trim();
+        if (!txt) return;
+        if (!candidates.includes(txt)) candidates.push(txt);
+      };
+
+      pushIfValid(getLocalAssetsApiBaseUrl());
+
+      const configuredPrefix = canonicalConnectorPrefix(cfg?.connectorName || '');
+      if (configuredPrefix) {
+        pushIfValid(`${window.location.origin}/${configuredPrefix}/local-assets`);
+        pushIfValid(`${window.location.origin}/${configuredPrefix.toLowerCase()}/local-assets`);
+      }
+
+      return candidates;
     }
 
     function getAssetBundleBackups() {
@@ -1873,41 +1898,55 @@
       }
 
       const filename = file.name || `${assetId || 'asset'}.bin`;
+      const baseCandidates = getLocalAssetsApiBaseUrlCandidates();
 
       // First try raw upload to avoid multipart/proxy edge cases.
-      try {
-        const rawUrl = `${getLocalAssetsApiBaseUrl()}/upload-raw?filename=${encodeURIComponent(filename)}`;
-        const rawRes = await fetch(rawUrl, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': file.type || 'application/octet-stream',
-            'X-Filename': filename,
-          },
-          body: file,
-        });
-        const rawText = await rawRes.text();
-        let rawData = rawText;
-        try { rawData = JSON.parse(rawText); } catch {}
-        if (rawRes.status >= 200 && rawRes.status < 300) {
-          return { status: rawRes.status, data: rawData };
-        }
-      } catch {}
+      for (const baseUrl of baseCandidates) {
+        try {
+          const rawUrl = `${baseUrl}/upload-raw?filename=${encodeURIComponent(filename)}`;
+          const rawRes = await fetch(rawUrl, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': file.type || 'application/octet-stream',
+              'X-Filename': filename,
+            },
+            body: file,
+          });
+          const rawText = await rawRes.text();
+          let rawData = rawText;
+          try { rawData = JSON.parse(rawText); } catch {}
+          if (rawRes.status >= 200 && rawRes.status < 300) {
+            return { status: rawRes.status, data: rawData };
+          }
+        } catch {}
+      }
 
       const formData = new FormData();
       formData.append('file', file, filename);
 
-      try {
-        const res = await fetch(`${getLocalAssetsApiBaseUrl()}/upload`, {
-          method: 'POST',
-          body: formData,
-        });
-        const text = await res.text();
-        let data = text;
-        try { data = JSON.parse(text); } catch {}
-        return { status: res.status, data };
-      } catch (error) {
-        return { status: 500, error: `No se pudo subir el archivo local: ${String(error)}` };
+      for (const baseUrl of baseCandidates) {
+        try {
+          const res = await fetch(`${baseUrl}/upload`, {
+            method: 'POST',
+            body: formData,
+          });
+          const text = await res.text();
+          let data = text;
+          try { data = JSON.parse(text); } catch {}
+          if (res.status >= 200 && res.status < 300) {
+            return { status: res.status, data };
+          }
+          if (res.status >= 400 && res.status < 500) {
+            return { status: res.status, data };
+          }
+        } catch (error) {
+          if (baseUrl === baseCandidates[baseCandidates.length - 1]) {
+            return { status: 500, error: `No se pudo subir el archivo local: ${String(error)}` };
+          }
+        }
       }
+
+      return { status: 502, error: 'No se pudo resolver una ruta de upload local-assets válida desde la UI.', tried: baseCandidates };
     }
 
     async function uploadLocalAssetImage(assetId) {
