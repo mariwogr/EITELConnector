@@ -729,6 +729,119 @@
       document.getElementById('brandTitle').textContent = settings.language === 'en' ? 'EITEL Connector' : 'Conector EITEL';
       document.getElementById('brandSub').textContent = settings.language === 'en' ? 'Operations console' : 'Consola de operación';
       document.getElementById('consoleTitle').textContent = settings.language === 'en' ? 'Console' : 'Consola';
+      applyStaticLanguagePack();
+    }
+
+    function applyStaticLanguagePack() {
+      const esToEn = {
+        'Centro de control': 'Control Center',
+        'Publicar': 'Publish',
+        'Más': 'More',
+        'Catálogo': 'Catalog',
+        'Contratos': 'Contracts',
+        'Transferencias': 'Transfers',
+        'Política': 'Policy',
+        'Contrato': 'Contract',
+        'Secretos': 'Secrets',
+        'Sobre EITEL': 'About EITEL',
+        'Actualizar': 'Refresh',
+        'Restaurar assets desde backup': 'Restore assets from backup',
+        'Assets publicados': 'Published assets',
+        'Policies activas': 'Active policies',
+        'Contratos vigentes': 'Active contracts',
+        'Publicar asset': 'Publish asset',
+        'Configura y publica el asset antes de definir política y contrato.': 'Configure and publish the asset before creating policy and contract.',
+        'Descripción': 'Description',
+        'Keywords (separadas por coma)': 'Keywords (comma-separated)',
+        'Foto del asset (archivo local)': 'Asset image (local file)',
+        'Origen del asset': 'Asset source',
+        'Base URL remota': 'Remote base URL',
+        'Archivo local': 'Local file',
+        'Autenticación opcional': 'Optional authentication',
+        'Ninguna': 'None',
+        'Secreto de cliente': 'Client secret',
+        'Token temporal': 'Temporary token',
+        'Secreto (Vault)': 'Secret (Vault)',
+        'Header auth': 'Auth header',
+        'Prefijo': 'Prefix',
+        'Headers JSON': 'Headers JSON',
+        'Borrar': 'Delete',
+        'Continuar a Política': 'Continue to Policy',
+        'Definir política': 'Define policy',
+        'Define condiciones de uso con un formulario simple (sin términos técnicos) o pega JSON-LD si lo necesitas.': 'Define usage conditions with a simple form or paste JSON-LD if needed.',
+        'Modo': 'Mode',
+        'Formulario': 'Form',
+        'Nivel de acceso': 'Access level',
+        'Público': 'Public',
+        'Publico': 'Public',
+        'Crear/Actualizar policy': 'Create/Update policy',
+        'Listar policies': 'List policies',
+        'Borrar policy': 'Delete policy',
+        'Definir contrato': 'Define contract',
+        'Aquí se asocia el asset con la policy mediante ContractDefinition.': 'Associate asset and policy through ContractDefinition here.',
+        'Crear ContractDefinition': 'Create ContractDefinition',
+        'Listar ContractDefinitions': 'List ContractDefinitions',
+        'Borrar ContractDefinition': 'Delete ContractDefinition',
+        'Catalogo de activos': 'Asset catalog',
+        'Consulta activos disponibles, filtra resultados y prepara la contratacion desde esta vista.': 'Browse available assets, filter results, and prepare contracting from this view.',
+        'Conector remoto': 'Remote connector',
+        'Ver catálogos': 'Load catalogs',
+        'Cargar catalogo completo': 'Load full catalog',
+        'Busqueda y filtros': 'Search and filters',
+        'Buscar activos': 'Search assets',
+        'Filtrar por conector': 'Filter by connector',
+        'Conector seleccionado': 'Selected connector',
+        'URL DSP seleccionada': 'Selected DSP URL',
+        'Preparar contrato del asset seleccionado': 'Prepare contract for selected asset',
+        'Revisa la politica del activo seleccionado antes de iniciar la contratacion.': 'Review selected asset policy before starting contract request.',
+        'Términos de policy seleccionada': 'Selected policy terms',
+        'Aceptar los términos y condiciones de uso de la política seleccionada.': 'Accept selected policy terms and conditions.',
+        'Realizar contrato': 'Request contract',
+        'Modo de salida': 'Output mode',
+        'Enviar a URL destino': 'Send to destination URL',
+        'Descargar en local': 'Download locally',
+        'Subir a ArcGIS': 'Upload to ArcGIS',
+        'Dirección partner': 'Partner address',
+        'Listar transferencias': 'List transfers',
+        'Iniciar transferencia': 'Start transfer',
+        'Mis assets publicados en este conector': 'My published assets in this connector',
+        'Lista visual de los assets que ya tienes publicados en el runtime actual.': 'Visual list of assets published in the current runtime.',
+        'Editar': 'Edit',
+        'Guardar': 'Save',
+        'Listar': 'List',
+        'Mostrar valor': 'Show value',
+        'Ocultar valor': 'Hide value',
+      };
+
+      const activeMap = settings.language === 'en'
+        ? esToEn
+        : Object.fromEntries(Object.entries(esToEn).map(([es, en]) => [en, es]));
+
+      const textNodes = document.querySelectorAll('button span, .nav-group-title, h2, h3, p, label, button, option, summary, th');
+      textNodes.forEach((el) => {
+        const raw = String(el.textContent || '').trim();
+        if (!raw) return;
+        const translated = activeMap[raw];
+        if (translated) el.textContent = translated;
+      });
+
+      const placeholders = {
+        'ej: dataset-clima-uc3m': 'e.g. climate-dataset-uc3m',
+        'ej: Dataset Clima UC3M': 'e.g. Climate Dataset UC3M',
+        'Describe qué datos contiene este asset, su periodicidad y para qué sirve.': 'Describe the data in this asset, its frequency, and intended use.',
+        'energia, consumo, municipio, clima': 'energy, consumption, city, climate',
+        'Token': 'Token',
+        'Filtra por nombre, keyword o descripcion': 'Filter by name, keyword, or description',
+      };
+      const placeholderMap = settings.language === 'en'
+        ? placeholders
+        : Object.fromEntries(Object.entries(placeholders).map(([es, en]) => [en, es]));
+      document.querySelectorAll('input[placeholder], textarea[placeholder]').forEach((el) => {
+        const raw = String(el.getAttribute('placeholder') || '').trim();
+        if (!raw) return;
+        const translated = placeholderMap[raw];
+        if (translated) el.setAttribute('placeholder', translated);
+      });
     }
 
     function updateConsoleButtons(hidden = app.classList.contains('console-hidden')) {
