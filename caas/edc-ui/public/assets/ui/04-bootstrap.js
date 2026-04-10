@@ -198,6 +198,8 @@
     };
     window.showAgreementDetail = (index) => showInfoPopup('Detalle de contrato', state.agreementRows[index] || {});
     window.showTransferDetail = (index) => showInfoPopup('Detalle de transferencia', state.transferRows[index] || {});
+    window.editPublishedAsset = (assetId) => editPublishedAsset(assetId);
+    window.deletePublishedAsset = (assetId) => deletePublishedAsset(assetId);
 
     function init() {
       if (arcgis.enabled) {

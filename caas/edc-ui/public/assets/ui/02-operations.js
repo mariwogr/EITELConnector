@@ -389,6 +389,56 @@
       }
     }
 
+    async function callLocalAssetsApi(method, path, options = {}) {
+      const candidates = await prioritizeHealthyLocalAssetsCandidates(getLocalAssetsApiBaseUrlCandidates());
+      const normalizedPath = String(path || '').startsWith('/') ? String(path || '') : `/${String(path || '')}`;
+      let lastFailure = null;
+      for (const base of candidates) {
+        const url = `${base}${normalizedPath}`;
+        try {
+          const headers = { ...(options.headers || {}) };
+          const body = options.body;
+          const hasJsonBody = body && typeof body === 'string' && headers['content-type']?.includes('application/json');
+          if (body && !headers['content-type'] && typeof body === 'string') headers['content-type'] = 'application/json';
+          const response = await fetch(url, {
+            method: String(method || 'GET').toUpperCase(),
+            headers,
+            body,
+            credentials: 'include',
+            cache: 'no-store',
+          });
+          const text = await response.text();
+          let data = text;
+          try { data = JSON.parse(text); } catch {}
+          if (response.status >= 200 && response.status < 300) return { status: response.status, data, endpoint: url };
+          lastFailure = { status: response.status, data, endpoint: url };
+          if (response.status >= 400 && response.status < 500 && !hasJsonBody) continue;
+        } catch (error) {
+          lastFailure = { status: 0, error: String(error), endpoint: url };
+        }
+      }
+      return lastFailure || { status: 502, error: 'local-assets API no accesible.' };
+    }
+
+    async function listServerAssetBundleBackups() {
+      const r = await callLocalAssetsApi('GET', '/asset-bundles');
+      if (!(r.status >= 200 && r.status < 300)) return [];
+      const rows = Array.isArray(r?.data?.items) ? r.data.items : [];
+      return rows.filter(row => row && typeof row === 'object' && row.assetId);
+    }
+
+    async function upsertServerAssetBundleBackup(partialBundle = {}) {
+      const assetId = String(partialBundle?.assetId || '').trim();
+      if (!assetId) return { status: 400 };
+      return callLocalAssetsApi('POST', '/asset-bundles', { body: JSON.stringify({ ...partialBundle, assetId }) });
+    }
+
+    async function deleteServerAssetBundleBackup(assetId) {
+      const target = String(assetId || '').trim();
+      if (!target) return { status: 400 };
+      return callLocalAssetsApi('DELETE', `/asset-bundles/${encodeURIComponent(target)}`);
+    }
+
     function saveAssetBundleBackups(rows) {
       try {
         const safeRows = Array.isArray(rows) ? rows.slice(0, 120) : [];
@@ -410,6 +460,7 @@
       if (idx >= 0) existing.splice(idx, 1);
       existing.unshift(merged);
       saveAssetBundleBackups(existing);
+      upsertServerAssetBundleBackup(merged).catch(() => {});
     }
 
     function removeAssetBundleBackup(assetId) {
@@ -417,6 +468,7 @@
       if (!target) return;
       const next = getAssetBundleBackups().filter(row => String(row?.assetId || '') !== target);
       saveAssetBundleBackups(next);
+      deleteServerAssetBundleBackup(target).catch(() => {});
     }
 
     function getStoredArcgisTokenExpiresAt() {
@@ -752,11 +804,11 @@
         loadPublishedAssets(false);
       }
       if (resolved === 'secrets') {
-        discoverSecretsApi(false).then((r) => {
+        listSecrets(false).then((r) => {
           if (!(r.status >= 200 && r.status < 300)) {
             showInfoPopup('Secretos no disponibles', {
-              message: 'Este runtime no expone un endpoint de secretos compatible en management API. El resto del flujo sigue operativo.',
-              attempts: ['/v3/secrets/request', '/v3/secret/request', '/v3/secrets']
+              message: 'No hay endpoint de secrets en runtime y tampoco en almacenamiento local del conector.',
+              attempts: ['/v3/secrets/request', '/v3/secret/request', '/v3/secrets', '/local-assets/local-secrets']
             });
           }
         });
@@ -938,6 +990,7 @@
           title,
           description,
           imageUrl,
+          managedBy: firstNonEmpty([props?.['eitel:managedByConnector'], props?.['eitel:managedBy']]),
           keywords: [...new Set(keywords)],
         };
       });
@@ -973,6 +1026,7 @@
         const title = htmlEscape(safeText(row.title, clean(row.id)));
         const desc = htmlEscape(safeText(row.description, 'Sin descripción.'));
         const id = htmlEscape(row.id || '');
+        const managedBy = htmlEscape(String(row.managedBy || '-'));
         const image = resolveAssetImageUrl(row.imageUrl);
         const defaultImageClass = isDefaultAssetImage(image) ? ' is-default' : '';
         const delayMs = Math.min(idx * 40, 480);
@@ -987,11 +1041,16 @@
             <div class="asset-card-body">
               <div class="asset-card-title">${title}</div>
               <div class="asset-card-meta">${id}</div>
+              <div class="asset-card-meta">managedBy: ${managedBy}</div>
               <details>
                 <summary>Detalles</summary>
                 <div class="asset-card-desc">${desc}</div>
                 ${chips}
               </details>
+              <div class="row">
+                <button class="ghost" onclick="window.editPublishedAsset('${(row.id || '').replace(/'/g, "\\'")}')">Editar</button>
+                <button class="danger" onclick="window.deletePublishedAsset('${(row.id || '').replace(/'/g, "\\'")}')">Borrar</button>
+              </div>
             </div>
           </article>
         `;
@@ -1000,9 +1059,11 @@
 
     async function loadPublishedAssets(showOutput = false) {
       const r = await callApi('POST', '/v3/assets/request', q());
-      const rows = mapPublishedAssetRows(unwrap(r));
-      renderPublishedAssets(rows);
-      if (showOutput) writeOut({ ...r, totalPublishedAssets: rows.length });
+      const allRows = mapPublishedAssetRows(unwrap(r));
+      const ownRows = allRows.filter(row => String(row.managedBy || '').trim().toLowerCase() === String(connectorName || '').trim().toLowerCase());
+      const rowsToRender = ownRows.length ? ownRows : allRows;
+      renderPublishedAssets(rowsToRender);
+      if (showOutput) writeOut({ ...r, totalPublishedAssets: allRows.length, connectorOwnedAssets: ownRows.length, rendered: rowsToRender.length });
       return r;
     }
 
@@ -2457,6 +2518,9 @@
       const response = await callApi('POST', '/v3/policydefinitions', JSON.stringify(body));
       if (response.status >= 200 && response.status < 300) {
         upsertAssetBundleBackup({ assetId, policyId, policyBody: body });
+        showInfoPopup('Policy creada/actualizada', { assetId, policyId, status: response.status });
+      } else {
+        showInfoPopup('Error creando policy', response);
       }
       return response;
     }
@@ -2492,6 +2556,9 @@
       const response = await callApi('POST', '/v3/contractdefinitions', JSON.stringify(body));
       if (response.status >= 200 && response.status < 300) {
         upsertAssetBundleBackup({ assetId, contractDefId, contractBody: body, policyId });
+        showInfoPopup('Contract Definition creada/actualizada', { assetId, contractDefId, policyId, status: response.status });
+      } else {
+        showInfoPopup('Error creando Contract Definition', response);
       }
       return response;
     }
@@ -2652,6 +2719,7 @@
           title: assetName,
           description: assetDescription,
           keywords: assetKeywords.join(', '),
+          'eitel:managedByConnector': connectorName,
           image: assetImageUrl,
           contenttype: contentType,
           'eitel:authType': authType,
@@ -2728,9 +2796,18 @@
 
     async function restoreAssetsFromBackup(options = {}) {
       const onlyIfEmpty = options.onlyIfEmpty !== false;
-      const backups = getAssetBundleBackups();
+      const localBackups = getAssetBundleBackups();
+      const serverBackups = await listServerAssetBundleBackups();
+      const merged = [...serverBackups, ...localBackups];
+      const dedup = new Map();
+      merged.forEach(row => {
+        const id = String(row?.assetId || '').trim();
+        if (!id) return;
+        if (!dedup.has(id)) dedup.set(id, row);
+      });
+      const backups = [...dedup.values()];
       if (!backups.length) {
-        const response = { status: 404, action: 'restore-from-backup', restored: 0, skipped: 0, message: 'No hay backups locales de assets en este navegador.' };
+        const response = { status: 404, action: 'restore-from-backup', restored: 0, skipped: 0, message: 'No hay backups de assets ni en navegador ni en almacenamiento local persistente del conector.' };
         if (!options.silent) writeOut(response);
         return response;
       }
@@ -2793,6 +2870,45 @@
         showInfoPopup('Restauración de assets', response);
       }
       return response;
+    }
+
+    async function editPublishedAsset(assetId) {
+      const id = String(assetId || '').trim();
+      if (!id) return;
+      const assetsResp = await callApi('POST', '/v3/assets/request', q(), { silent: true, retries: 0 });
+      const assets = unwrap(assetsResp);
+      const asset = assets.find(a => (a['@id'] || a.id || '') === id);
+      if (!asset) {
+        showInfoPopup('Asset no encontrado', { assetId: id });
+        return;
+      }
+      const props = asset.properties || asset['edc:properties'] || {};
+      const dataAddress = asset.dataAddress || asset['edc:dataAddress'] || {};
+      const keyGuess = String(id || '').replace(/^asset-/, '');
+      const setVal = (elId, value) => { const el = document.getElementById(elId); if (el) el.value = value; };
+      setVal('assetKey', keyGuess);
+      setVal('assetName', firstNonEmpty([props?.name, props?.title, clean(id)]));
+      setVal('assetDescription', firstNonEmpty([props?.description, props?.['eitel:description'], '']));
+      setVal('assetKeywords', parseKeywordList(props?.keywords || '').join(', '));
+      setVal('assetBaseUrl', dataAddress?.baseUrl || '');
+      setVal('assetPath', dataAddress?.path || '');
+      if (typeof updateAssetPreview === 'function') updateAssetPreview();
+      activateView('asset');
+      showInfoPopup('Asset cargado para edición', { assetId: id, note: 'Revisa y pulsa Crear/Actualizar asset para guardar cambios.' });
+    }
+
+    async function deletePublishedAsset(assetId) {
+      const id = String(assetId || '').trim();
+      if (!id) return;
+      const r = await callApi('DELETE', `/v3/assets/${encodeURIComponent(id)}`);
+      if (r.status >= 200 && r.status < 300) {
+        removeAssetBundleBackup(id);
+        showInfoPopup('Asset eliminado', { assetId: id, status: r.status });
+      } else {
+        showInfoPopup('Error eliminando asset', { assetId: id, response: r });
+      }
+      await loadPublishedAssets(false);
+      await refreshOverview();
     }
 
     async function ensurePolicyAndContractDefinition() {

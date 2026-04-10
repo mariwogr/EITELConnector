@@ -23,7 +23,13 @@
           }
         }
       }
-      writeOut({ status: last?.status || 500, error: 'No se pudo guardar el secreto en ningun endpoint compatible.', lastResponse: last });
+      const local = await callLocalAssetsApi('POST', '/local-secrets', { body: JSON.stringify({ name, value }) });
+      if (local.status >= 200 && local.status < 300) {
+        writeOut({ status: 200, message: 'Secret guardado en almacenamiento local del conector.', endpoint: local.endpoint, name });
+        await listSecrets(false);
+        return;
+      }
+      writeOut({ status: last?.status || local?.status || 500, error: 'No se pudo guardar el secret ni en runtime ni en almacenamiento local.', lastResponse: last, localResponse: local });
       await listSecrets(false);
     }
 
@@ -42,8 +48,32 @@
     }
 
     async function listSecrets(showOutput = true) {
-      const r = await discoverSecretsApi(showOutput);
-      return r;
+          const runtime = await discoverSecretsApi(false);
+          if (runtime.status >= 200 && runtime.status < 300) {
+            if (showOutput) writeOut(runtime);
+            return runtime;
+          }
+
+          const local = await callLocalAssetsApi('GET', '/local-secrets');
+          if (local.status >= 200 && local.status < 300) {
+            const names = (Array.isArray(local?.data?.items) ? local.data.items : [])
+              .map(row => String(row?.name || '').trim())
+              .filter(Boolean);
+            state.secretNames = names;
+            state.secretsApi = { method: 'LOCAL', path: '/local-secrets' };
+            state.secretsAvailable = true;
+            refreshSecretSelect();
+            updateSecretsStatus('warn', 'Secrets runtime no disponible: usando almacenamiento local persistente');
+            const outSecrets = document.getElementById('secretsOut');
+            if (outSecrets) outSecrets.textContent = JSON.stringify(local.data, null, 2);
+            if (showOutput) writeOut({ status: 200, source: 'local', data: local.data });
+            return { status: 200, source: 'local', data: local.data };
+          }
+
+          state.secretsAvailable = false;
+          updateSecretsStatus('danger', 'Secrets no disponible ni en runtime ni en almacenamiento local');
+          if (showOutput) writeOut(local);
+          return local;
     }
     async function deleteSecret() {
       if (!state.secretsAvailable) {
@@ -63,7 +93,13 @@
           return;
         }
       }
-      writeOut({ status: last?.status || 500, error: 'No se pudo borrar el secreto con los endpoints probados.', lastResponse: last });
+      const local = await callLocalAssetsApi('DELETE', `/local-secrets/${encodeURIComponent(name)}`);
+      if (local.status >= 200 && local.status < 300) {
+        writeOut({ status: 200, message: 'Secret eliminado de almacenamiento local del conector.', endpoint: local.endpoint, name });
+        await listSecrets(false);
+        return;
+      }
+      writeOut({ status: last?.status || local?.status || 500, error: 'No se pudo borrar el secret ni del runtime ni del almacenamiento local.', lastResponse: last, localResponse: local });
       await listSecrets(false);
     }
 

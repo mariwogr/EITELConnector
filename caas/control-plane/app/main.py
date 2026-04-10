@@ -106,6 +106,8 @@ def startup_event():
     Path(settings.generated_output_dir).mkdir(parents=True, exist_ok=True)
     Path(settings.local_assets_dir).mkdir(parents=True, exist_ok=True)
     _load_download_sink_records()
+    _load_local_secret_records()
+    _load_asset_bundle_records()
 
 
 class TenantCreate(BaseModel):
@@ -124,6 +126,9 @@ dummy_sink_records: list[dict] = []
 MAX_DUMMY_RECORDS = 200
 local_download_records: list[dict] = []
 MAX_LOCAL_DOWNLOAD_RECORDS = 200
+local_secret_records: dict[str, str] = {}
+asset_bundle_records: list[dict] = []
+MAX_ASSET_BUNDLE_RECORDS = 300
 
 
 def _download_sink_index_path() -> Path:
@@ -147,6 +152,61 @@ def _save_download_sink_records() -> None:
     path = _download_sink_index_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = local_download_records[-MAX_LOCAL_DOWNLOAD_RECORDS:]
+    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding='utf-8')
+
+
+def _local_secrets_index_path() -> Path:
+    return Path(settings.local_assets_dir) / 'local-secrets' / 'index.json'
+
+
+def _load_local_secret_records() -> None:
+    path = _local_secrets_index_path()
+    try:
+        if not path.exists():
+            local_secret_records.clear()
+            return
+        parsed = json.loads(path.read_text(encoding='utf-8'))
+        if isinstance(parsed, dict):
+            local_secret_records.clear()
+            for k, v in parsed.items():
+                name = str(k or '').strip()
+                if not name:
+                    continue
+                local_secret_records[name] = str(v or '')
+    except Exception:
+        local_secret_records.clear()
+
+
+def _save_local_secret_records() -> None:
+    path = _local_secrets_index_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {k: v for k, v in local_secret_records.items() if str(k).strip()}
+    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding='utf-8')
+
+
+def _asset_bundle_index_path() -> Path:
+    return Path(settings.local_assets_dir) / 'asset-bundles' / 'index.json'
+
+
+def _load_asset_bundle_records() -> None:
+    path = _asset_bundle_index_path()
+    try:
+        if not path.exists():
+            asset_bundle_records.clear()
+            return
+        parsed = json.loads(path.read_text(encoding='utf-8'))
+        if isinstance(parsed, list):
+            filtered = [row for row in parsed if isinstance(row, dict) and str(row.get('assetId') or '').strip()]
+            asset_bundle_records.clear()
+            asset_bundle_records.extend(filtered[-MAX_ASSET_BUNDLE_RECORDS:])
+    except Exception:
+        asset_bundle_records.clear()
+
+
+def _save_asset_bundle_records() -> None:
+    path = _asset_bundle_index_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = [row for row in asset_bundle_records[-MAX_ASSET_BUNDLE_RECORDS:] if isinstance(row, dict)]
     path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding='utf-8')
 
 
@@ -478,6 +538,90 @@ def get_local_download_file(file_id: str, filename: str):
 
     media_type = guess_type(safe_name)[0] or 'application/octet-stream'
     return FileResponse(target_path, media_type=media_type, filename=safe_name)
+
+
+@app.get('/v1/local-assets/local-secrets')
+def list_local_secrets():
+    names = sorted(local_secret_records.keys(), key=lambda x: x.lower())
+    return {
+        'count': len(names),
+        'items': [{'name': n} for n in names],
+    }
+
+
+@app.post('/v1/local-assets/local-secrets')
+async def upsert_local_secret(request: Request):
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail='Payload inválido')
+    name = str(payload.get('name') or payload.get('key') or '').strip()
+    value = str(payload.get('value') or '').strip()
+    if not name:
+        raise HTTPException(status_code=400, detail='Nombre de secreto requerido')
+    if not value:
+        raise HTTPException(status_code=400, detail='Valor de secreto requerido')
+
+    local_secret_records[name] = value
+    _save_local_secret_records()
+    return {'ok': True, 'name': name}
+
+
+@app.delete('/v1/local-assets/local-secrets/{name}')
+def delete_local_secret(name: str):
+    key = str(name or '').strip()
+    if not key:
+        raise HTTPException(status_code=400, detail='Nombre de secreto requerido')
+    existed = key in local_secret_records
+    if existed:
+        del local_secret_records[key]
+        _save_local_secret_records()
+    return {'ok': True, 'deleted': bool(existed), 'name': key}
+
+
+@app.get('/v1/local-assets/asset-bundles')
+def list_asset_bundles():
+    return {
+        'count': len(asset_bundle_records),
+        'items': list(reversed(asset_bundle_records)),
+    }
+
+
+@app.post('/v1/local-assets/asset-bundles')
+async def upsert_asset_bundle(request: Request):
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail='Payload inválido')
+
+    asset_id = str(payload.get('assetId') or '').strip()
+    if not asset_id:
+        raise HTTPException(status_code=400, detail='assetId es obligatorio')
+
+    now_iso = datetime.now(UTC).isoformat()
+    row = {
+        **payload,
+        'assetId': asset_id,
+        'updatedAt': now_iso,
+    }
+    idx = next((i for i, item in enumerate(asset_bundle_records) if str(item.get('assetId') or '') == asset_id), -1)
+    if idx >= 0:
+        asset_bundle_records[idx] = row
+    else:
+        asset_bundle_records.append(row)
+        if len(asset_bundle_records) > MAX_ASSET_BUNDLE_RECORDS:
+            del asset_bundle_records[: len(asset_bundle_records) - MAX_ASSET_BUNDLE_RECORDS]
+    _save_asset_bundle_records()
+    return {'ok': True, 'assetId': asset_id, 'updatedAt': now_iso}
+
+
+@app.delete('/v1/local-assets/asset-bundles/{asset_id}')
+def delete_asset_bundle(asset_id: str):
+    target = str(asset_id or '').strip()
+    if not target:
+        raise HTTPException(status_code=400, detail='assetId es obligatorio')
+    before = len(asset_bundle_records)
+    asset_bundle_records[:] = [row for row in asset_bundle_records if str(row.get('assetId') or '') != target]
+    _save_asset_bundle_records()
+    return {'ok': True, 'deleted': len(asset_bundle_records) < before, 'assetId': target}
 
 
 @app.get('/v1/config')
