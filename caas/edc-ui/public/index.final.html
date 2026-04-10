@@ -29,6 +29,7 @@
         <div class="nav-group">
           <div class="nav-group-title">Publicar</div>
           <button data-view="asset"><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M3 12h18"/></svg><span>Asset</span></button>
+          <button data-view="my-assets"><svg viewBox="0 0 24 24"><path d="M4 7h16v10H4z"/><path d="M8 11h8M8 15h5"/></svg><span>Mis assets</span></button>
           <button data-view="policy"><svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.5 8.5 8 9 4.5-.5 8-4 8-9V7z"/><path d="M9 12h6"/></svg><span>Política</span></button>
           <button data-view="contractdef"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4"/><path d="M9 11h6M9 15h4"/></svg><span>Contrato</span></button>
         </div>
@@ -290,6 +291,27 @@
         </div>
       </section>
 
+      <section class="panel" id="panel-my-assets">
+        <div class="grid">
+          <section class="card wide">
+            <h2>Mis assets publicados en este conector</h2>
+            <p class="muted">Lista visual de los assets que has publicado en el runtime actual.</p>
+            <div class="row" style="margin-top:10px">
+              <button class="ghost" id="btnRefreshPublishedAssets">Ver mis assets publicados</button>
+            </div>
+            <div id="publishedAssetsGrid" class="asset-showcase"></div>
+          </section>
+          <section class="card wide tutorial">
+            <h3>Mini tutorial</h3>
+            <ol>
+              <li>Abre esta pestaña para revisar solo los assets de tu conector.</li>
+              <li>Usa Editar para cargar el asset en el formulario de publicación.</li>
+              <li>Usa Borrar para eliminar el asset y refrescar automáticamente la vista.</li>
+            </ol>
+          </section>
+        </div>
+      </section>
+
       <section class="panel" id="panel-contractdef">
         <div class="grid">
           <section class="card wide">
@@ -518,14 +540,9 @@
             <div class="row" style="margin-top:10px">
               <button class="primary" id="btnEitelPortal">Ir al portal EITEL</button>
               <button class="ghost" id="btnEitelProyecto">Ver página de proyecto</button>
-              <button class="ghost" id="btnRefreshPublishedAssets">Ver mis assets publicados</button>
               <button class="ghost" id="btnEitelCatalogo">Ver catálogo público</button>
             </div>
           </section>
-
-            <h3 style="margin-top:14px">Mis assets publicados en este conector</h3>
-            <p class="muted">Lista visual de los assets que ya tienes publicados en el runtime actual.</p>
-            <div id="publishedAssetsGrid" class="asset-showcase"></div>
           <section class="card wide tutorial">
             <h3>Mini tutorial</h3>
             <ol>
@@ -629,10 +646,10 @@
   </div>
 
     <script src="config.js?v=20260410d"></script>
-  <script src="assets/ui/01-runtime.js?v=20260410d"></script>
-  <script src="assets/ui/02-operations.js?v=20260410d"></script>
-  <script src="assets/ui/03-secrets.js?v=20260410d"></script>
-  <script src="assets/ui/04-bootstrap.js?v=20260410d"></script>
+  <script src="assets/ui/01-runtime.js?v=20260410e"></script>
+  <script src="assets/ui/02-operations.js?v=20260410e"></script>
+  <script src="assets/ui/03-secrets.js?v=20260410e"></script>
+  <script src="assets/ui/04-bootstrap.js?v=20260410e"></script>
 </body>
 </html>
 

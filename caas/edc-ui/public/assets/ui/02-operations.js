@@ -913,7 +913,7 @@
             loadCatalogShowcase(false);
           }
         }
-      if (resolved === 'asset') {
+      if (resolved === 'asset' || resolved === 'my-assets') {
         loadPublishedAssets(false);
       }
       if (resolved === 'secrets') {

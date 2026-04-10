@@ -198,8 +198,7 @@
     };
     window.showAgreementDetail = (index) => showInfoPopup('Detalle de contrato', state.agreementRows[index] || {});
     window.showTransferDetail = (index) => showInfoPopup('Detalle de transferencia', state.transferRows[index] || {});
-    window.editPublishedAsset = (assetId) => editPublishedAsset(assetId);
-    window.deletePublishedAsset = (assetId) => deletePublishedAsset(assetId);
+    // Keep original handlers from 02-operations.js to avoid recursive self-calls.
 
     function init() {
       if (arcgis.enabled) {
