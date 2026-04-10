@@ -1695,6 +1695,24 @@
       );
     }
 
+    function isArcgisTypeRequiredError(payload) {
+      const text = JSON.stringify(payload || {}).toLowerCase();
+      return text.includes('type') && (
+        text.includes('required') ||
+        text.includes('missing') ||
+        text.includes('obligatorio')
+      );
+    }
+
+    function isArcgisGeoJsonAnalysisError(payload) {
+      const text = JSON.stringify(payload || {}).toLowerCase();
+      return text.includes('geojson') && (
+        text.includes("doesn't have 'type'") ||
+        text.includes('analyzing geojson') ||
+        text.includes('error while analyzing geojson')
+      );
+    }
+
     async function fetchAssetBlobForArcgisUpload(contractId, assetId) {
       if (!assetId) return { status: 404, error: 'No se pudo resolver el asset asociado al contrato.' };
 
@@ -1862,12 +1880,14 @@
       if (!(blobResult.status >= 200 && blobResult.status < 300)) return blobResult;
 
       const resolvedType = normalizeArcgisItemType(typeInput, blobResult.filename, blobResult.contentType);
+      const autoMode = !String(typeInput || '').trim();
       const buildForm = (itemType) => {
         const form = new FormData();
         form.append('f', 'json');
         form.append('token', token);
         form.append('title', title);
-        form.append('type', itemType);
+        const normalizedType = String(itemType || '').trim();
+        if (normalizedType) form.append('type', normalizedType);
         form.append('tags', tags || 'eitel,edc');
         form.append('description', description || 'Item generado desde transferencia del conector EITEL');
         form.append('file', blobResult.blob, blobResult.filename || `${assetId || 'asset'}.bin`);
@@ -1882,11 +1902,14 @@
       };
 
       try {
-        let result = await sendAddItem(resolvedType);
-        if ((!result.response.ok || result.data?.error || result.data?.success === false)
-          && isArcgisUnknownTypeError(result.data)
-          && result.itemType !== 'File') {
-          result = await sendAddItem('File');
+        let result = await sendAddItem(autoMode ? '' : resolvedType);
+        if (!result.response.ok || result.data?.error || result.data?.success === false) {
+          const shouldRetryWithFile = autoMode
+            ? (isArcgisTypeRequiredError(result.data) || isArcgisGeoJsonAnalysisError(result.data))
+            : (isArcgisUnknownTypeError(result.data) || isArcgisGeoJsonAnalysisError(result.data));
+          if (shouldRetryWithFile && result.itemType !== 'File') {
+            result = await sendAddItem('File');
+          }
         }
         if (!result.response.ok || result.data?.error || result.data?.success === false) {
           return {
