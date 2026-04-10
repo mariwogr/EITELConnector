@@ -89,6 +89,31 @@
       document.getElementById('btnExplorerSend').onclick = async () => writeOut(await callApi(document.getElementById('explMethod').value, document.getElementById('explPath').value.trim(), document.getElementById('explBody').value));
 
       document.getElementById('btnOpenSettings').onclick = openSettings;
+      if (document.getElementById('btnArcgisRegenerateToken')) {
+        document.getElementById('btnArcgisRegenerateToken').onclick = async () => {
+          const btn = document.getElementById('btnArcgisRegenerateToken');
+          const previous = btn.textContent;
+          btn.disabled = true;
+          btn.textContent = 'Regenerando...';
+          try {
+            if (typeof regenerateArcgisToken === 'function') {
+              const resp = await regenerateArcgisToken();
+              writeOut(resp);
+              if (resp?.status >= 200 && resp?.status < 300) {
+                pushStatusAlert('success', 'Token ArcGIS', 'Token regenerado correctamente.');
+              } else {
+                pushStatusAlert('error', 'Token ArcGIS', resp?.error || 'No se pudo regenerar el token.');
+              }
+              if (typeof window.refreshArcgisTokenWidget === 'function') window.refreshArcgisTokenWidget();
+            } else {
+              pushStatusAlert('error', 'Token ArcGIS', 'Función de regeneración no disponible.');
+            }
+          } finally {
+            btn.disabled = false;
+            btn.textContent = previous;
+          }
+        };
+      }
       document.getElementById('btnCloseSettings').onclick = closeSettings;
       settingsModal.onclick = (e) => { if (e.target === settingsModal) closeSettings(); };
       document.getElementById('btnCloseInfo').onclick = closeInfoPopup;
@@ -214,6 +239,7 @@
       if (typeof applyAuthTypeForm === 'function') applyAuthTypeForm();
       if (typeof syncTransferModeUi === 'function') syncTransferModeUi();
       applySettings();
+      if (typeof window.startArcgisTokenWidgetTimer === 'function') window.startArcgisTokenWidgetTimer();
 
       ensureArcgisLogin().then((ok) => {
         if (!ok) return;
@@ -222,6 +248,7 @@
           document.getElementById('btnArcgisLogout').style.display = 'inline-flex';
         }
         if (typeof applyAuthTypeForm === 'function') applyAuthTypeForm();
+        if (typeof window.refreshArcgisTokenWidget === 'function') window.refreshArcgisTokenWidget();
         refreshOverview();
         loadCatalogShowcase(false);
         loadPublishedAssets(false);

@@ -43,7 +43,13 @@
 
     <main class="main">
       <div class="top">
-        <h1 id="title">Conector EITEL</h1>
+        <div class="top-title-wrap">
+          <h1 id="title">Conector EITEL</h1>
+          <div class="arcgis-token-widget" id="arcgisTokenWidget">
+            <button class="primary" id="btnArcgisRegenerateToken" type="button">Regenerar token ArcGIS</button>
+            <span class="token-remaining" id="arcgisTokenRemaining">Token no disponible</span>
+          </div>
+        </div>
         <div class="top-right">
           <span class="chip" id="badge"></span>
           <button class="ghost" id="btnArcgisLogout" style="display:none">Salir</button>
@@ -411,9 +417,59 @@
             <select id="transferMode">
               <option value="push">Enviar a URL destino</option>
               <option value="local-download">Descargar en local</option>
+              <option value="arcgis-upload">Subir a ArcGIS</option>
             </select>
             <div id="sinkBaseUrlWrap">
               <label>Destination URL (produccion)</label><input id="sinkBaseUrl" placeholder="https://tu-destino.com/ingest" />
+            </div>
+            <div id="arcgisUploadWrap" style="display:none">
+              <h3 style="margin-top:8px">Publicar resultado en ArcGIS</h3>
+              <p class="muted">Basado en API oficial de ArcGIS (addItem/share). Completa los campos del item antes de subir.</p>
+              <div class="grid">
+                <div>
+                  <label>Titulo del item</label>
+                  <input id="arcgisUploadTitle" placeholder="Ej: Dataset consumo energético marzo" />
+                </div>
+                <div>
+                  <label>Tipo de item</label>
+                  <select id="arcgisUploadType">
+                    <option value="File">File</option>
+                    <option value="CSV">CSV</option>
+                    <option value="GeoJson">GeoJson</option>
+                    <option value="GeoPackage">GeoPackage</option>
+                    <option value="Shapefile">Shapefile</option>
+                    <option value="Service Definition">Service Definition</option>
+                  </select>
+                </div>
+              </div>
+              <div class="grid">
+                <div>
+                  <label>Tags (coma)</label>
+                  <input id="arcgisUploadTags" placeholder="eitel, energia, catálogo" />
+                </div>
+                <div>
+                  <label>Carpeta ArcGIS (opcional)</label>
+                  <input id="arcgisUploadFolder" placeholder="Nombre carpeta o vacio en raíz" />
+                </div>
+              </div>
+              <label>Resumen (snippet)</label>
+              <input id="arcgisUploadSnippet" placeholder="Resumen breve para catálogo ArcGIS" />
+              <label>Descripción</label>
+              <textarea id="arcgisUploadDescription" rows="3" placeholder="Descripción del recurso que vas a publicar en ArcGIS"></textarea>
+              <div class="grid">
+                <div>
+                  <label>Nivel de compartición</label>
+                  <select id="arcgisUploadAccess">
+                    <option value="private">Privado</option>
+                    <option value="org">Organización</option>
+                    <option value="public">Público</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Groups IDs (coma, opcional)</label>
+                  <input id="arcgisUploadGroups" placeholder="idGrupo1,idGrupo2" />
+                </div>
+              </div>
             </div>
             <div class="row" style="margin-top:8px">
               <button class="primary" id="btnStartTransfer" data-i18n="transfer.start">Iniciar transferencia</button>
@@ -598,11 +654,11 @@
     </div>
   </div>
 
-    <script src="config.js?v=20260324u"></script>
-  <script src="assets/ui/01-runtime.js?v=20260324u"></script>
-  <script src="assets/ui/02-operations.js?v=20260324u"></script>
-  <script src="assets/ui/03-secrets.js?v=20260324u"></script>
-  <script src="assets/ui/04-bootstrap.js?v=20260324u"></script>
+    <script src="config.js?v=20260410a"></script>
+  <script src="assets/ui/01-runtime.js?v=20260410a"></script>
+  <script src="assets/ui/02-operations.js?v=20260410a"></script>
+  <script src="assets/ui/03-secrets.js?v=20260410a"></script>
+  <script src="assets/ui/04-bootstrap.js?v=20260410a"></script>
 </body>
 </html>
 

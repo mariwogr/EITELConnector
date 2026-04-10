@@ -22,6 +22,7 @@
     };
     const authState = { username: '', orgId: '' };
     const arcgisTokenStorageKey = 'eitel.arcgis.access_token';
+    const arcgisTokenMetaStorageKey = 'eitel.arcgis.token_meta';
 
     const app = document.getElementById('app');
     const out = document.getElementById('out');
@@ -241,7 +242,12 @@
       const params = new URLSearchParams(hash.replace(/^#/, ''));
       const token = (params.get('access_token') || '').trim();
       if (!token) return '';
+      const expiresInSec = Number(params.get('expires_in') || 0);
+      const expiresAt = Number.isFinite(expiresInSec) && expiresInSec > 0
+        ? Date.now() + (expiresInSec * 1000)
+        : 0;
       try { sessionStorage.setItem(arcgisTokenStorageKey, token); } catch {}
+      if (expiresAt > 0) setArcgisTokenMeta(token, expiresAt, 'oauth-hash');
       history.replaceState(null, '', window.location.pathname + window.location.search);
       return token;
     }
@@ -252,7 +258,96 @@
 
     function clearStoredArcgisToken() {
       try { sessionStorage.removeItem(arcgisTokenStorageKey); } catch {}
+      try { sessionStorage.removeItem(arcgisTokenMetaStorageKey); } catch {}
     }
+
+    function setArcgisTokenMeta(token, expiresAt, source = 'unknown') {
+      const safeToken = String(token || '').trim();
+      const safeExpiresAt = Number(expiresAt || 0);
+      if (!safeToken || !Number.isFinite(safeExpiresAt) || safeExpiresAt <= 0) return;
+      try {
+        sessionStorage.setItem(arcgisTokenMetaStorageKey, JSON.stringify({
+          token: safeToken,
+          expiresAt,
+          source,
+          savedAt: Date.now(),
+        }));
+      } catch {}
+    }
+
+    function getArcgisTokenMeta() {
+      try {
+        const raw = sessionStorage.getItem(arcgisTokenMetaStorageKey);
+        const parsed = raw ? JSON.parse(raw) : null;
+        return parsed && typeof parsed === 'object' ? parsed : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function getArcgisTokenRemainingMs() {
+      const meta = getArcgisTokenMeta();
+      const currentToken = getStoredArcgisToken();
+      if (!meta || !currentToken) return 0;
+      if (String(meta.token || '') !== String(currentToken || '')) return 0;
+      return Math.max(0, Number(meta.expiresAt || 0) - Date.now());
+    }
+
+    function formatRemainingTime(ms) {
+      const safeMs = Math.max(0, Number(ms || 0));
+      const totalSec = Math.floor(safeMs / 1000);
+      const days = Math.floor(totalSec / 86400);
+      const hours = Math.floor((totalSec % 86400) / 3600);
+      const mins = Math.floor((totalSec % 3600) / 60);
+      if (days > 0) return `${days}d ${hours}h ${mins}m`;
+      if (hours > 0) return `${hours}h ${mins}m`;
+      return `${mins}m`;
+    }
+
+    function refreshArcgisTokenWidget() {
+      const el = document.getElementById('arcgisTokenRemaining');
+      if (!el) return;
+
+      const token = getStoredArcgisToken();
+      const remainingMs = getArcgisTokenRemainingMs();
+      el.classList.remove('ok', 'warn', 'danger');
+
+      if (!token) {
+        el.textContent = 'Token no disponible';
+        return;
+      }
+      if (!remainingMs) {
+        el.textContent = 'Token activo (caducidad no detectada)';
+        el.classList.add('warn');
+        return;
+      }
+
+      if (remainingMs <= 0) {
+        el.textContent = 'Token expirado';
+        el.classList.add('danger');
+        return;
+      }
+
+      if (remainingMs <= 2 * 60 * 60 * 1000) {
+        el.classList.add('danger');
+      } else if (remainingMs <= 24 * 60 * 60 * 1000) {
+        el.classList.add('warn');
+      } else {
+        el.classList.add('ok');
+      }
+      el.textContent = `Vigencia token: ${formatRemainingTime(remainingMs)}`;
+    }
+
+    let arcgisTokenWidgetTimer = null;
+    function startArcgisTokenWidgetTimer() {
+      refreshArcgisTokenWidget();
+      if (arcgisTokenWidgetTimer) clearInterval(arcgisTokenWidgetTimer);
+      arcgisTokenWidgetTimer = setInterval(refreshArcgisTokenWidget, 60 * 1000);
+    }
+
+    window.setArcgisTokenMeta = setArcgisTokenMeta;
+    window.refreshArcgisTokenWidget = refreshArcgisTokenWidget;
+    window.startArcgisTokenWidgetTimer = startArcgisTokenWidgetTimer;
 
     async function fetchArcgisJson(path, { token = '', useCookies = true } = {}) {
       const sep = path.includes('?') ? '&' : '?';
