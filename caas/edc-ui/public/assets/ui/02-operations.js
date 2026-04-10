@@ -1592,6 +1592,55 @@
       return fallback;
     }
 
+    function mapFilenameToArcgisType(filename, fallback = 'File') {
+      const txt = String(filename || '').toLowerCase();
+      if (txt.endsWith('.csv')) return 'CSV';
+      if (txt.endsWith('.geojson') || txt.endsWith('.json')) return 'GeoJson';
+      if (txt.endsWith('.zip')) return 'Shapefile';
+      if (txt.endsWith('.pdf')) return 'PDF';
+      if (txt.endsWith('.xlsx') || txt.endsWith('.xls')) return 'Microsoft Excel';
+      if (txt.endsWith('.kml')) return 'KML';
+      return fallback;
+    }
+
+    function normalizeArcgisItemType(rawType, filename, contentType) {
+      const value = String(rawType || '').trim();
+      const lower = value.toLowerCase();
+      if (!value) {
+        const byName = mapFilenameToArcgisType(filename, '');
+        if (byName) return byName;
+        return mapContentTypeToArcgisType(contentType, 'File');
+      }
+
+      const aliases = {
+        csv: 'CSV',
+        geojson: 'GeoJson',
+        'geo json': 'GeoJson',
+        json: 'GeoJson',
+        shapefile: 'Shapefile',
+        shp: 'Shapefile',
+        pdf: 'PDF',
+        file: 'File',
+        excel: 'Microsoft Excel',
+        xlsx: 'Microsoft Excel',
+        xls: 'Microsoft Excel',
+        kml: 'KML',
+      };
+
+      return aliases[lower] || value;
+    }
+
+    function isArcgisUnknownTypeError(payload) {
+      const text = JSON.stringify(payload || {}).toLowerCase();
+      return text.includes('type') && (
+        text.includes('not recognized') ||
+        text.includes('unsupported') ||
+        text.includes('invalid') ||
+        text.includes('no se ha podido reconocer') ||
+        text.includes('cannot recognize')
+      );
+    }
+
     async function fetchAssetBlobForArcgisUpload(contractId, assetId) {
       if (!assetId) return { status: 404, error: 'No se pudo resolver el asset asociado al contrato.' };
 
@@ -1669,24 +1718,39 @@
       const blobResult = await fetchAssetBlobForArcgisUpload(contractId, assetId);
       if (!(blobResult.status >= 200 && blobResult.status < 300)) return blobResult;
 
-      const form = new FormData();
-      form.append('f', 'json');
-      form.append('token', token);
-      form.append('title', title);
-      form.append('type', typeInput || mapContentTypeToArcgisType(blobResult.contentType));
-      form.append('tags', tags || 'eitel,edc');
-      form.append('description', description || 'Item generado desde transferencia del conector EITEL');
-      form.append('file', blobResult.blob, blobResult.filename || `${assetId || 'asset'}.bin`);
+      const resolvedType = normalizeArcgisItemType(typeInput, blobResult.filename, blobResult.contentType);
+      const buildForm = (itemType) => {
+        const form = new FormData();
+        form.append('f', 'json');
+        form.append('token', token);
+        form.append('title', title);
+        form.append('type', itemType);
+        form.append('tags', tags || 'eitel,edc');
+        form.append('description', description || 'Item generado desde transferencia del conector EITEL');
+        form.append('file', blobResult.blob, blobResult.filename || `${assetId || 'asset'}.bin`);
+        return form;
+      };
+
+      const sendAddItem = async (itemType) => {
+        const endpoint = `${arcgis.portalUrl}/sharing/rest/content/users/${encodeURIComponent(authState.username)}/addItem`;
+        const response = await fetch(endpoint, { method: 'POST', body: buildForm(itemType), credentials: 'include' });
+        const data = await response.json();
+        return { endpoint, response, data, itemType };
+      };
 
       try {
-        const endpoint = `${arcgis.portalUrl}/sharing/rest/content/users/${encodeURIComponent(authState.username)}/addItem`;
-        const response = await fetch(endpoint, { method: 'POST', body: form, credentials: 'include' });
-        const data = await response.json();
-        if (!response.ok || data?.error || data?.success === false) {
+        let result = await sendAddItem(resolvedType);
+        if ((!result.response.ok || result.data?.error || result.data?.success === false)
+          && isArcgisUnknownTypeError(result.data)
+          && result.itemType !== 'File') {
+          result = await sendAddItem('File');
+        }
+        if (!result.response.ok || result.data?.error || result.data?.success === false) {
           return {
-            status: response.status || 500,
-            error: data?.error?.message || data?.error || 'ArcGIS no aceptó la subida del item.',
-            detail: data,
+            status: result.response.status || 500,
+            error: result.data?.error?.message || result.data?.error || 'ArcGIS no aceptó la subida del item.',
+            detail: result.data,
+            usedType: result.itemType,
           };
         }
         return {
@@ -1694,12 +1758,13 @@
           uploaded: true,
           contractId,
           assetId,
-          itemId: data?.id || '',
+          itemId: result.data?.id || '',
           title,
           filename: blobResult.filename,
           contentType: blobResult.contentType,
+          usedType: result.itemType,
           sourceUrl: blobResult.sourceUrl,
-          arcgisResponse: data,
+          arcgisResponse: result.data,
         };
       } catch (error) {
         return { status: 500, error: `Error subiendo item a ArcGIS: ${String(error)}` };
