@@ -1,0 +1,27 @@
+services:
+  star-coordinator:
+    image: eitel/star-coordinator-pair:latest
+    build:
+      context: ../../../caas/star-coordinator
+      dockerfile: Dockerfile
+    container_name: conectorstar-lan-coordinator
+    restart: always
+    environment:
+      STAR_COORDINATOR_NAME: ${STAR_COORDINATOR_NAME}
+      STAR_COORDINATOR_URL: ${STAR_COORDINATOR_URL}
+      STAR_PUBLIC_KEY_ID: ${STAR_PUBLIC_KEY_ID}
+      STAR_PUBLIC_KEY_PEM: ${STAR_PUBLIC_KEY_PEM}
+      STAR_DEFAULT_PARTICIPANT_ID: ${STAR_DEFAULT_PARTICIPANT_ID}
+      STAR_DEFAULT_PARTICIPANT_DID: ${STAR_DEFAULT_PARTICIPANT_DID}
+      STAR_DEFAULT_VC_PRESENT: ${STAR_DEFAULT_VC_PRESENT}
+      STAR_DEFAULT_VC_ISSUER: ${STAR_DEFAULT_VC_ISSUER}
+      STAR_DEFAULT_VC_ID: ${STAR_DEFAULT_VC_ID}
+      STAR_DEFAULT_VC_STATUS: ${STAR_DEFAULT_VC_STATUS}
+    ports:
+      - "12030:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')\" || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s

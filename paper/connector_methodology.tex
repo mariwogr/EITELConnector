@@ -1,0 +1,271 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{array}
+
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+	T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{A Methodology for Engineering and Operating Municipal Data Connectors: The EITEL-UC3M Connector Case Study}
+
+\author{\IEEEauthorblockN{Mario Garcia Rodriguez}
+\IEEEauthorblockA{Universidad Carlos III de Madrid\\
+Madrid, Spain\\
+orcid / email placeholder}
+\and
+\IEEEauthorblockN{Author Placeholder}
+\IEEEauthorblockA{Affiliation Placeholder\\
+City, Country\\
+email placeholder}}
+
+\maketitle
+
+\begin{abstract}
+Data space adoption in public-sector environments requires more than deploying a standards-compliant connector. In practice, organizations need an engineering methodology that bridges infrastructure provisioning, identity and access configuration, asset onboarding, policy definition, contract negotiation, transfer execution, and day-to-day operation. This paper presents a connector-centric methodology grounded in the implementation of the EITEL-UC3M connector, a municipal-oriented platform built on Eclipse Dataspace Components within the broader EITEL ecosystem. The proposed approach combines a reusable deployment kit, a management user interface, controlled publication of local and remote assets, configurable authentication for protected data sources, and an operational gateway layer for stable exposure of APIs and user-facing services. The case study is motivated by municipal exchange of geolocated information and by the need to connect connector workflows with ArcGIS-centered operational environments used by data owners and operators. The paper contributes a structured process for building, publishing, and operating through a connector; a systematization of the engineering concerns that separate prototype connectors from deployable institutional services; and a case study focused on municipal deployment requirements. The reported results are evidence-based: they include reproducible deployment artifacts and executed service-level validations for connector health, local asset upload, and download capture, which together clarify the connector features required for public-sector adoption.
+\end{abstract}
+
+\begin{IEEEkeywords}
+data spaces, Eclipse EDC, data connector, municipal interoperability, asset publication, data sharing methodology
+\end{IEEEkeywords}
+
+\section{Introduction}
+Data spaces have emerged as a relevant architectural paradigm for enabling controlled data sharing across organizational boundaries while preserving governance, sovereignty, and contractual control. Although reference frameworks and connector implementations have matured significantly, the practical effort required to deploy and operate a connector in a real institutional environment remains high. The gap is especially visible in municipal and public-sector contexts, where technical teams require repeatable deployment patterns, integration with existing identity providers, controlled publishing workflows, and operational visibility over transfers and negotiations.
+
+In this context, deploying a connector is not merely a matter of starting a runtime. A usable connector must support the full operational lifecycle: publishing assets, attaching access policies, exposing contract definitions, negotiating with counterparties, and executing transfers in a traceable way. For municipal adoption, this lifecycle must additionally be reproducible across entities and adaptable to heterogeneous local constraints.
+
+The EITEL project provides the practical frame for this work. In this ecosystem, the connector is not treated as an isolated technical artifact, but as the operational core of a municipal data-sharing environment that must be deployable for more than one institution, support publication of locally managed and externally sourced datasets, and align with GIS-oriented working practices. This framing is especially relevant for geolocated information, where municipal teams often need to share files and services that are later consumed in geographic information platforms rather than in purely generic data-processing pipelines.
+
+This paper addresses that problem through a methodology derived from the engineering of the EITEL-UC3M connector. Rather than presenting only a connector implementation, the paper formulates a process that can be followed to build, configure, publish, validate, and replicate a connector-oriented deployment. The contributions of the paper are threefold:
+
+\begin{itemize}
+\item a connector engineering methodology centered on publication and operation rather than on runtime deployment alone;
+\item a case study showing how this methodology is instantiated in a municipal-oriented connector built on Eclipse Dataspace Components;
+\item an evaluation of repeatability, operational consolidation, and publication readiness with respect to a baseline connector setup.
+\end{itemize}
+
+\section{State of the Art}
+The current data space landscape is shaped by a combination of policy, governance, architecture, and software standardization efforts. At the policy level, the European strategy for data established the objective of a single market for data and positioned common European data spaces as a core instrument for trusted data sharing across sectors~\cite{b1,b2}. This policy direction is complemented by cross-sector regulatory instruments such as the Data Governance Act, which emphasizes trust, reuse, intermediation, and protected-data access mechanisms~\cite{b3}, and the Data Act, which strengthens fair access, contractual clarity, and data portability in data-driven ecosystems~\cite{b4}. For connector engineering, these instruments matter because they turn data sharing from a purely technical issue into a socio-technical and compliance-sensitive problem.
+
+From a systems perspective, data spaces should not be reduced to a communication protocol or a catalog of datasets. They are better understood as socio-technical infrastructures that combine governance rules, trust frameworks, participant identity, metadata interoperability, usage policies, contractual negotiation, and data-transfer mechanisms. Otto emphasizes that data spaces emerge in response to demands for data sovereignty and trusted data infrastructures, and that their viability depends on interoperability, trust, and sustainable ecosystem conditions rather than on isolated technical interfaces alone~\cite{b16}. In that sense, a connector is not simply an adapter between APIs; it is the operational boundary component through which the requirements of the data space become enforceable in day-to-day practice. This point is important for the present work because municipal deployments are usually constrained not by the absence of data sources, but by the difficulty of operationalizing these multiple layers in a single institutional service.
+
+At the architectural level, the International Data Spaces Reference Architecture Model (IDS-RAM) has played a foundational role in defining data sovereignty, usage control, policy enforcement, and interoperable metadata exchange~\cite{b5}. IDS-RAM is particularly relevant because it frames data exchange as a trust- and policy-aware interaction rather than as a conventional API integration problem. In parallel, Gaia-X has contributed an architectural and trust-oriented perspective centered on federated digital ecosystems, trust frameworks, and compatibility specifications for interoperable service participation~\cite{b6}. Together, IDS and Gaia-X provide conceptual and governance-oriented foundations, but they do not by themselves prescribe the detailed engineering workflow required to deploy an institutional connector instance.
+
+At the implementation level, Eclipse Dataspace Components (EDC) has emerged as a major open technical framework for building dataspace services and connectors~\cite{b7}. The project explicitly positions itself as a reusable standards-based framework for dataspace implementations and highlights components such as the connector, federated catalog, identity hub, registration service, and management user interface. EDC is already used in industrial ecosystems such as Catena-X and Eona-X~\cite{b7}. This industrial uptake is important because it shows that connector technology is no longer confined to conceptual pilots; it is part of operational ecosystems.
+
+Connector implementation diversity must also be taken into account when positioning any new engineering methodology. Dam et al. survey the main publicly available IDS-compliant open-source connectors and identify four implementations that are sufficiently accessible for comparative analysis: IDS Dataspace Connector (DSC), Eclipse Dataspace Connector (EDC), TRUsted Engineering (TRUE) Connector, and Trusted Connector~\cite{b12}. Their comparison highlights architectural differences, heterogeneous identity approaches, and diverging policy-language choices, while Pampus et al. report engineering lessons learned from an IDS connector reference implementation~\cite{b13}. These works are important for the present paper because they show that the connector problem is not solved by framework availability alone; engineering guidance and operational packaging remain decisive.
+
+At the ecosystem level, common European data spaces are now developing across multiple domains, including manufacturing, mobility, energy, public administration, health, and skills~\cite{b2}. This broad rollout confirms that the connector problem must be addressed under heterogeneous deployment conditions. A connector deployed for a manufacturing value chain, an urban administration, or a cross-organizational public service may share the same architectural principles, but it faces different constraints in identity integration, routing, asset exposure, and operator workflows.
+
+For that reason, the engineering perspective adopted in this paper treats data spaces not only as federated exchange environments but also as operational ecosystems. In practical terms, this means that a usable connector must support at least five capabilities that are central to data-space participation: discoverability of data offers, machine-readable policy expression, contract-mediated access, traceable transfer execution, and integration with the information systems where data is originally managed or ultimately consumed. Otto further notes that data spaces differ from conventional integration settings in that they do not rely on a single common schema and instead move much of the integration effort to the semantic level through shared vocabularies and interoperable descriptions~\cite{b16}. The literature usually discusses these capabilities separately; however, from an institutional deployment viewpoint they form a single operational chain, and weaknesses in any one of them can prevent effective participation in a data space even when the underlying framework is standards-compliant.
+
+This heterogeneity is particularly visible in urban and geospatial contexts. Prior work has discussed urban data spaces in connection with governance and standardized ICT reference architectures~\cite{b15}, while spatial-data research has framed the evolution from spatial data infrastructures toward data spaces as a concrete technological transition rather than a purely conceptual one~\cite{b14}. For a municipal connector, this means that geolocated datasets and GIS-oriented consumption environments are not peripheral requirements: they shape publication workflows, metadata expectations, and operator tooling.
+
+Recent work also shows that the functional scope of data spaces is broadening beyond the exchange of static data assets. Arnold et al. argue that practical adoption increasingly requires service-oriented interactions inside data spaces and propose a service architecture for dataspaces implemented on top of EDC~\cite{b17}. This is relevant here for two reasons. First, it reinforces the idea that connectors must be understood as extensible operational components rather than as narrowly scoped data pipes. Second, it shows that the evolution of data spaces is moving toward richer interaction models, which increases the importance of deployment methodology, operational traceability, and integration with external institutional systems.
+
+Despite this progress, much of the literature and many implementation efforts still concentrate on either high-level reference models or framework capabilities. The step from ``connector framework'' to ``institutional connector service'' is often under-specified. In particular, the following engineering concerns remain insufficiently systematized in many practical deployments:
+
+\begin{itemize}
+\item how to package a connector as a repeatable unit for multiple organizations;
+\item how to support publication from both local and remote data sources;
+\item how to integrate heterogeneous source-side authentication patterns into a coherent publication workflow;
+\item how to expose management, protocol, and auxiliary services through a stable gateway model;
+\item how to provide a single operational surface for publication, negotiation, and transfer tracing.
+\end{itemize}
+
+Existing frameworks provide powerful building blocks, but organizations still need a methodology that explains how those blocks are assembled into a deployable and operable connector service. This is especially true in public administration, where deployment teams often need bounded parameterization, strong operational traceability, and compatibility with pre-existing institutional identity ecosystems.
+
+Therefore, the research gap addressed in this paper is not the absence of connector software, but the lack of a practical and transferable methodology for turning connector technology into an operational, reusable, organization-ready service unit. The proposed work positions itself precisely at that gap: between reference architectures and day-to-day connector operation.
+
+\section{Methodology}
+The proposed methodology is organized as a six-stage workflow that treats the connector as an operational system rather than as a standalone runtime. Each stage produces concrete artifacts that can be validated before progressing to the next one.
+
+\subsection{Stage 1: Use-case characterization}
+The process starts by specifying the intended sharing scenario. At minimum, this stage identifies the participating organization, the type of assets to be published, the expected consumption mode, applicable access restrictions, and the anticipated counterparties. This characterization determines whether the connector must expose local files, protected remote APIs, or both.
+
+\subsection{Stage 2: Connector template selection}
+Instead of creating a deployment from scratch, the methodology relies on reusable deployment templates. A template defines the initial composition of the connector runtime, persistence layer, management UI, auxiliary services, and gateway exposure model. This stage reduces engineering variability and makes the deployment strategy explicit.
+
+\subsection{Stage 3: Parameterized deployment}
+The selected template is instantiated through environment-driven configuration. Parameters include connector identity, public API endpoints, management credentials, routing prefixes, persistence settings, and authentication options. A central principle of the methodology is that new institutional deployments should emerge from parameterization of a common base rather than from source-level customization.
+
+\subsection{Stage 4: Asset publication modeling}
+The methodology distinguishes between resource ingestion and asset publication. A local file or external resource does not become shareable until it is represented as a connector asset and linked to a policy and a contract definition. For this reason, each asset is modeled through: a persistent identifier, descriptive metadata, a source binding, an access control description, and a verification path for later negotiation.
+
+\subsection{Stage 5: Operational publication workflow}
+The publication workflow is executed through a management layer that supports end-to-end operator actions. In the EITEL-UC3M case, this includes publication from remote URLs and local files, configurable authentication modes for protected sources, creation of policies and contract definitions, and verification of management-state visibility from the same interface. The objective is to eliminate fragmented operational steps.
+
+\subsection{Stage 6: End-to-end validation}
+The last stage validates discovery, negotiation, agreement generation, and transfer execution against another connector or an equivalent test setup. A connector is only considered operationally complete when a third party can discover the published asset, negotiate access, and successfully execute the transfer. This validation also checks logging consistency, routing correctness, and operator visibility over the process.
+
+\subsection{Methodological principles}
+The six-stage workflow is guided by four principles:
+
+\begin{enumerate}
+\item \textit{reproducibility}: deployments must be replicable across organizations through controlled parameter sets;
+\item \textit{operability}: publication and consumption workflows must be executable without relying exclusively on manual API calls;
+\item \textit{traceability}: negotiations, transfers, and local operational actions must be visible from the management layer;
+\item \textit{adaptability}: the same connector base must support local and remote assets, different authentication schemes, and different deployment contexts.
+\end{enumerate}
+
+\section{Case Study: The EITEL-UC3M Connector}
+The EITEL-UC3M connector instantiates the proposed methodology as a municipal-oriented data sharing platform built on top of Eclipse EDC. Within the EITEL ecosystem, it is packaged together with an administrative UI, local asset and download-capture services, deployment templates, and production-oriented configurations for more than one institutional setting. The architecture combines a connector runtime, PostgreSQL persistence, a web-based management interface, an auxiliary service for local asset ingestion, and an Nginx gateway for controlled exposure of public and internal routes.
+
+From an operational perspective, the case study introduces several features beyond a baseline connector deployment.
+
+First, the publication flow supports two asset origin modes: remote resources referenced by URL and locally uploaded files. This distinction is important in municipal environments, where datasets may exist either as already exposed services or as files prepared internally for controlled sharing.
+
+Second, the publication flow supports multiple authentication modes for protected upstream resources, including unauthenticated access, API token access, OAuth2-based access, and delegated session-token usage. This makes the connector usable against heterogeneous institutional systems without redesigning the publication pipeline for each data source.
+
+Third, transfer execution supports both a remote transfer mode and a local download-oriented mode. This is relevant because some operational contexts require automated endpoint-based consumption, while others require direct technical validation of the retrieved artifact from the operator console. In the EITEL context, this duality is useful for geolocated resources, which may either remain available as sovereignly hosted files/services or be transferred for downstream use in GIS environments.
+
+Fourth, transfer activity is integrated into a unified operational view. Local download actions are not treated as disconnected auxiliary events, but as part of the overall transfer history. This improves observability and helps align technical execution with functional follow-up.
+
+Fifth, access to the operational console can be protected through ArcGIS-based authentication configured at deployment time. In addition, the management interface implements an ArcGIS upload path that can take a transferred asset, resolve its binary payload, and submit it to an ArcGIS Portal item endpoint. This aligns the connector with existing institutional identity ecosystems and establishes a concrete bridge between connector-mediated exchange and GIS-oriented publication workflows.
+
+Finally, the connector is packaged as a municipal virtual kit. The kit preserves a common technical base while parameterizing identity, routes, credentials, and service exposure. As a result, the same deployment model can be replicated across municipalities with bounded adaptation effort.
+
+\section{Evaluation}
+The evaluation focuses on whether the proposed methodology improves the practical engineering and operation of a municipal data connector compared with a baseline connector deployment. In this paper, the baseline is a runtime-centered connector setup that exposes the core EDC services but lacks the additional engineering layers introduced by the EITEL-UC3M approach, such as local asset ingestion support, a unified management UI, download capture, deployment templates, and GIS-oriented integration paths. Since the present work is centered on a design-and-implementation case study, the evaluation combines qualitative analysis with executed service-level validation. The goal is not to report invented benchmark numbers, but to document which operational capabilities were actually exercised in the current implementation, how they map to data-space requirements, and what those exercises demonstrate.
+
+This evaluation strategy should also be understood in relation to the type of contribution made by the paper. Whereas Arnold et al. evaluate a concrete service architecture for dataspaces through runtime behavior and latency overhead measurements~\cite{b17}, the present work evaluates an engineering methodology whose main claim concerns operational readiness, deployability, and institutional usability. Accordingly, the emphasis here is on reproducibility of deployment, completeness of publication workflow, and traceability of transfer-related actions. This does not replace performance evaluation; rather, it complements it at a different layer of data-space maturity.
+
+\subsection{Evaluation framing}
+The evaluation is organized around four questions that are directly derived from the role of connectors in data spaces.
+
+\begin{itemize}
+\item \textbf{RQ1}: Does the proposed deployment model improve reproducibility compared with a baseline runtime-only setup?
+\item \textbf{RQ2}: Does the methodology support the publication of data-space-ready assets from multiple source types?
+\item \textbf{RQ3}: Does the resulting connector improve operational traceability across publication and transfer activities?
+\item \textbf{RQ4}: Does the solution improve alignment between the connector and the municipal systems in which geolocated data is curated or consumed?
+\end{itemize}
+
+These questions are intentionally operational rather than performance-centric. This is consistent with the maturity level of the current case study and with the paper's main claim: at this stage, the bottleneck for municipal participation in data spaces is not raw throughput but the ability to instantiate, configure, operate, and validate a connector as a coherent service.
+
+\subsection{Evaluation criteria}
+Five criteria are used.
+
+\begin{itemize}
+\item \textbf{Deployment repeatability}: the extent to which a new connector instance can be created by configuration rather than code changes.
+\item \textbf{Publication completeness}: the ability to publish assets from different origins with the associated policy and contract layers.
+\item \textbf{Operational consolidation}: the degree to which operators can manage publication, negotiation, and transfer from a single environment.
+\item \textbf{Authentication adaptability}: the capability to integrate with protected upstream resources and controlled console access.
+\item \textbf{Institutional readiness}: the suitability of the connector package for replication across municipal environments.
+\end{itemize}
+
+Table~\ref{tab:evaluation-matrix} summarizes the relation between the evaluation questions, the evidence currently available, and the type of conclusion that can be defended without overstating the results.
+
+Table~\ref{tab:baseline-comparison} complements this view by contrasting the baseline runtime-only setup with the EITEL-UC3M methodology-oriented packaging. Its purpose is not to claim universal superiority for one connector architecture, but to make explicit which engineering capabilities are added by the proposed approach and why they matter for municipal participation in data spaces.
+
+\begin{table*}[t]
+\caption{Evaluation matrix for the EITEL-UC3M case study}
+\label{tab:evaluation-matrix}
+\centering
+\begin{tabular}{p{1.1cm} p{3.2cm} p{5.5cm} p{6.5cm}}
+\toprule
+\textbf{RQ} & \textbf{Focus} & \textbf{Evidence used} & \textbf{Supported conclusion} \\
+\midrule
+RQ1 & Reproducibility & Parameterized Docker Compose deployment, successful startup of runtime, persistence, UI, and auxiliary services & The connector package can be instantiated from repository artifacts without source-level adaptation, which is stronger than a runtime-only setup and supports multi-organization replication. \\
+RQ2 & Publication completeness & Executed local upload workflow, modeled support for remote URLs, policy creation, and contract-definition creation & The methodology covers the full transition from raw source registration to contract-ready asset publication for more than one source type. \\
+RQ3 & Operational traceability & Executed download-sink ingestion and record listing with \texttt{contractId}, \texttt{assetId}, and \texttt{transferId} & The connector operational layer preserves traceable identifiers across transfer-related actions instead of relegating them to disconnected technical logs. \\
+RQ4 & Municipal system alignment & ArcGIS-based authentication path, ArcGIS upload path in the management workflow, geospatial framing of the case study & The solution is better aligned with GIS-oriented municipal workflows than a generic runtime-only deployment, although live institutional ArcGIS benchmarking is still pending. \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\caption{Baseline runtime-only setup versus EITEL-UC3M methodology-oriented deployment}
+\label{tab:baseline-comparison}
+\centering
+\begin{tabular}{p{4.0cm} p{5.2cm} p{6.6cm}}
+\toprule
+\textbf{Dimension} & \textbf{Baseline runtime-only setup} & \textbf{EITEL-UC3M approach} \\
+\midrule
+Deployment model & Connector runtime exposed with core services and environment-specific setup effort & Parameterized deployment kit including runtime, persistence, UI, and auxiliary services \\
+Asset onboarding & Mainly technical registration through management endpoints & Publication workflow covering local upload, remote URLs, metadata enrichment, and contract-ready asset preparation \\
+Policy and contract handling & Possible through APIs, but fragmented for non-expert operators & Integrated creation of asset, policy, and contract definition from the same operational surface \\
+Operational visibility & Protocol correctness can be achieved, but operator visibility remains limited & Unified UI for publication, negotiation context, and transfer-related follow-up \\
+Transfer traceability & Depends on logs and lower-level technical inspection & Download capture and record listing preserve visible operational identifiers across transfer actions \\
+Authentication integration & Source-specific adaptation left largely to deployment or custom integration work & Multiple source authentication modes plus ArcGIS-oriented login and upload path \\
+Municipal GIS alignment & No explicit support for GIS-centered operator workflows & Integration path between connector exchange and ArcGIS-oriented municipal data handling \\
+Replication across organizations & Feasible, but prone to ad hoc divergence across deployments & Designed as a bounded, reusable technical unit for multi-municipality instantiation \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{Executed validation activities}
+The validation activities reported in this paper were executed on the local EITEL-UC3M deployment artifacts and focused on reproducible engineering checks.
+
+First, the Docker Compose deployment of the local UC3M stack was executed and the core runtime reached a healthy state together with its persistence and auxiliary services. This confirms that the connector package can be instantiated from repository artifacts without source-code changes, which directly supports the repeatability criterion.
+
+Second, the auxiliary control-plane service for local assets was verified through its health endpoint, confirming correct startup of the publication support layer. A raw upload operation was then executed against the local-assets API, resulting in successful storage of a test artifact and generation of a public retrieval URL. This demonstrates that locally managed files can be converted into connector-usable publication inputs instead of remaining outside the operational workflow.
+
+Third, the download-capture path was exercised by posting a test payload to the download-sink ingestion endpoint with explicit \texttt{contractId}, \texttt{assetId}, and \texttt{transferId} values. The service persisted the received artifact, registered a transfer record, and exposed that record through the corresponding listing endpoint. This is a relevant validation because it proves that local download-oriented transfers are not treated as opaque side effects; they become traceable operational objects linked to connector semantics.
+
+These checks do not yet constitute a full interoperability benchmark across independent institutional connectors, but they do validate the operational substrate on which such benchmarks depend: deployability, local publication support, and operator-visible transfer capture. In other words, they do not prove that every data-space concern has been solved, but they do show that the connector can already support several of the practical capabilities required to participate in a data space beyond a proof-of-concept runtime.
+
+Seen from the broader data-space perspective, this type of evidence is especially relevant in early municipal deployments. Data spaces require more than protocol conformance: they require that organizations can actually instantiate the software stack, bind local and remote resources into policy-aware assets, and maintain visibility over exchange operations. The executed checks therefore function as readiness indicators for participation in a data space, even if they are not yet cross-organizational benchmarks.
+
+\subsection{Discussion of results}
+Regarding deployment repeatability, the EITEL-UC3M approach improves over a baseline setup by externalizing environment-specific concerns into parameterized deployment artifacts. This reduces the cost of instantiating a connector for a new organization and lowers the risk of source-level divergence. From a software-engineering standpoint, this is a relevant result because repeatability is one of the main conditions for institutional scalability. From a data-space perspective, it also matters because connectors are expected to be replicated across participants; a deployment model that only works as a one-off engineering effort is difficult to reconcile with the broader idea of reusable participation in a federated ecosystem.
+
+Regarding publication completeness, the connector supports both remote and local asset onboarding, which broadens the class of publishable resources. In addition, the publication workflow makes explicit the transition from source registration to asset creation, policy definition, and contract exposure. This explicit staging reduces the ambiguity that frequently appears when operators equate ``uploading data'' with ``publishing a negotiable asset.'' The executed raw-upload validation shows that the local publication path is not merely designed in the abstract; it is operationally available. This is particularly relevant in data spaces, where publication is not just a storage action but the preparation of a discoverable and negotiable offer with metadata, policy, and contractual semantics.
+
+Operational consolidation is improved through the management UI and the integration of transfer tracking into a single user-facing environment. Instead of separating technical and functional visibility, the approach makes publication and consumption steps observable from the same operational layer. The executed download-capture validation is especially relevant here, because it confirms that transfer-related artifacts can be registered and listed with connector-specific identifiers rather than being handled outside the connector toolchain. This matters in municipal contexts, where connector operation may be shared across infrastructure staff, functional data owners, and integration teams. More broadly, it also addresses a recurrent weakness in data-space implementations: the gap between formally correct protocol support and the operator's ability to understand what actually happened during exchange.
+
+Authentication adaptability is strengthened by supporting different source-side authentication patterns and by incorporating configurable front-end access control. This is especially relevant for public-sector deployments, where data providers and user-access systems are rarely homogeneous. In methodological terms, authentication is treated as a first-class concern of connector publication, not as an afterthought delegated to manual integration work. The ArcGIS-oriented path is important in this regard: it provides a concrete integration target for GIS-centered operator environments and for municipal geolocated datasets that are later curated in ArcGIS platforms. For data spaces, this is not a peripheral integration issue; it is part of the practical challenge of linking sovereign exchange mechanisms with the heterogeneous systems that participants already use.
+
+Finally, institutional readiness is enhanced by the virtual-kit approach. Rather than treating each deployment as a bespoke project, the methodology frames the connector as a replicable technical unit that can be instantiated per municipality with bounded configuration effort. This provides a path from proof-of-concept connectors to sustainable multi-entity deployment models. Such a path is especially important in the context of public-sector data spaces, where the value of the ecosystem depends not on a single exemplary connector, but on the ability of multiple organizations to join with comparable operational guarantees.
+
+Taken together, these observations support the central claim of the paper: the main engineering challenge is not only to build a standards-compliant connector, but to transform it into an operationally coherent service artifact. The EITEL-UC3M case suggests that this transformation requires connector-centered methodology as much as connector technology.
+
+\subsection{Threats to validity and limitations}
+The evaluation is currently based on an engineering case study rather than on a large comparative benchmark across multiple organizations. Therefore, the present results support the methodological usefulness of the approach, but do not yet quantify large-scale adoption metrics such as onboarding time reduction, mean operational error rate, or long-term maintenance cost. Likewise, the present paper does not claim that the EITEL-UC3M configuration is the only possible connector packaging strategy. Rather, it argues that a methodology of this kind is necessary, and that the case study provides one validated instantiation.
+
+Another limitation is that the evaluation focuses primarily on engineering and operation concerns rather than on legal enforceability, semantic interoperability depth, or federated trust certification. These dimensions are relevant and closely related, but they should be analyzed as complementary layers on top of the deployment and publication methodology presented here.
+
+Additionally, although the implementation includes ArcGIS-oriented authentication and item-upload logic, this paper does not report a live end-to-end evaluation against an institutional ArcGIS Portal instance. Therefore, ArcGIS should be interpreted here as an implemented integration path and application frame for geolocated data workflows, not as a quantitatively benchmarked external dependency.
+
+A further threat to validity is the current granularity of the evidence. The reported checks demonstrate that the main operational building blocks are executable, but they do not yet provide a longitudinal view of maintenance effort, operator learning curve, or inter-organizational governance overhead. Those aspects are highly relevant in mature data spaces and should be studied in future deployments involving multiple municipalities and external counterparties.
+
+Finally, the current evaluation does not yet include comparative measurements against other connector implementations or service-oriented extensions. This is relevant because recent data-space work is increasingly studying not only whether connectors exchange assets correctly, but also how they support richer interaction patterns, practical applicability, and runtime implications~\cite{b17}. Extending the present evaluation in that direction would strengthen its external validity.
+
+\section{Conclusions and Future Work}
+This paper has presented a methodology for engineering and operating municipal data connectors, grounded in the development of the EITEL-UC3M connector on top of Eclipse Dataspace Components. The main argument is that a connector becomes valuable in practice not only when it complies with protocol expectations, but when it can be deployed reproducibly, configured safely, used to publish assets from realistic sources, and operated through a coherent management layer.
+
+Compared with a runtime-only baseline, the EITEL-UC3M case study shows that a methodology-oriented connector package can improve deployment reproducibility, publication completeness, operational traceability, and alignment with municipal GIS-facing workflows. In that sense, the paper's contribution is not a new connector protocol or a new performance optimization, but an engineering method for turning data-space technology into an institution-ready service artifact. This complements recent data-space literature that emphasizes connector diversity~\cite{b12}, data-space design conditions such as interoperability and sovereignty~\cite{b16}, and richer service-oriented interaction models on top of EDC~\cite{b17}.
+
+Future work should proceed in three directions. First, the methodology should be validated across multiple institutional deployments to measure onboarding effort, maintenance overhead, and reproducibility more rigorously. Second, the evaluation should be extended with systematic interoperability tests against other connector implementations such as DSC, TRUE Connector, and Trusted Connector, as well as with quantitative indicators for publication and transfer workflows. Third, the current ArcGIS-oriented integration path should be assessed in live institutional settings to determine how well connector-mediated exchange supports real geospatial publication and reuse scenarios.
+
+\begin{thebibliography}{00}
+\bibitem{b1} European Commission, ``A European strategy for data,'' 2020. [Online]. Available: https://digital-strategy.ec.europa.eu/en/policies/strategy-data
+\bibitem{b2} European Commission, ``Common European data spaces,'' [Online]. Available: https://digital-strategy.ec.europa.eu/en/policies/data-spaces
+\bibitem{b3} European Commission, ``Data Governance Act explained,'' [Online]. Available: https://digital-strategy.ec.europa.eu/en/policies/data-governance-act-explained
+\bibitem{b4} European Commission, ``Data Act,'' [Online]. Available: https://digital-strategy.ec.europa.eu/en/policies/data-act
+\bibitem{b5} International Data Spaces Association, ``IDS Reference Architecture Model, Version 4.0,'' 2019.
+\bibitem{b6} Gaia-X European Association for Data and Cloud AISBL, ``Gaia-X Architecture Document,'' 2025. [Online]. Available: https://docs.gaia-x.eu/technical-committee/architecture-document/latest/
+\bibitem{b7} Eclipse Foundation, ``Eclipse Dataspace Components,'' [Online]. Available: https://projects.eclipse.org/projects/technology.edc
+\bibitem{b8} European Commission, ``Regulation (EU) 2022/868 of the European Parliament and of the Council of 30 May 2022 on European data governance (Data Governance Act),'' Official Journal of the European Union, 2022.
+\bibitem{b9} European Union, ``Regulation (EU) 2023/2854 of the European Parliament and of the Council of 13 December 2023 on harmonised rules on fair access to and use of data (Data Act),'' Official Journal of the European Union, 2023.
+\bibitem{b10} European Commission, ``Second Staff Working Document on Common European Data Spaces,'' 2024.
+\bibitem{b11} Catena-X, ``Catena-X: The data ecosystem for resilient and sustainable supply chains,'' [Online]. Available: https://catena-x.net/en/
+\bibitem{b12} T. Dam, L. D. Klausner, S. Neumaier, and T. Priebe, ``A survey of dataspace connector implementations,'' arXiv preprint arXiv:2309.11282, 2023.
+\bibitem{b13} J. Pampus, B.-F. Jahnke, and R. Quensel, ``Evolving data space technologies: Lessons learned from an IDS connector reference implementation,'' in \textit{Proceedings of the 11th International Symposium on Leveraging Applications of Formal Methods, Verification and Validation}, 2022, pp. 366--381.
+\bibitem{b14} A. Kotsev, M. Minghini, R. Tomas, V. Cetl, and M. Lutz, ``From spatial data infrastructures to data spaces -- a technological perspective on the evolution of European SDIs,'' \textit{ISPRS International Journal of Geo-Information}, vol. 9, 2020.
+\bibitem{b15} S. Cuno, L. Bruns, N. Tcholtchev, P. Lammel, and I. Schieferdecker, ``Data governance and sovereignty in urban data spaces based on standardized ICT reference architectures,'' \textit{Data}, vol. 4, 2019.
+\bibitem{b16} B. Otto, ``Creating data spaces based on GAIA-X and IDS,'' \textit{Hitachi Research Institute Journal}, vol. 15, no. 2, 2020.
+\bibitem{b17} B. T. Arnold, C. Lange, C. Gillmann, and S. Decker, ``A service architecture for dataspaces,'' arXiv preprint arXiv:2507.07979, 2025.
+\end{thebibliography}
+
+\end{document}

@@ -9,6 +9,7 @@ The current `uc3m` and `fuenlabrada` deployments remain untouched in the root co
 - `normal/`: standalone non-ArcGIS connector
 - `star/`: standalone ArcGIS-enabled connector
 - `star-pair/`: two Star connectors with separate private networks and a shared interconnect network
+- `star-lan/`: Star node A, Star node B, and coordinator split for deployment on different LAN machines
 - `dual/`: both connectors together in one compose
 - `shared/`: shared assets used by both connectors
 
