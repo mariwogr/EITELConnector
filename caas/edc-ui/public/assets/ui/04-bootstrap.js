@@ -273,8 +273,13 @@
     window.showTransferDetail = (index) => showInfoPopup('Detalle de transferencia', state.transferRows[index] || {});
     // Keep original handlers from 02-operations.js to avoid recursive self-calls.
 
-    function init() {
-      hideAuthGate();
+    async function init() {
+      if (arcgis?.enabled) {
+        const isLoggedIn = await ensureArcgisLogin();
+        if (!isLoggedIn) return;
+      } else {
+        hideAuthGate();
+      }
       document.getElementById('badge').textContent = `${role} · EDC · ${getApiBaseUrl() || 'management api'}`;
       const configuredRemoteConnector = (cfg.defaultRemoteConnector || '').trim();
       document.getElementById('searchConnectorId').value = configuredRemoteConnector;
