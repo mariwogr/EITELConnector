@@ -2661,6 +2661,20 @@ function summarizePolicyTerms(policyObj) {
     }
 
     function refreshStarTrustPanel() {
+      const starNavButton = document.querySelector('.nav button[data-view="star-trust"]');
+      const starPanel = document.getElementById('panel-star-trust');
+      const starPanelActive = document.querySelector('.nav button.active[data-view="star-trust"]');
+      if (starNavButton) starNavButton.style.display = starTrustConfig.enabled ? '' : 'none';
+      if (starPanel) {
+        starPanel.style.display = starTrustConfig.enabled ? '' : 'none';
+      }
+      if (!starTrustConfig.enabled && starPanelActive) {
+        starPanelActive.classList.remove('active');
+        document.querySelector('.nav button[data-view="dashboard"]')?.classList.add('active');
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('panel-dashboard')?.classList.add('active');
+      }
+
       const banner = document.getElementById('starTrustBanner');
       const summary = document.getElementById('starTrustSummary');
       const timeline = document.getElementById('starTrustTimeline');

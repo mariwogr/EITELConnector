@@ -83,6 +83,7 @@ services:
       NEXT_PUBLIC_ARCGIS_REDIRECT_URI: ${ARCGIS_REDIRECT_URI:-}
       NEXT_PUBLIC_ARCGIS_REQUIRED_ORG_ID: ${ARCGIS_REQUIRED_ORG_ID:-}
       NEXT_PUBLIC_ARCGIS_REQUIRED_GROUP_ID: ${ARCGIS_REQUIRED_GROUP_ID:-}
+      NEXT_PUBLIC_STAR_MODE: "false"
     volumes:
       - ./caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.final.html:ro
       - ./caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.html:ro
