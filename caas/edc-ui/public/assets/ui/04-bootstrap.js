@@ -38,6 +38,29 @@
       });
       document.getElementById('catalogAcceptTerms').addEventListener('change', syncCatalogSelectionState);
       document.getElementById('btnRequestContract').onclick = requestContractByAsset;
+      if (document.getElementById('btnOpenAccessRequest')) {
+        document.getElementById('btnOpenAccessRequest').onclick = () => {
+          if (typeof getSelectedCatalogRow !== 'function' || typeof openAccessRequestModalForRow !== 'function') return;
+          const selected = getSelectedCatalogRow();
+          openAccessRequestModalForRow(selected);
+        };
+      }
+      if (document.getElementById('btnSubmitAccessRequest')) {
+        document.getElementById('btnSubmitAccessRequest').onclick = () => {
+          if (typeof submitAccessRequest === 'function') submitAccessRequest();
+        };
+      }
+      if (document.getElementById('btnCloseAccessRequest')) {
+        document.getElementById('btnCloseAccessRequest').onclick = () => {
+          if (typeof closeAccessRequestModal === 'function') closeAccessRequestModal();
+        };
+      }
+      const accessRequestModal = document.getElementById('accessRequestModal');
+      if (accessRequestModal) {
+        accessRequestModal.onclick = (e) => {
+          if (e.target === accessRequestModal && typeof closeAccessRequestModal === 'function') closeAccessRequestModal();
+        };
+      }
       document.getElementById('btnListAgreements').onclick = listAgreements;
       document.getElementById('agreementSelect').addEventListener('change', (e) => {
         const contractId = (e.target?.value || '').trim();
@@ -205,6 +228,16 @@
       if (typeof syncTransferAddressFromAgreement === 'function') syncTransferAddressFromAgreement(id);
       activateView('transfers');
     };
+
+    // Solicitudes panel
+    window.approveAccessRequest = approveAccessRequest;
+    window.rejectAccessRequest = rejectAccessRequest;
+
+    document.getElementById('btnRefreshSolicitudes')?.addEventListener('click', () => loadAccessRequestsPanel());
+    document.getElementById('btnFilterSolicitudesAll')?.addEventListener('click', () => loadAccessRequestsPanel('all'));
+    document.getElementById('btnFilterSolicitudesPending')?.addEventListener('click', () => loadAccessRequestsPanel('pending'));
+    document.getElementById('btnFilterSolicitudesApproved')?.addEventListener('click', () => loadAccessRequestsPanel('approved'));
+    document.getElementById('btnFilterSolicitudesRejected')?.addEventListener('click', () => loadAccessRequestsPanel('rejected'));
     window.checkTransfer = checkTransfer;
     window.useCatalogAsset = (assetId) => {
       const idx = state.catalogRows.findIndex(r => r.assetId === assetId);
@@ -225,6 +258,16 @@
       activateView('catalog');
       const contractBox = document.getElementById('catalogContractBox');
       if (contractBox) contractBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    window.openAccessRequestByIndex = (idx) => {
+      const parsed = Number(idx);
+      if (!Number.isInteger(parsed) || parsed < 0 || parsed >= (state.catalogRows || []).length) return;
+      const select = document.getElementById('catalogAssetId');
+      if (select) select.value = String(parsed);
+      syncCatalogSelectionState();
+      if (typeof openAccessRequestModalForRow === 'function') {
+        openAccessRequestModalForRow(state.catalogRows[parsed]);
+      }
     };
     window.showAgreementDetail = (index) => showInfoPopup('Detalle de contrato', state.agreementRows[index] || {});
     window.showTransferDetail = (index) => showInfoPopup('Detalle de transferencia', state.transferRows[index] || {});
@@ -269,6 +312,9 @@
       loadPublishedAssets(false);
       restoreAssetsFromBackup({ onlyIfEmpty: true, silent: true });
       listSecrets(false);
+      // Badge de solicitudes pendientes: cargar al inicio y refrescar cada 60 s
+      refreshSolicitudesBadge();
+      setInterval(refreshSolicitudesBadge, 60000);
     }
     init();
 

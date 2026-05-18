@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from datetime import datetime, UTC
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from mimetypes import guess_type
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
 import json
 import shutil
+import smtplib
 
 import yaml
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
@@ -42,6 +45,15 @@ class Settings(BaseSettings):
     local_assets_dir: str = './data/local-assets'
     local_assets_internal_base_url: str = 'http://conectoruc3m-local-assets:8081/v1/local-assets/files'
     local_assets_public_base_url: str = 'https://gis.eiteldata.eu/conectoruc3m/local-assets/files'
+
+    # SMTP para notificaciones de solicitudes de acceso (todos opcionales)
+    smtp_host: str = ''
+    smtp_port: int = 587
+    smtp_user: str = ''
+    smtp_password: str = ''
+    smtp_from: str = ''
+    smtp_use_tls: bool = True
+    connector_public_url: str = ''  # ej: https://gis.eiteldata.eu/conectoruc3m/edc-ui
 
 
 settings = Settings()
@@ -108,6 +120,7 @@ def startup_event():
     _load_download_sink_records()
     _load_local_secret_records()
     _load_asset_bundle_records()
+    _load_access_request_records()
 
 
 class TenantCreate(BaseModel):
@@ -129,6 +142,8 @@ MAX_LOCAL_DOWNLOAD_RECORDS = 200
 local_secret_records: dict[str, str] = {}
 asset_bundle_records: list[dict] = []
 MAX_ASSET_BUNDLE_RECORDS = 300
+access_request_records: list[dict] = []
+MAX_ACCESS_REQUEST_RECORDS = 800
 
 
 def _download_sink_index_path() -> Path:
@@ -207,6 +222,86 @@ def _save_asset_bundle_records() -> None:
     path = _asset_bundle_index_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = [row for row in asset_bundle_records[-MAX_ASSET_BUNDLE_RECORDS:] if isinstance(row, dict)]
+    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding='utf-8')
+
+
+def _access_request_index_path() -> Path:
+    return Path(settings.local_assets_dir) / 'access-requests' / 'index.json'
+
+
+def _send_access_request_email(row: dict) -> None:
+    """Send an email notification to the asset owner when a new access request arrives.
+    Silently skipped if SMTP is not configured or the owner email is missing."""
+    if not settings.smtp_host or not settings.smtp_from:
+        return
+    to_addr = str(row.get('ownerEmail') or '').strip()
+    if not to_addr:
+        return
+    try:
+        asset_label = str(row.get('assetTitle') or row.get('assetId') or '')
+        subject = f'[EITEL] Nueva solicitud de acceso: {asset_label}'
+        ui_link = str(settings.connector_public_url or '').strip()
+        link_html = f'<p>Gestiona la solicitud en: <a href="{ui_link}">{ui_link}</a></p>' if ui_link else ''
+        body_html = f"""<html><body style="font-family:sans-serif;color:#222">
+<h2 style="color:#1a5276">Nueva solicitud de acceso a asset privado</h2>
+<table border="0" cellpadding="6" style="border-collapse:collapse;min-width:400px">
+  <tr><td><b>Asset:</b></td><td>{asset_label}</td></tr>
+  <tr><td><b>Solicitante:</b></td><td>{row.get('requesterName', '')} &lt;{row.get('requesterEmail', '')}&gt;</td></tr>
+  <tr><td><b>Organización:</b></td><td>{row.get('requesterOrg', '') or '-'}</td></tr>
+  <tr><td><b>Finalidad:</b></td><td>{row.get('purpose', '')}</td></tr>
+  <tr><td><b>Duración solicitada:</b></td><td>{row.get('requestedDuration', '') or '-'}</td></tr>
+  <tr><td><b>Mensaje adicional:</b></td><td>{row.get('message', '') or '-'}</td></tr>
+  <tr><td><b>Fecha:</b></td><td>{row.get('createdAt', '')}</td></tr>
+  <tr><td><b>ID solicitud:</b></td><td style="font-family:monospace">{row.get('requestId', '')}</td></tr>
+</table>
+{link_html}
+<p style="color:#888;font-size:11px">Mensaje generado automáticamente por el Conector EITEL.</p>
+</body></html>"""
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = settings.smtp_from
+        msg['To'] = to_addr
+        msg.attach(MIMEText(body_html, 'html', 'utf-8'))
+        if settings.smtp_use_tls:
+            smtp = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10)
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.ehlo()
+        else:
+            smtp = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=10)
+        if settings.smtp_user and settings.smtp_password:
+            smtp.login(settings.smtp_user, settings.smtp_password)
+        smtp.sendmail(settings.smtp_from, [to_addr], msg.as_string())
+        smtp.quit()
+    except Exception as exc:
+        print(f'[WARN] Email notification failed: {exc}')
+
+
+def _load_access_request_records() -> None:
+    path = _access_request_index_path()
+    try:
+        if not path.exists():
+            access_request_records.clear()
+            return
+        parsed = json.loads(path.read_text(encoding='utf-8'))
+        if isinstance(parsed, list):
+            filtered = [
+                row
+                for row in parsed
+                if isinstance(row, dict)
+                and str(row.get('requestId') or '').strip()
+                and str(row.get('assetId') or '').strip()
+            ]
+            access_request_records.clear()
+            access_request_records.extend(filtered[-MAX_ACCESS_REQUEST_RECORDS:])
+    except Exception:
+        access_request_records.clear()
+
+
+def _save_access_request_records() -> None:
+    path = _access_request_index_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = [row for row in access_request_records[-MAX_ACCESS_REQUEST_RECORDS:] if isinstance(row, dict)]
     path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding='utf-8')
 
 
@@ -622,6 +717,147 @@ def delete_asset_bundle(asset_id: str):
     asset_bundle_records[:] = [row for row in asset_bundle_records if str(row.get('assetId') or '') != target]
     _save_asset_bundle_records()
     return {'ok': True, 'deleted': len(asset_bundle_records) < before, 'assetId': target}
+
+
+@app.get('/v1/local-assets/access-requests')
+def list_access_requests(
+    assetId: str | None = None,
+    status: str | None = None,
+    ownerEmail: str | None = None,
+):
+    items = list(reversed(access_request_records))
+
+    if assetId:
+        target_asset_id = str(assetId).strip()
+        items = [row for row in items if str(row.get('assetId') or '').strip() == target_asset_id]
+
+    if status:
+        target_status = str(status).strip().lower()
+        items = [row for row in items if str(row.get('status') or '').strip().lower() == target_status]
+
+    if ownerEmail:
+        target_owner_email = str(ownerEmail).strip().lower()
+        items = [row for row in items if str(row.get('ownerEmail') or '').strip().lower() == target_owner_email]
+
+    return {'count': len(items), 'items': items}
+
+
+@app.post('/v1/local-assets/access-requests')
+async def create_access_request(request: Request):
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail='Payload invalido')
+
+    asset_id = str(payload.get('assetId') or '').strip()
+    requester_name = str(payload.get('requesterName') or '').strip()
+    requester_email = str(payload.get('requesterEmail') or '').strip()
+    requester_org = str(payload.get('requesterOrg') or '').strip()
+    purpose = str(payload.get('purpose') or '').strip()
+    owner_email = str(payload.get('ownerEmail') or '').strip()
+
+    if not asset_id:
+        raise HTTPException(status_code=400, detail='assetId es obligatorio')
+    if not requester_name:
+        raise HTTPException(status_code=400, detail='requesterName es obligatorio')
+    if not requester_email:
+        raise HTTPException(status_code=400, detail='requesterEmail es obligatorio')
+    if not purpose:
+        raise HTTPException(status_code=400, detail='purpose es obligatorio')
+
+    now_iso = datetime.now(UTC).isoformat()
+    row = {
+        'requestId': uuid4().hex,
+        'assetId': asset_id,
+        'assetTitle': str(payload.get('assetTitle') or '').strip(),
+        'ownerConnectorId': str(payload.get('ownerConnectorId') or '').strip(),
+        'ownerEmail': owner_email,
+        'status': 'pending',
+        'requesterName': requester_name,
+        'requesterEmail': requester_email,
+        'requesterOrg': requester_org,
+        'purpose': purpose,
+        'requestedDuration': str(payload.get('requestedDuration') or '').strip(),
+        'message': str(payload.get('message') or '').strip(),
+        'createdAt': now_iso,
+        'updatedAt': now_iso,
+        'decisionAt': '',
+        'decisionBy': '',
+        'decisionReason': '',
+    }
+
+    access_request_records.append(row)
+    if len(access_request_records) > MAX_ACCESS_REQUEST_RECORDS:
+        del access_request_records[: len(access_request_records) - MAX_ACCESS_REQUEST_RECORDS]
+    _save_access_request_records()
+    _send_access_request_email(row)
+
+    return {'ok': True, 'requestId': row['requestId'], 'status': row['status'], 'item': row}
+
+
+@app.post('/v1/local-assets/access-requests/{request_id}/approve')
+async def approve_access_request(request_id: str, request: Request):
+    target_request_id = str(request_id or '').strip()
+    if not target_request_id:
+        raise HTTPException(status_code=400, detail='requestId es obligatorio')
+
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        payload = {}
+
+    idx = next(
+        (i for i, item in enumerate(access_request_records) if str(item.get('requestId') or '').strip() == target_request_id),
+        -1,
+    )
+    if idx < 0:
+        raise HTTPException(status_code=404, detail='Solicitud no encontrada')
+
+    now_iso = datetime.now(UTC).isoformat()
+    current = access_request_records[idx]
+    updated = {
+        **current,
+        'status': 'approved',
+        'updatedAt': now_iso,
+        'decisionAt': now_iso,
+        'decisionBy': str(payload.get('decisionBy') or '').strip(),
+        'decisionReason': str(payload.get('decisionReason') or '').strip(),
+    }
+    access_request_records[idx] = updated
+    _save_access_request_records()
+
+    return {'ok': True, 'requestId': target_request_id, 'status': updated['status'], 'item': updated}
+
+
+@app.post('/v1/local-assets/access-requests/{request_id}/reject')
+async def reject_access_request(request_id: str, request: Request):
+    target_request_id = str(request_id or '').strip()
+    if not target_request_id:
+        raise HTTPException(status_code=400, detail='requestId es obligatorio')
+
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        payload = {}
+
+    idx = next(
+        (i for i, item in enumerate(access_request_records) if str(item.get('requestId') or '').strip() == target_request_id),
+        -1,
+    )
+    if idx < 0:
+        raise HTTPException(status_code=404, detail='Solicitud no encontrada')
+
+    now_iso = datetime.now(UTC).isoformat()
+    current = access_request_records[idx]
+    updated = {
+        **current,
+        'status': 'rejected',
+        'updatedAt': now_iso,
+        'decisionAt': now_iso,
+        'decisionBy': str(payload.get('decisionBy') or '').strip(),
+        'decisionReason': str(payload.get('decisionReason') or '').strip(),
+    }
+    access_request_records[idx] = updated
+    _save_access_request_records()
+
+    return {'ok': True, 'requestId': target_request_id, 'status': updated['status'], 'item': updated}
 
 
 @app.get('/v1/config')

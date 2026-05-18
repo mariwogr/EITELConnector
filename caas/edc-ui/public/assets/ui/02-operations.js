@@ -20,6 +20,30 @@ function summarizePolicyTerms(policyObj) {
       return constraints.map(c => `${c.leftOperand || c['odrl:leftOperand'] || 'condición'} ${c.operator || c['odrl:operator'] || 'eq'} ${c.rightOperand || c['odrl:rightOperand'] || '-'}`).join(' | ');
     }
 
+    function normalizeAccessLevel(value) {
+      const normalized = String(value || '').trim().toLowerCase();
+      if (!normalized) return 'public';
+      if (normalized === 'privado') return 'private';
+      if (normalized === 'publico') return 'public';
+      return normalized;
+    }
+
+    function extractAccessLevelFromPolicy(policyObj) {
+      const permsRaw = policyObj?.['odrl:permission'] || policyObj?.permission || [];
+      const perms = Array.isArray(permsRaw) ? permsRaw : [permsRaw];
+      const constraints = perms.flatMap(p => {
+        const c = p?.constraint || p?.['odrl:constraint'] || [];
+        return Array.isArray(c) ? c : [c];
+      }).filter(Boolean);
+
+      const found = constraints.find(c => {
+        const left = String(c?.leftOperand || c?.['odrl:leftOperand'] || '').trim().toLowerCase();
+        return left === 'dct:accessrights' || left === 'accessrights';
+      });
+      const right = found?.rightOperand || found?.['odrl:rightOperand'] || policyObj?.['dct:accessRights'] || '';
+      return normalizeAccessLevel(right || 'public');
+    }
+
     /**
      * Parses a keyword list from various input formats.
      * Handles arrays, strings (split by comma, semicolon, or newline), and null/undefined values.
@@ -205,6 +229,20 @@ function summarizePolicyTerms(policyObj) {
         title,
         description,
         imageUrl,
+        visibility: firstNonEmpty([
+          d?.['dct:accessRights'],
+          props?.['dct:accessRights'],
+          props?.['eitel:visibility'],
+          props?.visibility,
+        ]),
+        ownerEmail: firstNonEmpty([
+          props?.['eitel:ownerEmail'],
+          props?.ownerEmail,
+        ]),
+        ownerName: firstNonEmpty([
+          props?.['eitel:ownerName'],
+          props?.ownerName,
+        ]),
         keywords: [...new Set(keywords)],
       };
     }
@@ -1505,6 +1543,9 @@ function summarizePolicyTerms(policyObj) {
           }
         });
       }
+      if (resolved === 'solicitudes') {
+        loadAccessRequestsPanel(window._solicitudesCurrentFilter || 'all');
+      }
     }
 
     /**
@@ -1628,7 +1669,14 @@ function summarizePolicyTerms(policyObj) {
         const defaultImageClass = isDefaultAssetImage(image) ? ' is-default' : '';
         const keywords = Array.isArray(row.assetKeywords) ? row.assetKeywords.slice(0, 8) : [];
         const delayMs = Math.min(idx * 55, 550);
-        const canContract = Boolean(row.offerId);
+        const isPrivate = normalizeAccessLevel(row.accessLevel || 'public') === 'private';
+        const canContract = Boolean(row.offerId) && !isPrivate;
+        const actionLabel = canContract
+          ? 'Iniciar contratacion'
+          : (isPrivate ? 'Solicitar acceso' : 'Solo visualizacion local');
+        const actionOnClick = canContract
+          ? `window.useCatalogAssetByIndex(${idx})`
+          : (isPrivate ? `window.openAccessRequestByIndex(${idx})` : `window.useCatalogAssetByIndex(${idx})`);
         const media = `<div class="asset-card-media${defaultImageClass}"><img src="${htmlEscape(image)}" alt="Imagen del asset ${title}" /><span class="asset-card-badge">${connectorBadge}</span><div class="asset-card-media-overlay"><span class="asset-card-media-title">${title}</span></div></div>`;
         const chips = keywords.length
           ? `<div class="asset-card-keywords">${keywords.map(k => `<span class="asset-chip">${htmlEscape(k)}</span>`).join('')}</div>`
@@ -1643,10 +1691,11 @@ function summarizePolicyTerms(policyObj) {
               <details>
                 <summary>Detalles</summary>
                 <div class="asset-card-desc">${desc}</div>
+                <div class="asset-card-meta">Visibilidad: ${isPrivate ? 'privado' : 'publico'}</div>
                 ${chips}
               </details>
               <div class="row">
-                <button class="primary" onclick="window.useCatalogAssetByIndex(${idx})" ${canContract ? '' : 'disabled'}>${canContract ? 'Iniciar contratacion' : 'Solo visualizacion local'}</button>
+                <button class="primary" onclick="${actionOnClick}" ${canContract || isPrivate ? '' : 'disabled'}>${actionLabel}</button>
               </div>
             </div>
           </article>
@@ -1665,9 +1714,22 @@ function summarizePolicyTerms(policyObj) {
       const selected = Number.isInteger(idx) && idx >= 0 ? state.catalogRows[idx] : null;
       if (terms) terms.value = selected?.policySummary || '';
       if (policyJsonLd) policyJsonLd.value = selected ? buildPolicyDcatJsonLd(selected) : '';
+      const isPrivate = normalizeAccessLevel(selected?.accessLevel || 'public') === 'private';
 
       const contractBox = document.getElementById('catalogContractBox');
       if (contractBox) contractBox.style.display = selected ? 'block' : 'none';
+      const requestBtn = document.getElementById('btnRequestContract');
+      const requestAccessBtn = document.getElementById('btnOpenAccessRequest');
+      if (requestBtn) requestBtn.style.display = selected && !isPrivate ? 'inline-flex' : 'none';
+      if (requestAccessBtn) requestAccessBtn.style.display = selected && isPrivate ? 'inline-flex' : 'none';
+      if (accept) {
+        if (isPrivate) {
+          accept.checked = false;
+          accept.disabled = true;
+        } else {
+          accept.disabled = false;
+        }
+      }
 
       const selectedConnector = document.getElementById('catalogSelectedConnector');
       if (selectedConnector) selectedConnector.value = selected?.connectorId || '';
@@ -1683,6 +1745,222 @@ function summarizePolicyTerms(policyObj) {
       }
 
       // Explicit flow: contract is only requested when user clicks "Realizar contrato".
+    }
+
+    function getSelectedCatalogRow() {
+      const select = document.getElementById('catalogAssetId');
+      if (!select) return null;
+      const idx = Number(select.value);
+      if (!Number.isInteger(idx) || idx < 0 || idx >= (state.catalogRows || []).length) return null;
+      return state.catalogRows[idx] || null;
+    }
+
+    function closeAccessRequestModal() {
+      const modal = document.getElementById('accessRequestModal');
+      if (modal) modal.classList.remove('open');
+    }
+
+    function openAccessRequestModalForRow(row) {
+      if (!row) {
+        writeOut({ status: 400, error: 'Selecciona primero un asset privado.' });
+        return;
+      }
+      const setVal = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.value = String(value || '').trim();
+      };
+      setVal('reqAssetId', row.assetId || '');
+      setVal('reqAssetTitle', row.assetTitle || clean(row.assetId || ''));
+      setVal('reqOwnerConnector', row.connectorId || row.assigner || '');
+      setVal('reqOwnerEmail', row.ownerEmail || '');
+      setVal('reqPurpose', '');
+      setVal('reqDuration', '');
+      setVal('reqMessage', '');
+      const legal = document.getElementById('reqLegalAccept');
+      if (legal) legal.checked = false;
+
+      const modal = document.getElementById('accessRequestModal');
+      if (modal) modal.classList.add('open');
+    }
+
+    /**
+     * Derives the public local-assets base URL for a remote connector from its DSP address.
+     * e.g. https://gis.eiteldata.eu/conectoruc3m/api/v1/dsp → https://gis.eiteldata.eu/conectoruc3m/local-assets
+     */
+    function deriveProviderLocalAssetsUrl(dspAddress) {
+      if (!dspAddress) return null;
+      try {
+        // Strip /2025-1 protocol version suffix if present
+        const cleanAddr = String(dspAddress).replace(/\/2025-1\/?$/, '');
+        const url = new URL(cleanAddr);
+        const parts = url.pathname.replace(/\/+$/, '').split('/').filter(Boolean);
+        // Pattern: ['conectorXXX', 'api', 'v1', 'dsp'] → prefix = 'conectorXXX'
+        const apiIdx = parts.indexOf('api');
+        if (apiIdx > 0) {
+          const prefix = parts.slice(0, apiIdx).join('/');
+          return `${url.origin}/${prefix}/local-assets`;
+        }
+        // Fallback: use first path segment
+        if (parts.length > 0) return `${url.origin}/${parts[0]}/local-assets`;
+        return null;
+      } catch {
+        return null;
+      }
+    }
+
+    async function submitAccessRequest() {
+      const selected = getSelectedCatalogRow();
+      if (!selected) {
+        writeOut({ status: 400, error: 'No hay asset seleccionado para solicitar acceso.' });
+        return;
+      }
+
+      const legalAccepted = document.getElementById('reqLegalAccept')?.checked;
+      if (!legalAccepted) {
+        writeOut({ status: 400, error: 'Debes aceptar la declaración antes de enviar la solicitud.' });
+        return;
+      }
+
+      const payload = {
+        assetId: selected.assetId || '',
+        assetTitle: selected.assetTitle || clean(selected.assetId || ''),
+        ownerConnectorId: selected.connectorId || selected.assigner || '',
+        ownerEmail: String(document.getElementById('reqOwnerEmail')?.value || selected.ownerEmail || '').trim(),
+        requesterName: String(document.getElementById('reqRequesterName')?.value || '').trim(),
+        requesterEmail: String(document.getElementById('reqRequesterEmail')?.value || '').trim(),
+        requesterOrg: String(document.getElementById('reqRequesterOrg')?.value || '').trim(),
+        purpose: String(document.getElementById('reqPurpose')?.value || '').trim(),
+        requestedDuration: String(document.getElementById('reqDuration')?.value || '').trim(),
+        message: String(document.getElementById('reqMessage')?.value || '').trim(),
+      };
+
+      if (!payload.requesterName || !payload.requesterEmail || !payload.purpose) {
+        writeOut({ status: 400, error: 'Completa nombre, email y finalidad para enviar la solicitud.' });
+        return;
+      }
+
+      // POST to the provider's local-assets (cross-connector), not to own local-assets
+      const dspAddress = selected.counterPartyAddress || '';
+      const providerBase = deriveProviderLocalAssetsUrl(dspAddress);
+      let response;
+      if (providerBase) {
+        try {
+          const rawResp = await fetch(`${providerBase}/access-requests`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(payload),
+            credentials: 'include',
+            cache: 'no-store',
+          });
+          const text = await rawResp.text();
+          let data;
+          try { data = JSON.parse(text); } catch { data = { raw: text }; }
+          response = { status: rawResp.status, data };
+        } catch (err) {
+          response = { status: 503, data: { error: String(err) } };
+        }
+      } else {
+        // Fallback for local dev where DSP URL may not follow the standard pattern
+        response = await callLocalAssetsApi('POST', '/access-requests', {
+          body: JSON.stringify(payload),
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      writeOut(response);
+      if (response.status >= 200 && response.status < 300) {
+        closeAccessRequestModal();
+        showInfoPopup('Solicitud enviada', {
+          assetId: payload.assetId,
+          requestId: response?.data?.requestId || '',
+          status: response?.data?.status || 'pending',
+          ownerEmail: payload.ownerEmail || '-',
+        });
+      } else {
+        showInfoPopup('No se pudo enviar la solicitud', response);
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Panel "Solicitudes recibidas" — gestión de access requests del propietario
+    // ---------------------------------------------------------------------------
+
+    async function loadAccessRequestsPanel(statusFilter) {
+      const filter = statusFilter || window._solicitudesCurrentFilter || 'all';
+      window._solicitudesCurrentFilter = filter;
+      const tbody = document.getElementById('solicitudesTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '<tr><td colspan="7" class="muted">Cargando...</td></tr>';
+      const params = filter !== 'all' ? `?status=${encodeURIComponent(filter)}` : '';
+      const response = await callLocalAssetsApi('GET', `/access-requests${params}`);
+      if (response.status < 200 || response.status >= 300) {
+        tbody.innerHTML = `<tr><td colspan="7" class="muted">Error: ${htmlEscape(String(response.data?.detail || response.data?.error || 'Error'))}</td></tr>`;
+        return;
+      }
+      const items = response.data?.items || [];
+      if (!items.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="muted">No hay solicitudes para este filtro.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = items.map(req => {
+        const status = req.status || 'pending';
+        const statusLabel = status === 'pending' ? 'Pendiente' : status === 'approved' ? 'Aprobada' : 'Rechazada';
+        const statusStyle = status === 'pending'
+          ? 'background:#fff3cd;color:#856404;padding:2px 7px;border-radius:4px;font-size:12px'
+          : status === 'approved'
+            ? 'background:#d4edda;color:#155724;padding:2px 7px;border-radius:4px;font-size:12px'
+            : 'background:#f8d7da;color:#721c24;padding:2px 7px;border-radius:4px;font-size:12px';
+        const date = req.createdAt ? new Date(req.createdAt).toLocaleDateString('es-ES') : '-';
+        const actions = status === 'pending'
+          ? `<button class="primary" style="font-size:12px;padding:3px 10px" onclick="window.approveAccessRequest('${htmlEscape(req.requestId)}')">Aprobar</button>
+             <button class="ghost" style="font-size:12px;padding:3px 10px;margin-left:4px" onclick="window.rejectAccessRequest('${htmlEscape(req.requestId)}')">Rechazar</button>`
+          : `<span class="muted" style="font-size:12px">${req.decisionReason ? htmlEscape(req.decisionReason) : '-'}</span>`;
+        return `<tr>
+          <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${htmlEscape(req.assetId || '')}">${htmlEscape(req.assetTitle || req.assetId || '-')}</td>
+          <td>${htmlEscape(req.requesterName || '-')}<br><span class="muted" style="font-size:11px">${htmlEscape(req.requesterEmail || '')}</span></td>
+          <td>${htmlEscape(req.requesterOrg || '-')}</td>
+          <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${htmlEscape(req.purpose || '')}">${htmlEscape(req.purpose || '-')}</td>
+          <td style="white-space:nowrap">${date}</td>
+          <td><span style="${statusStyle}">${statusLabel}</span></td>
+          <td style="white-space:nowrap">${actions}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function approveAccessRequest(requestId) {
+      if (!requestId) return;
+      const reason = window.prompt('Motivo de aprobación (opcional):') ?? '';
+      const response = await callLocalAssetsApi('POST', `/access-requests/${encodeURIComponent(requestId)}/approve`, {
+        body: JSON.stringify({ decisionReason: reason }),
+        headers: { 'content-type': 'application/json' },
+      });
+      writeOut(response);
+      await loadAccessRequestsPanel();
+      refreshSolicitudesBadge();
+    }
+
+    async function rejectAccessRequest(requestId) {
+      if (!requestId) return;
+      const reason = window.prompt('Motivo de rechazo (opcional):') ?? '';
+      const response = await callLocalAssetsApi('POST', `/access-requests/${encodeURIComponent(requestId)}/reject`, {
+        body: JSON.stringify({ decisionReason: reason }),
+        headers: { 'content-type': 'application/json' },
+      });
+      writeOut(response);
+      await loadAccessRequestsPanel();
+      refreshSolicitudesBadge();
+    }
+
+    async function refreshSolicitudesBadge() {
+      const badge = document.getElementById('solicitudesBadge');
+      if (!badge) return;
+      try {
+        const response = await callLocalAssetsApi('GET', '/access-requests?status=pending');
+        const count = (response.data?.items || []).length;
+        badge.textContent = count > 0 ? String(count) : '';
+        badge.style.display = count > 0 ? 'inline-flex' : 'none';
+      } catch {
+        badge.style.display = 'none';
+      }
     }
 
     function mapPublishedAssetRows(rawAssets = []) {
@@ -1715,6 +1993,9 @@ function summarizePolicyTerms(policyObj) {
           title,
           description,
           imageUrl,
+          visibility: normalizeAccessLevel(firstNonEmpty([props?.['eitel:visibility'], props?.['dct:accessRights'], 'public'])),
+          ownerEmail: firstNonEmpty([props?.['eitel:ownerEmail'], '']),
+          ownerName: firstNonEmpty([props?.['eitel:ownerName'], '']),
           managedBy: firstNonEmpty([props?.['eitel:managedByConnector'], props?.['eitel:managedBy']]),
           keywords: [...new Set(keywords)],
         };
@@ -1736,6 +2017,9 @@ function summarizePolicyTerms(policyObj) {
         assetDescription: row.description,
         assetKeywords: row.keywords,
         assetImageUrl: row.imageUrl,
+        accessLevel: row.visibility || 'public',
+        ownerEmail: row.ownerEmail || '',
+        ownerName: row.ownerName || '',
       }));
     }
 
@@ -4191,6 +4475,9 @@ function summarizePolicyTerms(policyObj) {
       const assetName = (document.getElementById('assetName').value || '').trim();
       const assetDescription = (document.getElementById('assetDescription')?.value || '').trim();
       const assetKeywords = parseKeywordList(document.getElementById('assetKeywords')?.value || '');
+      const ownerName = (document.getElementById('assetOwnerName')?.value || '').trim();
+      const ownerEmail = (document.getElementById('assetOwnerEmail')?.value || '').trim().toLowerCase();
+      const accessLevel = normalizeAccessLevel(document.getElementById('policyAccessLevel')?.value || 'public');
       let assetImageUrl = '';
       const sourceMode = getSelectedAssetSourceMode();
 
@@ -4301,13 +4588,17 @@ function summarizePolicyTerms(policyObj) {
           name: assetName,
           title: assetName,
           description: assetDescription,
+          'dct:accessRights': accessLevel,
           keywords: assetKeywords.join(', '),
           'eitel:managedByConnector': connectorName,
+          'eitel:visibility': accessLevel,
+          'eitel:ownerName': ownerName,
+          'eitel:ownerEmail': ownerEmail,
           image: assetImageUrl,
           contenttype: contentType,
           'eitel:authType': authType,
           'eitel:sourceMode': sourceMode,
-          'eitel:localAssetPublicUrl': localUploadInfo?.publicUrl || '',
+          'eitel:localAssetPublicUrl': accessLevel === 'private' ? '' : (localUploadInfo?.publicUrl || ''),
           'eitel:localAssetFilename': localUploadInfo?.filename || '',
           'eitel:authSecret': document.getElementById('pubAuthSecret')?.value || '',
           'eitel:authClientId': document.getElementById('pubAuthClientId')?.value.trim() || '',
@@ -4490,6 +4781,11 @@ function summarizePolicyTerms(policyObj) {
       setVal('assetName', firstNonEmpty([props?.name, props?.title, clean(id)]));
       setVal('assetDescription', firstNonEmpty([props?.description, props?.['eitel:description'], '']));
       setVal('assetKeywords', parseKeywordList(props?.keywords || '').join(', '));
+      setVal('assetOwnerName', firstNonEmpty([props?.['eitel:ownerName'], '']));
+      setVal('assetOwnerEmail', firstNonEmpty([props?.['eitel:ownerEmail'], '']));
+      const accessLevel = normalizeAccessLevel(firstNonEmpty([props?.['eitel:visibility'], props?.['dct:accessRights'], 'public']));
+      const policyAccessSelect = document.getElementById('policyAccessLevel');
+      if (policyAccessSelect) policyAccessSelect.value = accessLevel;
       setVal('assetBaseUrl', dataAddress?.baseUrl || '');
       setVal('assetPath', dataAddress?.path || '');
       if (typeof updateAssetPreview === 'function') updateAssetPreview();
@@ -4570,6 +4866,7 @@ function summarizePolicyTerms(policyObj) {
           const permsRaw = pol?.['odrl:permission'] || pol?.permission || [];
           const perms = Array.isArray(permsRaw) ? permsRaw : [permsRaw];
           const target = perms.find(p => p?.['odrl:target'] || p?.target)?.['odrl:target'] || perms.find(p => p?.['odrl:target'] || p?.target)?.target || datasetId;
+          const accessLevel = normalizeAccessLevel(meta.visibility || extractAccessLevelFromPolicy(pol) || 'public');
           return {
             offerId: pol?.['@id'] || pol?.id || '',
             assetId: datasetId || target,
@@ -4577,6 +4874,9 @@ function summarizePolicyTerms(policyObj) {
             assigner: pol?.assigner || pol?.['odrl:assigner'] || connectorId,
             connectorId,
             counterPartyAddress: address,
+            accessLevel,
+            ownerEmail: meta.ownerEmail || '',
+            ownerName: meta.ownerName || '',
             policySummary: summarizePolicyTerms(pol),
             policyRaw: pol,
             sourceHintUrl,
@@ -4796,6 +5096,16 @@ function summarizePolicyTerms(policyObj) {
           actionBtn.disabled = false;
           actionBtn.textContent = 'Realizar contrato';
         }
+        return;
+      }
+
+      if (normalizeAccessLevel(selected.accessLevel || 'public') === 'private') {
+        openAccessRequestModalForRow(selected);
+        if (actionBtn) {
+          actionBtn.disabled = false;
+          actionBtn.textContent = 'Realizar contrato';
+        }
+        writeOut({ status: 403, error: 'Este asset es privado. Debes solicitar acceso al propietario.' });
         return;
       }
 

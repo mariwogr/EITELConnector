@@ -13,6 +13,7 @@ caas/control-plane/.env
 demo_assets_data/
 
 # LaTeX build artifacts
+paper/
 paper/*.aux
 paper/*.bbl
 paper/*.bcf
