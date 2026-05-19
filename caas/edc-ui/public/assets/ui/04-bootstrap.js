@@ -300,6 +300,29 @@
         openAccessRequestModalForRow(state.catalogRows[parsed]);
       }
     };
+    window.showCatalogAssetStatusByIndex = (idx) => {
+      const parsed = Number(idx);
+      if (!Number.isInteger(parsed) || parsed < 0 || parsed >= (state.catalogRows || []).length) return;
+      const row = state.catalogRows[parsed] || {};
+      const select = document.getElementById('catalogAssetId');
+      if (select) select.value = String(parsed);
+      syncCatalogSelectionState();
+      activateView('catalog');
+      showInfoPopup('Estado del asset', {
+        assetId: row.assetId || '',
+        connector: row.connectorId || row.assigner || '',
+        estado: typeof getCatalogRowState === 'function' ? getCatalogRowState(row) : '',
+        acceso: row.accessRequestStatus || 'sin solicitud',
+        requestId: row.accessRequestId || '',
+        offerId: row.offerId || '',
+        contratacion: row.offerId
+          ? 'Hay oferta de catálogo: puedes iniciar contratación.'
+          : 'El acceso puede estar concedido, pero todavía no hay oferta/policy de catálogo publicada para contratar desde EDC.',
+        siguientePaso: row.offerId
+          ? 'Selecciona el asset y pulsa Realizar contrato.'
+          : 'Publica o revisa ContractDefinition/Policy en el conector propietario y recarga catálogos.',
+      });
+    };
     window.showAgreementDetail = (index) => showInfoPopup('Detalle de contrato', state.agreementRows[index] || {});
     window.showTransferDetail = (index) => showInfoPopup('Detalle de transferencia', state.transferRows[index] || {});
     // Keep original handlers from 02-operations.js to avoid recursive self-calls.

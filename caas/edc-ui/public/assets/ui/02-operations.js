@@ -1728,10 +1728,14 @@ function summarizePolicyTerms(policyObj) {
         const canContract = hasOffer && !isOwn && (accessGranted || !isPrivate);
         const actionLabel = isOwn
           ? 'Asset propio'
-          : (canContract ? 'Iniciar contratacion' : (stateName === 'pending' ? 'Ver solicitud' : 'Solicitar acceso'));
+          : (canContract
+            ? 'Iniciar contratacion'
+            : (stateName === 'no-access' ? 'Solicitar acceso' : 'Ver estado'));
         const actionOnClick = canContract
           ? `window.useCatalogAssetByIndex(${idx})`
-          : `window.openAccessRequestByIndex(${idx})`;
+          : (stateName === 'no-access'
+            ? `window.openAccessRequestByIndex(${idx})`
+            : `window.showCatalogAssetStatusByIndex(${idx})`);
         const stateLabel = htmlEscape(catalogStateLabel(stateName));
         const media = `<div class="asset-card-media${defaultImageClass}"><img src="${htmlEscape(image)}" alt="Imagen del asset ${title}" /><span class="asset-card-badge">${connectorBadge}</span><div class="asset-card-media-overlay"><span class="asset-card-media-title">${title}</span></div></div>`;
         const chips = keywords.length
@@ -1791,8 +1795,9 @@ function summarizePolicyTerms(policyObj) {
       const requestBtn = document.getElementById('btnRequestContract');
       const requestAccessBtn = document.getElementById('btnOpenAccessRequest');
       const hasOffer = Boolean(selected?.offerId);
+      const selectedState = selected ? getCatalogRowState(selected) : '';
       if (requestBtn) requestBtn.style.display = selected && hasOffer && !isPrivate ? 'inline-flex' : 'none';
-      if (requestAccessBtn) requestAccessBtn.style.display = selected && (!hasOffer || isPrivate) ? 'inline-flex' : 'none';
+      if (requestAccessBtn) requestAccessBtn.style.display = selected && selectedState === 'no-access' ? 'inline-flex' : 'none';
       if (accept) {
         if (isPrivate) {
           accept.checked = false;
@@ -5096,6 +5101,54 @@ function summarizePolicyTerms(policyObj) {
       });
     }
 
+    function mergeCatalogOffersIntoAssetRows(assetRows = [], offerRows = []) {
+      if (!Array.isArray(assetRows) || !assetRows.length || !Array.isArray(offerRows) || !offerRows.length) return assetRows;
+      const byAsset = new Map();
+      offerRows.forEach(row => {
+        const assetId = String(row?.assetId || row?.policyTarget || '').trim();
+        if (!assetId) return;
+        const current = byAsset.get(assetId);
+        if (!current || (!current.offerId && row.offerId)) byAsset.set(assetId, row);
+      });
+
+      return assetRows.map(assetRow => {
+        const offerRow = byAsset.get(String(assetRow?.assetId || '').trim());
+        if (!offerRow) return assetRow;
+        return {
+          ...assetRow,
+          offerId: offerRow.offerId || assetRow.offerId || '',
+          policyTarget: offerRow.policyTarget || assetRow.policyTarget || '',
+          assigner: offerRow.assigner || assetRow.assigner || '',
+          accessLevel: offerRow.accessLevel || assetRow.accessLevel || 'public',
+          ownerEmail: offerRow.ownerEmail || assetRow.ownerEmail || '',
+          ownerName: offerRow.ownerName || assetRow.ownerName || '',
+          policySummary: offerRow.policySummary || assetRow.policySummary || '',
+          policyRaw: offerRow.policyRaw || assetRow.policyRaw || null,
+          sourceHintUrl: offerRow.sourceHintUrl || assetRow.sourceHintUrl || '',
+          assetTitle: offerRow.assetTitle || assetRow.assetTitle || '',
+          assetDescription: offerRow.assetDescription || assetRow.assetDescription || '',
+          assetKeywords: (offerRow.assetKeywords && offerRow.assetKeywords.length) ? offerRow.assetKeywords : assetRow.assetKeywords,
+          assetImageUrl: offerRow.assetImageUrl || assetRow.assetImageUrl || '',
+          catalogOfferResolved: Boolean(offerRow.offerId),
+        };
+      });
+    }
+
+    async function fetchRemoteCatalogOffers(connectorId, address) {
+      const counterPartyId = resolveCounterPartyId(connectorId, address);
+      const response = await callCatalogRequest({
+        '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+        '@type': 'CatalogRequest',
+        counterPartyId,
+        counterPartyAddress: address,
+        protocol: 'dataspace-protocol-http:2025-1'
+      });
+      const rows = response?.status >= 200 && response?.status < 300
+        ? mapCatalogRowsFromResponse(response?.data || {}, connectorId, address)
+        : [];
+      return { response, rows };
+    }
+
     async function fetchCatalogRowsForConnector(connectorId) {
       const normalizedConnector = normalizeRemoteConnectorId(connectorId);
       const address = buildDspUrl(normalizedConnector);
@@ -5123,6 +5176,12 @@ function summarizePolicyTerms(policyObj) {
         counterPartyAddress: address,
       });
       rows = enrichCatalogRowsWithAccessRequests(rows, await fetchAccessRequestsForProviderAddress(address));
+      const catalog = await fetchRemoteCatalogOffers(normalizedConnector, address);
+      rows = mergeCatalogOffersIntoAssetRows(rows, catalog.rows);
+      response.catalogEndpoint = catalog.response?.catalogEndpoint || '';
+      response.catalogStatus = catalog.response?.status || 0;
+      response.catalogError = catalog.response?.error || catalog.response?.data?.error || catalog.response?.data?.message || '';
+      response.catalogOffers = catalog.rows.length;
       return { response, rows, connectorId: normalizedConnector, address };
     }
 
@@ -5278,6 +5337,9 @@ function summarizePolicyTerms(policyObj) {
           connectorId,
           status: result?.response?.status || 0,
           catalogEndpoint: result?.response?.catalogEndpoint || '',
+          catalogStatus: result?.response?.catalogStatus || '',
+          catalogOffers: result?.response?.catalogOffers || 0,
+          catalogError: result?.response?.catalogError || '',
           assetEndpoint: result?.response?.assetEndpoint || '',
           managementApiBase: result?.response?.managementApiBase || '',
           assets: (result.rows || []).length,
