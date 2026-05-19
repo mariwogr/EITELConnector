@@ -785,9 +785,9 @@
         }
 
         var error = document.getElementById('authError');
-        if (error && /Acceso no disponible|Contacte con el administrador|Falta configurar ARCGIS_PORTAL_URL/i.test(error.textContent || '')) {
-          error.textContent = 'Inicia sesión con ArcGIS Enterprise para acceder al conector.';
-          error.style.display = 'block';
+        if (error && /Acceso no disponible|Contacte con el administrador|Falta configurar ARCGIS_PORTAL_URL|No se ha recibido ARCGIS_PORTAL_URL/i.test(error.textContent || '')) {
+          error.textContent = '';
+          error.style.display = 'none';
         }
       }
 

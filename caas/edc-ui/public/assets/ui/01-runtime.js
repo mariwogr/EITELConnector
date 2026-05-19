@@ -17,9 +17,9 @@
     };
     const arcgis = {
       enabled: arcgisEnabledRaw ? isTruthy(arcgisEnabledRaw) : uiVariant !== 'star',
-      portalUrl: normalizePortalUrl(cfg.arcgisPortalUrl),
-      clientId: (cfg.arcgisClientId || '').trim(),
-      redirectUri: (cfg.arcgisRedirectUri || '').trim(),
+      portalUrl: normalizePortalUrl(cfg.arcgisPortalUrl || 'https://gis.eiteldata.eu/arcgis'),
+      clientId: (cfg.arcgisClientId || 'arcgisonline').trim(),
+      redirectUri: (cfg.arcgisRedirectUri || window.location.href).trim(),
       requiredOrgId: (cfg.arcgisRequiredOrgId || '').trim(),
       requiredGroupId: (cfg.arcgisRequiredGroupId || '').trim(),
       requiresLogin: uiVariant === 'production',
@@ -344,12 +344,6 @@
 
       getArcgisLoginButtons().forEach((button) => { button.onclick = startArcgisLogin; });
       getArcgisCheckButtons().forEach((button) => { button.onclick = () => ensureArcgisLogin(); });
-
-      if (!arcgis.portalUrl) {
-        arcgis.portalUrl = 'https://gis.eiteldata.eu/arcgis';
-        showAuthGate('No se ha recibido ARCGIS_PORTAL_URL desde el entorno. Se usará https://gis.eiteldata.eu/arcgis para iniciar sesión.');
-        return false;
-      }
 
       try {
         const appHost = window.location.host;
