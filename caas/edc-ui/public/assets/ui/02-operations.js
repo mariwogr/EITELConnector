@@ -4909,7 +4909,7 @@ function summarizePolicyTerms(policyObj) {
         counterPartyId,
         counterPartyAddress: address,
         protocol: 'dataspace-protocol-http:2025-1'
-      }));
+      }), { timeoutMs: 120000, retries: 1 });
       const rows = mapCatalogRowsFromResponse(response?.data || {}, normalizedConnector, address);
       return { response, rows, connectorId: normalizedConnector, address };
     }
