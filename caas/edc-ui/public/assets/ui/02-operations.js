@@ -5154,6 +5154,91 @@ function summarizePolicyTerms(policyObj) {
       }
     }
 
+    async function logTransferEvent(event = {}, providerAddress = '') {
+      const payload = {
+        role: event.role || 'consumer',
+        eventType: event.eventType || 'transfer',
+        status: event.status || '',
+        transferMode: event.transferMode || getSelectedTransferMode(),
+        transferType: event.transferType || '',
+        transferId: event.transferId || '',
+        contractId: event.contractId || '',
+        assetId: event.assetId || '',
+        counterPartyId: event.counterPartyId || '',
+        counterPartyAddress: event.counterPartyAddress || providerAddress || '',
+        destination: event.destination || '',
+        bytes: Number.isFinite(Number(event.bytes)) ? Number(event.bytes) : undefined,
+        filename: event.filename || '',
+        detail: event.detail || '',
+      };
+      const calls = [
+        callLocalAssetsApi('POST', '/transfer-events', {
+          body: JSON.stringify({ ...payload, role: payload.role || 'consumer' }),
+          headers: { 'content-type': 'application/json' },
+        }).catch(() => null)
+      ];
+      const providerBase = deriveProviderLocalAssetsUrl(providerAddress || payload.counterPartyAddress || '');
+      if (providerBase) {
+        calls.push(fetch(`${providerBase}/transfer-events`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ ...payload, role: 'provider' }),
+          credentials: 'include',
+          cache: 'no-store',
+        }).catch(() => null));
+      }
+      await Promise.allSettled(calls);
+    }
+
+    async function fetchTransferEventRows() {
+      const response = await callLocalAssetsApi('GET', '/transfer-events');
+      const items = response?.data?.items || [];
+      return Array.isArray(items) ? items : [];
+    }
+
+    async function findNewAgreement(beforeAgreementIds = new Set()) {
+      const agreementsResp = await callApi('POST', '/v3/contractagreements/request', q(), { silent: true, retries: 0 });
+      const agreements = unwrap(agreementsResp);
+      return agreements.find(a => {
+        const id = a['@id'] || a.id;
+        return id && !beforeAgreementIds.has(id);
+      }) || null;
+    }
+
+    async function getNegotiationSnapshot(negotiationId) {
+      if (!negotiationId || negotiationId === '-') return { state: '-', detail: null };
+      const stateResp = await callApi('GET', `/v3/contractnegotiations/${encodeURIComponent(negotiationId)}/state`, undefined, { silent: true, retries: 0 });
+      const detailResp = await callApi('GET', `/v3/contractnegotiations/${encodeURIComponent(negotiationId)}`, undefined, { silent: true, retries: 0 });
+      const state = stateResp?.data?.state || stateResp?.data?.['edc:state'] || detailResp?.data?.state || detailResp?.data?.['edc:state'] || '-';
+      const errorDetail = detailResp?.data?.errorDetail || detailResp?.data?.['edc:errorDetail'] || detailResp?.data?.error || '';
+      return { state: normalizeTransferState(state), detail: detailResp?.data || null, status: detailResp?.status || stateResp?.status || 0, errorDetail };
+    }
+
+    async function waitForNegotiationAgreement(negotiationId, beforeAgreementIds, selected, options = {}) {
+      const maxAttempts = Number(options.maxAttempts || 24);
+      const delayMs = Number(options.delayMs || 2500);
+      let lastSnapshot = null;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        const agreement = await findNewAgreement(beforeAgreementIds);
+        if (agreement) return { agreement, attempts: attempt, snapshot: lastSnapshot };
+        lastSnapshot = await getNegotiationSnapshot(negotiationId);
+        writeOut({
+          status: 102,
+          action: 'contract-negotiation-monitor',
+          attempt,
+          maxAttempts,
+          negotiationId,
+          state: lastSnapshot.state,
+          assetId: selected?.assetId || '',
+          hint: 'La negociación está arrancada, pero aún no hay ContractAgreement visible.',
+        });
+        const terminal = ['TERMINATED', 'ERROR', 'FAILED'].includes(String(lastSnapshot.state || '').toUpperCase());
+        if (terminal) return { agreement: null, attempts: attempt, snapshot: lastSnapshot };
+      }
+      return { agreement: null, attempts: maxAttempts, snapshot: lastSnapshot };
+    }
+
     function enrichCatalogRowsWithAccessRequests(rows, requests = []) {
       if (!Array.isArray(rows) || !rows.length || !Array.isArray(requests) || !requests.length) return rows;
       const byAsset = new Map();
@@ -5633,9 +5718,15 @@ function summarizePolicyTerms(policyObj) {
 
       const negotiationId = r.data?.['@id'] || r.data?.id || '-';
       showInfoPopup(
-        'Aviso',
-        `Solicitud enviada correctamente.\nNegotiation ID: ${negotiationId}\nEstamos comprobando automáticamente cuándo aparece el contrato en la pestaña Contratos.`,
-        { plainText: true }
+        'Negociación en curso',
+        {
+          negotiationId,
+          assetId: selected.assetId || '',
+          provider: selected.connectorId || selected.assigner || '',
+          estado: 'monitorizando',
+          message: 'La solicitud de contrato se ha enviado. La UI monitoriza la negociación y mostrará si termina, falla o sigue pendiente.',
+          nextStep: 'No cierres esta pestaña si quieres ver el diagnóstico automático. También puedes abrir Contratos para recargar manualmente.',
+        }
       );
 
       if (actionBtn) {
@@ -5643,21 +5734,8 @@ function summarizePolicyTerms(policyObj) {
         actionBtn.textContent = 'Realizar contrato';
       }
 
-      // Espera corta para que el agreement aparezca si la negociación finaliza rápido.
-      let createdAgreement = null;
-      for (let i = 0; i < 6; i++) {
-        await new Promise(resolve => setTimeout(resolve, 1200));
-        const agreementsResp = await callApi('POST', '/v3/contractagreements/request', q());
-        const agreements = unwrap(agreementsResp);
-        const fresh = agreements.find(a => {
-          const id = a['@id'] || a.id;
-          return id && !beforeAgreementIds.has(id);
-        });
-        if (fresh) {
-          createdAgreement = fresh;
-          break;
-        }
-      }
+      const monitorResult = await waitForNegotiationAgreement(negotiationId, beforeAgreementIds, selected, { maxAttempts: 24, delayMs: 2500 });
+      const createdAgreement = monitorResult.agreement;
 
       await listAgreements();
 
@@ -5687,11 +5765,21 @@ function summarizePolicyTerms(policyObj) {
           starTrustState.handshakeDetail = `La negociación ${clean(negotiationId)} sigue en curso. La UI seguirá reflejando que el handshake está pendiente de acuerdo.`;
           pushStarTrustEvent('Handshake en espera', starTrustState.handshakeDetail, 'warn');
         }
-        showInfoPopup(
-          'Aviso',
-          `Negociación iniciada correctamente (ID: ${negotiationId}), pero el contrato todavía no aparece en la lista. Espera unos segundos y revisa la pestaña Contratos.`,
-          { plainText: true }
-        );
+        const snapshot = monitorResult.snapshot || {};
+        showInfoPopup('Negociación sin contrato todavía', {
+          negotiationId,
+          negotiationState: snapshot.state || '-',
+          httpStatus: snapshot.status || '',
+          errorDetail: snapshot.errorDetail || '',
+          assetId: selected.assetId || '',
+          provider: selected.connectorId || selected.assigner || '',
+          attempts: monitorResult.attempts,
+          checkedForSeconds: monitorResult.attempts * 2.5,
+          probableCause: snapshot.errorDetail
+            ? 'El runtime ha devuelto un detalle de error en la negociación.'
+            : 'El provider no ha materializado aún el ContractAgreement o ha rechazado la policy inferida.',
+          nextStep: 'Revisa en el conector proveedor que existen PolicyDefinition y ContractDefinition para este asset, y mira el detalle de la negociación en la consola.',
+        });
       }
     }
 
@@ -5875,6 +5963,21 @@ function summarizePolicyTerms(policyObj) {
           pushStarTrustEvent(downloadResp.status >= 200 && downloadResp.status < 300 ? 'Transferencia directa completada' : 'Transferencia directa con error', starTrustState.transferDetail, downloadResp.status >= 200 && downloadResp.status < 300 ? 'ok' : 'danger');
         }
         writeOut(downloadResp);
+        await logTransferEvent({
+          eventType: 'local-download',
+          status: downloadResp.status >= 200 && downloadResp.status < 300 ? 'COMPLETED' : 'FAILED',
+          transferMode,
+          transferType: 'LOCAL-DOWNLOAD',
+          transferId: localTransfer.id,
+          contractId,
+          assetId: agreementAssetId,
+          counterPartyId: transferParty?.counterPartyId || '',
+          counterPartyAddress: transferParty?.address || '',
+          destination: 'browser-download',
+          bytes: downloadResp.bytes || 0,
+          filename: downloadResp.filename || '',
+          detail: downloadResp.error || downloadResp.detail || '',
+        }, transferParty?.address || '');
         await refreshOverview();
         await listTransfers();
         if (downloadResp.status >= 200 && downloadResp.status < 300) {
@@ -5905,6 +6008,21 @@ function summarizePolicyTerms(policyObj) {
           pushStarTrustEvent(uploadResp.status >= 200 && uploadResp.status < 300 ? 'Carga ArcGIS completada' : 'Carga ArcGIS fallida', starTrustState.transferDetail, uploadResp.status >= 200 && uploadResp.status < 300 ? 'ok' : 'danger');
         }
         writeOut(uploadResp);
+        await logTransferEvent({
+          eventType: 'arcgis-upload',
+          status: uploadResp.status >= 200 && uploadResp.status < 300 ? 'COMPLETED' : 'FAILED',
+          transferMode,
+          transferType: 'ARCGIS-UPLOAD',
+          transferId: localTransfer.id,
+          contractId,
+          assetId: agreementAssetId,
+          counterPartyId: transferParty?.counterPartyId || '',
+          counterPartyAddress: transferParty?.address || '',
+          destination: arcgis?.portalUrl || 'ArcGIS',
+          bytes: uploadResp.bytes || 0,
+          filename: uploadResp.filename || '',
+          detail: uploadResp.error || uploadResp.detail || '',
+        }, transferParty?.address || '');
         await refreshOverview();
         await listTransfers();
         if (uploadResp.status >= 200 && uploadResp.status < 300) {
@@ -5961,6 +6079,19 @@ function summarizePolicyTerms(policyObj) {
       writeOut(r);
 
       const transferId = r?.data?.['@id'] || r?.data?.id || '';
+      await logTransferEvent({
+        eventType: 'edc-push',
+        status: r.status >= 200 && r.status < 300 ? 'STARTED' : 'FAILED',
+        transferMode,
+        transferType: 'HttpData-PUSH',
+        transferId,
+        contractId,
+        assetId: agreementAssetId,
+        counterPartyId: transferParty?.counterPartyId || '',
+        counterPartyAddress: transferParty?.address || document.getElementById('transferAddress').value.trim(),
+        destination: sinkBaseUrl,
+        detail: r.status >= 200 && r.status < 300 ? 'TransferProcess creado' : JSON.stringify(r.data || {}),
+      }, transferParty?.address || '');
       if (r.status >= 200 && r.status < 300) {
         if (starTrustConfig.enabled) starTrustState.lastTransferId = transferId || '';
         showInfoPopup('Transferencia iniciada', {
@@ -6013,7 +6144,26 @@ function summarizePolicyTerms(policyObj) {
      */
     async function listTransfers() {
       const r = await callApi('POST', '/v3/transferprocesses/request', q());
-      const rows = getAllTransferRows(unwrap(r));
+      const transferEvents = await fetchTransferEventRows();
+      const eventRows = transferEvents.map(event => ({
+        '@id': event.eventId || '',
+        id: event.eventId || '',
+        state: event.status || '-',
+        contractId: event.contractId || '',
+        assetId: event.assetId || '',
+        transferType: event.transferType || event.eventType || 'EVENT',
+        transferMode: event.transferMode || '',
+        role: event.role || '',
+        destination: event.destination || '',
+        counterPartyId: event.counterPartyId || '',
+        counterPartyAddress: event.counterPartyAddress || '',
+        filename: event.filename || '',
+        bytes: event.bytes || 0,
+        errorDetail: event.detail || '',
+        createdAt: event.createdAt || '',
+        localEvent: true,
+      }));
+      const rows = [...eventRows, ...getAllTransferRows(unwrap(r))];
       const tbody = document.getElementById('tblTransfers');
       if (!rows.length) {
         tbody.innerHTML = '<tr><td colspan="4" class="muted">No hay transferencias.</td></tr>';
@@ -6026,7 +6176,11 @@ function summarizePolicyTerms(policyObj) {
           const errorDetail = t.errorDetail || t['edc:errorDetail'] || '';
           const errorTip = errorDetail ? ` title="${errorDetail.replace(/"/g, '&quot;')}"` : '';
           const isTerminal = isTransferTerminalState(t.state || t['edc:state'] || '');
-          const title = t.localDownload ? `Descarga local · ${clean(t.filename || id)}` : `Transferencia ${i + 1}`;
+          const type = clean(t.transferType || t.transferMode || (t.localDownload ? 'LOCAL-DOWNLOAD' : 'EDC'));
+          const role = t.role ? ` · ${clean(t.role)}` : '';
+          const title = t.localEvent
+            ? `${type}${role} · ${clean(t.assetId || t.filename || id)}`
+            : (t.localDownload ? `Descarga local · ${clean(t.filename || id)}` : `Transferencia ${i + 1}`);
           return `
             <tr>
               <td class="title-cell" title="${id}">${title}</td>
@@ -6066,6 +6220,28 @@ function summarizePolicyTerms(policyObj) {
           errorDetail: localTransfer.errorDetail || '',
         });
         writeOut({ status: 200, data: localTransfer, localDownload: true });
+        return;
+      }
+
+      const eventTransfer = (await fetchTransferEventRows()).find(t => (t.eventId || t.id || '') === transferId);
+      if (eventTransfer) {
+        const st = normalizeTransferState(eventTransfer.status || '-');
+        showInfoPopup(`Evento: ${st}`, {
+          eventId: transferId,
+          role: eventTransfer.role || '',
+          eventType: eventTransfer.eventType || '',
+          transferMode: eventTransfer.transferMode || '',
+          transferType: eventTransfer.transferType || '',
+          contractId: eventTransfer.contractId || '',
+          assetId: eventTransfer.assetId || '',
+          counterPartyId: eventTransfer.counterPartyId || '',
+          destination: eventTransfer.destination || '',
+          filename: eventTransfer.filename || '',
+          bytes: eventTransfer.bytes || 0,
+          createdAt: fmtDate(eventTransfer.createdAt || ''),
+          detail: eventTransfer.detail || '',
+        });
+        writeOut({ status: 200, data: eventTransfer, transferEvent: true });
         return;
       }
 

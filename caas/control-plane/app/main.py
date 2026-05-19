@@ -121,6 +121,7 @@ def startup_event():
     _load_local_secret_records()
     _load_asset_bundle_records()
     _load_access_request_records()
+    _load_transfer_event_records()
 
 
 class TenantCreate(BaseModel):
@@ -144,6 +145,8 @@ asset_bundle_records: list[dict] = []
 MAX_ASSET_BUNDLE_RECORDS = 300
 access_request_records: list[dict] = []
 MAX_ACCESS_REQUEST_RECORDS = 800
+transfer_event_records: list[dict] = []
+MAX_TRANSFER_EVENT_RECORDS = 1000
 
 
 def _download_sink_index_path() -> Path:
@@ -227,6 +230,31 @@ def _save_asset_bundle_records() -> None:
 
 def _access_request_index_path() -> Path:
     return Path(settings.local_assets_dir) / 'access-requests' / 'index.json'
+
+
+def _transfer_event_index_path() -> Path:
+    return Path(settings.local_assets_dir) / 'transfer-events' / 'index.json'
+
+
+def _load_transfer_event_records() -> None:
+    path = _transfer_event_index_path()
+    try:
+        if not path.exists():
+            transfer_event_records.clear()
+            return
+        parsed = json.loads(path.read_text(encoding='utf-8'))
+        if isinstance(parsed, list):
+            transfer_event_records.clear()
+            transfer_event_records.extend([row for row in parsed if isinstance(row, dict)][-MAX_TRANSFER_EVENT_RECORDS:])
+    except Exception:
+        transfer_event_records.clear()
+
+
+def _save_transfer_event_records() -> None:
+    path = _transfer_event_index_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = [row for row in transfer_event_records[-MAX_TRANSFER_EVENT_RECORDS:] if isinstance(row, dict)]
+    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding='utf-8')
 
 
 def _send_access_request_email(row: dict) -> dict:
@@ -621,6 +649,61 @@ def clear_local_download_records():
     cleared = len(local_download_records)
     local_download_records.clear()
     _save_download_sink_records()
+    return {'ok': True, 'cleared': cleared}
+
+
+@app.get('/v1/local-assets/transfer-events')
+def list_transfer_events(contractId: str | None = None, assetId: str | None = None, role: str | None = None):
+    items = list(reversed(transfer_event_records))
+    if contractId:
+        target = str(contractId).strip()
+        items = [row for row in items if str(row.get('contractId') or '').strip() == target]
+    if assetId:
+        target = str(assetId).strip()
+        items = [row for row in items if str(row.get('assetId') or '').strip() == target]
+    if role:
+        target = str(role).strip().lower()
+        items = [row for row in items if str(row.get('role') or '').strip().lower() == target]
+    return {'count': len(items), 'items': items}
+
+
+@app.post('/v1/local-assets/transfer-events')
+async def create_transfer_event(request: Request):
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail='Payload invalido')
+
+    now_iso = datetime.now(UTC).isoformat()
+    row = {
+        'eventId': uuid4().hex,
+        'createdAt': now_iso,
+        'role': str(payload.get('role') or '').strip(),
+        'eventType': str(payload.get('eventType') or '').strip(),
+        'status': str(payload.get('status') or '').strip(),
+        'transferMode': str(payload.get('transferMode') or '').strip(),
+        'transferType': str(payload.get('transferType') or '').strip(),
+        'transferId': str(payload.get('transferId') or '').strip(),
+        'contractId': str(payload.get('contractId') or '').strip(),
+        'assetId': str(payload.get('assetId') or '').strip(),
+        'counterPartyId': str(payload.get('counterPartyId') or '').strip(),
+        'counterPartyAddress': str(payload.get('counterPartyAddress') or '').strip(),
+        'destination': str(payload.get('destination') or '').strip(),
+        'bytes': payload.get('bytes') if isinstance(payload.get('bytes'), int) else None,
+        'filename': str(payload.get('filename') or '').strip(),
+        'detail': str(payload.get('detail') or '').strip(),
+    }
+    transfer_event_records.append(row)
+    if len(transfer_event_records) > MAX_TRANSFER_EVENT_RECORDS:
+        del transfer_event_records[: len(transfer_event_records) - MAX_TRANSFER_EVENT_RECORDS]
+    _save_transfer_event_records()
+    return {'ok': True, 'eventId': row['eventId'], 'item': row}
+
+
+@app.delete('/v1/local-assets/transfer-events')
+def clear_transfer_events():
+    cleared = len(transfer_event_records)
+    transfer_event_records.clear()
+    _save_transfer_event_records()
     return {'ok': True, 'cleared': cleared}
 
 
