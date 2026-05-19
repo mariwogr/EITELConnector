@@ -375,6 +375,9 @@
     }
     .auth-card h2 { margin-top: 0; margin-bottom: 8px; }
     .auth-help { color: var(--muted); margin-bottom: 14px; }
+    .auth-gate.open #btnArcgisLogin {
+      display: inline-flex !important;
+    }
     .auth-error {
       margin-top: 10px;
       border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--line));
