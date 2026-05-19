@@ -175,6 +175,44 @@ function summarizePolicyTerms(policyObj) {
       return txt.replace(/^conector/i, '').trim().toUpperCase() || 'CONNECTOR';
     }
 
+    function sameConnectorId(left, right) {
+      const a = canonicalConnectorPrefix(left || '').toLowerCase();
+      const b = canonicalConnectorPrefix(right || '').toLowerCase();
+      return Boolean(a && b && a === b);
+    }
+
+    function getCatalogRowState(row) {
+      const isOwn = sameConnectorId(row?.connectorId || row?.assigner || '', cfg?.connectorName || PROD_CONNECTOR_ID);
+      if (isOwn) return 'own';
+      const accessStatus = String(row?.accessRequestStatus || '').trim().toLowerCase();
+      if (accessStatus === 'approved') return 'approved';
+      const accessLevel = normalizeAccessLevel(row?.accessLevel || 'public');
+      if (accessLevel === 'public') return 'public';
+      return accessStatus === 'pending' ? 'pending' : 'no-access';
+    }
+
+    function catalogStateLabel(stateName) {
+      const labels = {
+        own: 'Asset propio',
+        public: 'Publico',
+        pending: 'Acceso solicitado',
+        'no-access': 'Sin acceso',
+        approved: 'Acceso concedido',
+      };
+      return labels[stateName] || 'Catalogo';
+    }
+
+    function catalogStateDescription(stateName) {
+      const descriptions = {
+        own: 'Assets publicados por este conector.',
+        'no-access': 'Assets privados de otros conectores que todavia requieren solicitud.',
+        pending: 'Solicitudes enviadas pendientes de aprobacion por el propietario.',
+        approved: 'Assets con acceso concedido; si tienen oferta activa se pueden contratar.',
+        public: 'Assets publicados como publicos por otros conectores.',
+      };
+      return descriptions[stateName] || '';
+    }
+
     /**
      * Extracts standardized metadata from a dataset object.
      * Handles multiple metadata formats (DublinCore, EDC, EITEL properties) and consolidates keywords.
@@ -1660,7 +1698,21 @@ function summarizePolicyTerms(policyObj) {
         return;
       }
 
-      wrap.innerHTML = filtered.map(({ row, idx }) => {
+      const groups = [
+        { key: 'own', title: 'Tus assets', rows: [] },
+        { key: 'no-access', title: 'Sin acceso todavia', rows: [] },
+        { key: 'pending', title: 'Acceso solicitado', rows: [] },
+        { key: 'approved', title: 'Acceso conseguido', rows: [] },
+        { key: 'public', title: 'Publicos', rows: [] },
+      ];
+      const groupMap = new Map(groups.map(group => [group.key, group]));
+      filtered.forEach(item => {
+        const stateName = getCatalogRowState(item.row);
+        const group = groupMap.get(stateName) || groupMap.get('public');
+        group.rows.push({ ...item, stateName });
+      });
+
+      const renderCard = ({ row, idx, stateName }) => {
         const title = htmlEscape(safeText(row.assetTitle, clean(row.assetId)));
         const connector = htmlEscape(safeText(row.connectorId, row.assigner || '-'));
         const connectorBadge = htmlEscape(prettyConnectorLabel(safeText(row.connectorId, row.assigner || '-')));
@@ -1670,13 +1722,17 @@ function summarizePolicyTerms(policyObj) {
         const keywords = Array.isArray(row.assetKeywords) ? row.assetKeywords.slice(0, 8) : [];
         const delayMs = Math.min(idx * 55, 550);
         const isPrivate = normalizeAccessLevel(row.accessLevel || 'public') === 'private';
-        const canContract = Boolean(row.offerId) && !isPrivate;
-        const actionLabel = canContract
-          ? 'Iniciar contratacion'
-          : 'Solicitar acceso';
+        const hasOffer = Boolean(row.offerId);
+        const isOwn = stateName === 'own';
+        const accessGranted = stateName === 'approved' || stateName === 'public';
+        const canContract = hasOffer && !isOwn && (accessGranted || !isPrivate);
+        const actionLabel = isOwn
+          ? 'Asset propio'
+          : (canContract ? 'Iniciar contratacion' : (stateName === 'pending' ? 'Ver solicitud' : 'Solicitar acceso'));
         const actionOnClick = canContract
           ? `window.useCatalogAssetByIndex(${idx})`
           : `window.openAccessRequestByIndex(${idx})`;
+        const stateLabel = htmlEscape(catalogStateLabel(stateName));
         const media = `<div class="asset-card-media${defaultImageClass}"><img src="${htmlEscape(image)}" alt="Imagen del asset ${title}" /><span class="asset-card-badge">${connectorBadge}</span><div class="asset-card-media-overlay"><span class="asset-card-media-title">${title}</span></div></div>`;
         const chips = keywords.length
           ? `<div class="asset-card-keywords">${keywords.map(k => `<span class="asset-chip">${htmlEscape(k)}</span>`).join('')}</div>`
@@ -1691,16 +1747,30 @@ function summarizePolicyTerms(policyObj) {
               <details>
                 <summary>Detalles</summary>
                 <div class="asset-card-desc">${desc}</div>
+                <div class="asset-card-meta">Estado: ${stateLabel}</div>
                 <div class="asset-card-meta">Visibilidad: ${isPrivate ? 'privado' : 'publico'}</div>
                 ${chips}
               </details>
               <div class="row">
-                <button class="primary" onclick="${actionOnClick}">${actionLabel}</button>
+                <button class="primary" onclick="${actionOnClick}" ${isOwn ? 'disabled' : ''}>${actionLabel}</button>
               </div>
             </div>
           </article>
         `;
-      }).join('');
+      };
+
+      wrap.innerHTML = groups
+        .filter(group => group.rows.length)
+        .map(group => `
+          <section class="catalog-group">
+            <div class="catalog-group-head">
+              <h3>${htmlEscape(group.title)}</h3>
+              <span class="muted">${group.rows.length} assets</span>
+            </div>
+            <p class="muted" style="margin-top:0">${htmlEscape(catalogStateDescription(group.key))}</p>
+            <div class="asset-card-grid">${group.rows.map(renderCard).join('')}</div>
+          </section>
+        `).join('');
     }
 
     function syncCatalogSelectionState() {
@@ -4982,6 +5052,50 @@ function summarizePolicyTerms(policyObj) {
       return last || { status: 0, error: 'No se pudo llamar al Management API del conector.' };
     }
 
+    async function fetchAccessRequestsForProviderAddress(address) {
+      const providerBase = deriveProviderLocalAssetsUrl(address);
+      if (!providerBase) return [];
+      try {
+        const res = await fetch(`${providerBase}/access-requests`, {
+          method: 'GET',
+          headers: { 'accept': 'application/json' },
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return Array.isArray(data?.items) ? data.items : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function enrichCatalogRowsWithAccessRequests(rows, requests = []) {
+      if (!Array.isArray(rows) || !rows.length || !Array.isArray(requests) || !requests.length) return rows;
+      const byAsset = new Map();
+      requests.forEach(req => {
+        const assetId = String(req?.assetId || '').trim();
+        if (!assetId) return;
+        const current = byAsset.get(assetId);
+        const status = String(req?.status || '').trim().toLowerCase();
+        const rank = status === 'approved' ? 3 : status === 'pending' ? 2 : status === 'rejected' ? 1 : 0;
+        const currentStatus = String(current?.status || '').trim().toLowerCase();
+        const currentRank = currentStatus === 'approved' ? 3 : currentStatus === 'pending' ? 2 : currentStatus === 'rejected' ? 1 : 0;
+        if (!current || rank >= currentRank) byAsset.set(assetId, req);
+      });
+
+      return rows.map(row => {
+        const req = byAsset.get(String(row?.assetId || '').trim());
+        if (!req) return row;
+        return {
+          ...row,
+          accessRequestId: req.requestId || '',
+          accessRequestStatus: String(req.status || '').trim().toLowerCase(),
+          accessRequest: req,
+        };
+      });
+    }
+
     async function fetchCatalogRowsForConnector(connectorId) {
       const normalizedConnector = normalizeRemoteConnectorId(connectorId);
       const address = buildDspUrl(normalizedConnector);
@@ -5004,10 +5118,11 @@ function summarizePolicyTerms(policyObj) {
 
       const response = await callConnectorManagementApi(normalizedConnector, 'POST', '/v3/assets/request', q());
       response.assetEndpoint = '/v3/assets/request';
-      const rows = mapPublishedAssetsToCatalogVisualRows(unwrap(response), {
+      let rows = mapPublishedAssetsToCatalogVisualRows(unwrap(response), {
         connectorId: normalizedConnector,
         counterPartyAddress: address,
       });
+      rows = enrichCatalogRowsWithAccessRequests(rows, await fetchAccessRequestsForProviderAddress(address));
       return { response, rows, connectorId: normalizedConnector, address };
     }
 

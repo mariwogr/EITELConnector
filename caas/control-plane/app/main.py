@@ -229,14 +229,14 @@ def _access_request_index_path() -> Path:
     return Path(settings.local_assets_dir) / 'access-requests' / 'index.json'
 
 
-def _send_access_request_email(row: dict) -> None:
+def _send_access_request_email(row: dict) -> dict:
     """Send an email notification to the asset owner when a new access request arrives.
-    Silently skipped if SMTP is not configured or the owner email is missing."""
+    Returns a small delivery status so the UI can surface SMTP configuration issues."""
     if not settings.smtp_host or not settings.smtp_from:
-        return
+        return {'sent': False, 'reason': 'smtp-not-configured'}
     to_addr = str(row.get('ownerEmail') or '').strip()
     if not to_addr:
-        return
+        return {'sent': False, 'reason': 'owner-email-missing'}
     try:
         asset_label = str(row.get('assetTitle') or row.get('assetId') or '')
         subject = f'[EITEL] Nueva solicitud de acceso: {asset_label}'
@@ -273,8 +273,10 @@ def _send_access_request_email(row: dict) -> None:
             smtp.login(settings.smtp_user, settings.smtp_password)
         smtp.sendmail(settings.smtp_from, [to_addr], msg.as_string())
         smtp.quit()
+        return {'sent': True, 'to': to_addr, 'from': settings.smtp_from}
     except Exception as exc:
         print(f'[WARN] Email notification failed: {exc}')
+        return {'sent': False, 'reason': 'send-failed', 'error': str(exc)}
 
 
 def _load_access_request_records() -> None:
@@ -724,6 +726,7 @@ def list_access_requests(
     assetId: str | None = None,
     status: str | None = None,
     ownerEmail: str | None = None,
+    requesterEmail: str | None = None,
 ):
     items = list(reversed(access_request_records))
 
@@ -738,6 +741,10 @@ def list_access_requests(
     if ownerEmail:
         target_owner_email = str(ownerEmail).strip().lower()
         items = [row for row in items if str(row.get('ownerEmail') or '').strip().lower() == target_owner_email]
+
+    if requesterEmail:
+        target_requester_email = str(requesterEmail).strip().lower()
+        items = [row for row in items if str(row.get('requesterEmail') or '').strip().lower() == target_requester_email]
 
     return {'count': len(items), 'items': items}
 
@@ -789,9 +796,9 @@ async def create_access_request(request: Request):
     if len(access_request_records) > MAX_ACCESS_REQUEST_RECORDS:
         del access_request_records[: len(access_request_records) - MAX_ACCESS_REQUEST_RECORDS]
     _save_access_request_records()
-    _send_access_request_email(row)
+    email_notification = _send_access_request_email(row)
 
-    return {'ok': True, 'requestId': row['requestId'], 'status': row['status'], 'item': row}
+    return {'ok': True, 'requestId': row['requestId'], 'status': row['status'], 'item': row, 'emailNotification': email_notification}
 
 
 @app.post('/v1/local-assets/access-requests/{request_id}/approve')
