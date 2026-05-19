@@ -254,6 +254,24 @@ function summarizePolicyTerms(policyObj) {
       };
     }
 
+    function getContractDefinitionAssetId(contractDefinition) {
+      const selectors = contractDefinition?.assetsSelector || contractDefinition?.['edc:assetsSelector'] || [];
+      const flatSelectors = Array.isArray(selectors)
+        ? selectors.flatMap(item => Array.isArray(item) ? item : [item])
+        : [];
+      const idCriterion = flatSelectors.find(criterion => {
+        const left = String(criterion?.operandLeft || criterion?.leftOperand || criterion?.['edc:operandLeft'] || '').trim();
+        return left === 'https://w3id.org/edc/v0.0.1/ns/id' || left.endsWith('/id') || left === 'id';
+      }) || flatSelectors[0];
+      return String(
+        idCriterion?.operandRight ||
+        idCriterion?.rightOperand ||
+        idCriterion?.rightValue ||
+        idCriterion?.['edc:operandRight'] ||
+        ''
+      ).trim();
+    }
+
     /**
      * Extracts standardized metadata from a dataset object.
      * Handles multiple metadata formats (DublinCore, EDC, EITEL properties) and consolidates keywords.
@@ -4530,7 +4548,7 @@ function summarizePolicyTerms(policyObj) {
         '@type': 'ContractDefinition',
         accessPolicyId: policyId,
         contractPolicyId: policyId,
-        assetsSelector: [[{ '@type': 'Criterion', operandLeft: 'https://w3id.org/edc/v0.0.1/ns/id', operator: '=', operandRight: assetId }]]
+        assetsSelector: [{ '@type': 'Criterion', operandLeft: 'https://w3id.org/edc/v0.0.1/ns/id', operator: '=', operandRight: assetId }]
       };
       const response = await callApi('POST', '/v3/contractdefinitions', JSON.stringify(body));
       if (response.status >= 200 && response.status < 300) {
@@ -4996,7 +5014,7 @@ function summarizePolicyTerms(policyObj) {
       const contractDefs = unwrap(await callApi('POST', '/v3/contractdefinitions/request', q()));
       const duplicateById = contractDefs.find(c => (c['@id'] || c.id) === contractDefId);
       const duplicateByAsset = contractDefs.find(c => {
-        const ac = c.assetsSelector?.[0]?.[0]?.rightValue || c.assetsSelector?.[0]?.[0]?.rightOperand;
+        const ac = getContractDefinitionAssetId(c);
         const cp = c.contractPolicyId || c['edc:contractPolicyId'];
         return ac === assetId && cp === policyId;
       });
@@ -5536,6 +5554,47 @@ function summarizePolicyTerms(policyObj) {
       state.catalogShowcaseLoaded = state.catalogRows.length > 0;
     }
 
+    async function resolveNegotiableCatalogOffer(row) {
+      if (!row || !canUseCatalogRow(row)) return { row, response: null, resolved: false };
+      if (row.offerId && row.policyRaw && row.catalogOfferResolved) return { row, response: null, resolved: true };
+
+      const connectorId = row.connectorId || row.assigner || getDefaultRemoteConnector();
+      const address = row.counterPartyAddress || buildDspUrl(connectorId);
+      const result = await fetchRemoteCatalogOffers(connectorId, address);
+      const assetId = String(row.assetId || row.policyTarget || '').trim();
+      const match = (result.rows || []).find(offer => {
+        const offerAsset = String(offer.assetId || offer.policyTarget || '').trim();
+        const offerTarget = String(offer.policyTarget || '').trim();
+        return offerAsset === assetId || offerTarget === assetId;
+      });
+
+      if (!match?.offerId || !match?.policyRaw) {
+        return {
+          row,
+          response: result.response,
+          resolved: false,
+          reason: 'El asset existe en /v3/assets/request, pero no aparece como oferta negociable en el catalogo DSP.',
+        };
+      }
+
+      return {
+        row: {
+          ...row,
+          ...match,
+          accessLevel: row.accessLevel || match.accessLevel || 'public',
+          ownerEmail: row.ownerEmail || match.ownerEmail || '',
+          ownerName: row.ownerName || match.ownerName || '',
+          accessRequestId: row.accessRequestId || '',
+          accessRequestStatus: row.accessRequestStatus || '',
+          accessRequest: row.accessRequest || null,
+          catalogOfferResolved: true,
+          catalogOfferInferred: false,
+        },
+        response: result.response,
+        resolved: true,
+      };
+    }
+
     async function requestContractByAsset() {
       const actionBtn = document.getElementById('btnRequestContract');
       if (actionBtn) {
@@ -5601,7 +5660,36 @@ function summarizePolicyTerms(policyObj) {
         return;
       }
 
-      selected = ensureNegotiableCatalogRow(selected);
+      const offerResolution = await resolveNegotiableCatalogOffer(selected);
+      if (!offerResolution.resolved) {
+        const catalogStatus = offerResolution.response?.status || 0;
+        const catalogEndpoint = offerResolution.response?.catalogEndpoint || '';
+        showInfoPopup('No hay oferta contractual negociable', {
+          assetId: selected.assetId || '',
+          provider: selected.connectorId || selected.assigner || '',
+          catalogStatus,
+          catalogEndpoint,
+          reason: offerResolution.reason || 'No se ha podido resolver la oferta DSP del asset.',
+          probableCause: 'El proveedor tiene el asset publicado, pero le falta una ContractDefinition valida para ese asset o el selector no apunta al asset correcto.',
+          nextStep: 'En el conector proveedor, vuelve a publicar/actualizar el asset para recrear PolicyDefinition y ContractDefinition. Despues recarga Catalogo y vuelve a contratar.',
+        });
+        writeOut({
+          status: 409,
+          error: 'Asset sin oferta contractual DSP resoluble.',
+          assetId: selected.assetId || '',
+          provider: selected.connectorId || selected.assigner || '',
+          catalogStatus,
+          catalogEndpoint,
+          catalogResponse: offerResolution.response || null,
+        });
+        if (actionBtn) {
+          actionBtn.disabled = false;
+          actionBtn.textContent = 'Realizar contrato';
+        }
+        return;
+      }
+
+      selected = offerResolution.row;
       state.catalogRows[Number(selectedIdxRaw)] = selected;
       refreshCatalogAssetOptions();
       const select = document.getElementById('catalogAssetId');
