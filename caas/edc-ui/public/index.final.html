@@ -34,6 +34,7 @@
           <div class="nav-group-title">Publicar</div>
           <button data-view="asset"><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M3 12h18"/></svg><span>Asset</span></button>
           <button data-view="my-assets"><svg viewBox="0 0 24 24"><path d="M4 7h16v10H4z"/><path d="M8 11h8M8 15h5"/></svg><span>Mis assets</span></button>
+          <button data-view="solicitudes"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Solicitudes</span><em id="solicitudesBadge" style="display:none;background:#e74c3c;color:#fff;border-radius:999px;font-size:10px;padding:1px 6px;margin-left:6px;font-style:normal;font-weight:700;line-height:16px"></em></button>
           <button data-view="policy"><svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.5 8.5 8 9 4.5-.5 8-4 8-9V7z"/><path d="M9 12h6"/></svg><span>Política</span></button>
           <button data-view="contractdef"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4"/><path d="M9 11h6M9 15h4"/></svg><span>Contrato</span></button>
         </div>
@@ -196,6 +197,10 @@
             <label>Descripción</label>
             <textarea id="assetDescription" rows="3" placeholder="Describe qué datos contiene este asset, su periodicidad y para qué sirve."></textarea>
             <div class="grid">
+              <div><label>Owner nombre (contacto)</label><input id="assetOwnerName" placeholder="Responsable del asset" /></div>
+              <div><label>Owner email (contacto)</label><input id="assetOwnerEmail" placeholder="owner@organizacion.com" /></div>
+            </div>
+            <div class="grid">
               <div><label>Keywords (separadas por coma)</label><input id="assetKeywords" placeholder="energia, consumo, municipio, clima" /></div>
               <div>
                 <label>Foto del asset (archivo local)</label>
@@ -295,6 +300,7 @@
                 <label>Nivel de acceso</label>
                 <select id="policyAccessLevel">
                   <option value="public">Publico</option>
+                  <option value="private">Privado (requiere solicitud)</option>
                   <option value="partners">Solo entidades colaboradoras</option>
                   <option value="internal">Uso interno del proyecto</option>
                 </select>
@@ -465,6 +471,7 @@
               </div>
               <div class="row" style="margin-top:8px">
                 <button class="primary" id="btnRequestContract">Realizar contrato</button>
+                <button class="ghost" id="btnOpenAccessRequest" style="display:none">Solicitar acceso al dueño</button>
               </div>
             </section>
           </section>
@@ -474,6 +481,48 @@
               <li>Pulsa "Cargar catalogo completo" para consultar activos de los conectores configurados.</li>
               <li>Aplica filtros por texto y conector para localizar el activo objetivo.</li>
               <li>Selecciona un activo y completa la aceptacion de terminos para iniciar la contratacion.</li>
+            </ol>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-solicitudes">
+        <div class="grid">
+          <section class="card wide">
+            <h2>Solicitudes de acceso recibidas</h2>
+            <p class="muted">Solicitudes enviadas por otros conectores para acceder a tus assets privados.</p>
+            <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap">
+              <button class="primary" id="btnRefreshSolicitudes">Actualizar</button>
+              <button class="ghost" id="btnFilterSolicitudesAll">Todas</button>
+              <button class="ghost" id="btnFilterSolicitudesPending">Pendientes</button>
+              <button class="ghost" id="btnFilterSolicitudesApproved">Aprobadas</button>
+              <button class="ghost" id="btnFilterSolicitudesRejected">Rechazadas</button>
+            </div>
+            <div style="overflow-x:auto;margin-top:16px">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Asset</th>
+                    <th>Solicitante</th>
+                    <th>Organización</th>
+                    <th>Finalidad</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="solicitudesTableBody">
+                  <tr><td colspan="7" class="muted">Pulsa "Actualizar" para cargar las solicitudes.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+          <section class="card wide tutorial">
+            <h3>Cómo funciona</h3>
+            <ol>
+              <li>Cuando publicas un asset con visibilidad <b>Privado</b>, los consumidores solo pueden solicitar acceso, no contratar directamente.</li>
+              <li>La solicitud llega aquí y, si tienes SMTP configurado, también recibes un email en el correo del dueño del asset.</li>
+              <li>Revisa la finalidad y aprueba o rechaza la solicitud. El consumidor puede consultar el estado.</li>
             </ol>
           </section>
         </div>
@@ -689,6 +738,43 @@
         </div>
       </div>
       <pre class="info-pre" id="infoBody">{}</pre>
+    </div>
+  </div>
+
+  <div class="modal" id="accessRequestModal">
+    <div class="modal-card">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h2 style="margin:0">Solicitar acceso a asset privado</h2>
+        <button class="ghost" id="btnCloseAccessRequest">Cerrar</button>
+      </div>
+      <p class="muted" style="margin-top:10px">Envía una solicitud al propietario del asset. No se podrá negociar contrato hasta que la solicitud sea aprobada.</p>
+      <div class="grid">
+        <div><label>Asset ID</label><input id="reqAssetId" readonly /></div>
+        <div><label>Asset nombre</label><input id="reqAssetTitle" readonly /></div>
+      </div>
+      <div class="grid">
+        <div><label>Conector owner</label><input id="reqOwnerConnector" readonly /></div>
+        <div><label>Email owner</label><input id="reqOwnerEmail" readonly /></div>
+      </div>
+      <div class="grid">
+        <div><label>Tu nombre</label><input id="reqRequesterName" placeholder="Nombre y apellidos" /></div>
+        <div><label>Tu email</label><input id="reqRequesterEmail" placeholder="tu.email@organizacion.com" /></div>
+      </div>
+      <div class="grid">
+        <div><label>Tu organización</label><input id="reqRequesterOrg" placeholder="Entidad solicitante" /></div>
+        <div><label>Duración deseada</label><input id="reqDuration" placeholder="Ej: 3 meses" /></div>
+      </div>
+      <label>Finalidad</label>
+      <textarea id="reqPurpose" rows="3" placeholder="Describe para qué necesitas acceso al asset."></textarea>
+      <label>Mensaje adicional (opcional)</label>
+      <textarea id="reqMessage" rows="3" placeholder="Observaciones para el propietario del asset."></textarea>
+      <div class="row" style="margin-top:10px;align-items:center">
+        <input id="reqLegalAccept" type="checkbox" style="width:auto; margin-top:0" />
+        <label for="reqLegalAccept" style="margin:0">Declaro que la información enviada es correcta y será usada para evaluación de acceso.</label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="btnSubmitAccessRequest">Enviar solicitud</button>
+      </div>
     </div>
   </div>
 
