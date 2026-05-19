@@ -4962,12 +4962,13 @@ function summarizePolicyTerms(policyObj) {
       const currentCanonical = canonicalConnectorPrefix(currentConnectorRaw).toLowerCase();
       const targetCanonical = canonicalConnectorPrefix(raw).toLowerCase();
 
-      // Si el usuario consulta el mismo conector que aloja esta UI, usar DSP interno
-      // para evitar pasar por WAF/proxy publico y reducir 502 intermitentes.
+      // Si el usuario consulta el mismo conector que aloja esta UI, usar la URL pública
+      // con el prefijo de conector actual para que el navegador pueda resolverlo.
       if (currentCanonical && targetCanonical && currentCanonical === targetCanonical) {
-        const internalHost = currentConnectorRaw.toLowerCase();
-        if (internalHost) {
-          return ensureDspVersion(`http://${internalHost}:11003/api/v1/dsp/2025-1`);
+        const connectorPrefix = canonicalConnectorPrefix(currentConnectorRaw);
+        const publicOrigin = getPublicConnectorOrigin();
+        if (connectorPrefix) {
+          return ensureDspVersion(`${publicOrigin}/${connectorPrefix}/api/v1/dsp/2025-1`);
         }
       }
 
