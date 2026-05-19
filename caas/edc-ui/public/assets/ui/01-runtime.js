@@ -219,11 +219,24 @@
       if (toast) pushStatusAlert(toast.kind, toast.title, toast.message);
     }
 
-    function showAuthGate(message = '', canLogin = true) {
+    function getArcgisLoginButtons() {
+      return [
+        document.getElementById('btnArcgisLogin'),
+        document.getElementById('btnArcgisLoginGate'),
+      ].filter(Boolean);
+    }
+
+    function getArcgisCheckButtons() {
+      return [
+        document.getElementById('btnArcgisCheck'),
+        document.getElementById('btnArcgisCheckGate'),
+      ].filter(Boolean);
+    }
+
+    function showAuthGate(message = '') {
       const gate = document.getElementById('authGate');
-      const loginBtn = document.getElementById('btnArcgisLogin');
       const errorBox = document.getElementById('authError');
-      if (!gate || !loginBtn || !errorBox) return;
+      if (!gate || !errorBox) return;
       const help = gate.querySelector('.auth-help');
       if (help) {
         help.textContent = arcgis.requiresLogin
@@ -231,8 +244,16 @@
           : 'Esta ventana solo se usa cuando quieres publicar un asset desde ArcGIS o pedir un token del portal. La consola puede funcionar sin iniciar sesión en ArcGIS.';
       }
       gate.classList.add('open');
-      loginBtn.style.display = (canLogin || arcgis.requiresLogin) ? 'inline-flex' : 'none';
-      loginBtn.disabled = false;
+      getArcgisLoginButtons().forEach((button) => {
+        button.style.display = 'inline-flex';
+        button.disabled = false;
+        button.onclick = startArcgisLogin;
+      });
+      getArcgisCheckButtons().forEach((button) => {
+        button.style.display = 'inline-flex';
+        button.disabled = false;
+        button.onclick = () => ensureArcgisLogin();
+      });
       if (message) {
         errorBox.textContent = message;
         errorBox.style.display = 'block';
@@ -309,13 +330,6 @@
       window.location.assign(authorizeUrl);
     }
 
-    function startArcgisEnterpriseLoginFromGate(event) {
-      if (event?.preventDefault) event.preventDefault();
-      startArcgisLogin();
-      return false;
-    }
-    window.startArcgisEnterpriseLoginFromGate = startArcgisEnterpriseLoginFromGate;
-
     function arcgisLogout() {
       // Only clear the stored token locally; keep the ArcGIS session intact.
       clearStoredArcgisToken();
@@ -328,13 +342,12 @@
     async function ensureArcgisLogin() {
       if (!arcgis.enabled) return true;
 
-      const loginBtn = document.getElementById('btnArcgisLogin');
-      const checkBtn = document.getElementById('btnArcgisCheck');
-      if (loginBtn) loginBtn.onclick = startArcgisLogin;
-      if (checkBtn) checkBtn.onclick = () => ensureArcgisLogin();
+      getArcgisLoginButtons().forEach((button) => { button.onclick = startArcgisLogin; });
+      getArcgisCheckButtons().forEach((button) => { button.onclick = () => ensureArcgisLogin(); });
 
       if (!arcgis.portalUrl) {
-        showAuthGate('ArcGIS login activo pero falta configurar ARCGIS_PORTAL_URL en el entorno. Revisa que el despliegue cargue .env.production con --env-file.', true);
+        arcgis.portalUrl = 'https://gis.eiteldata.eu/arcgis';
+        showAuthGate('No se ha recibido ARCGIS_PORTAL_URL desde el entorno. Se usará https://gis.eiteldata.eu/arcgis para iniciar sesión.');
         return false;
       }
 
@@ -344,12 +357,12 @@
         const pathParts = (window.location.pathname || '/').split('/').filter(Boolean);
         const connectorPrefix = pathParts[0] || cfg.connectorName || 'conectoruc3m';
         if (appHost !== portalHost) {
-          showAuthGate(`Host distinto detectado. Abre la consola en https://${portalHost}/${connectorPrefix}/ para reutilizar la sesion del portal. Host actual: ${appHost}`, true);
+          showAuthGate(`Host distinto detectado. Abre la consola en https://${portalHost}/${connectorPrefix}/ para reutilizar la sesion del portal. Host actual: ${appHost}`);
           return false;
         }
       } catch {}
 
-      showAuthGate('Comprobando sesion ArcGIS Enterprise...', true);
+      showAuthGate('Comprobando sesion ArcGIS Enterprise...');
 
       const tokenFromHash = extractArcgisTokenFromHash();
       const accessToken = tokenFromHash || getStoredArcgisToken();
@@ -381,7 +394,7 @@
         clearStoredArcgisToken();
         const pathParts = (window.location.pathname || '/').split('/').filter(Boolean);
         const connectorPrefix = pathParts[0] || cfg.connectorName || 'conectoruc3m';
-        showAuthGate(`Inicia sesion en ArcGIS Enterprise para acceder.\n${String(e?.message || e)}\nTip: accede siempre por https://gis.eiteldata.eu/${connectorPrefix}/`, true);
+        showAuthGate(`Inicia sesion en ArcGIS Enterprise para acceder.\n${String(e?.message || e)}\nTip: accede siempre por https://gis.eiteldata.eu/${connectorPrefix}/`);
         return false;
       }
     }

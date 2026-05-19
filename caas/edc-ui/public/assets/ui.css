@@ -375,16 +375,10 @@
     }
     .auth-card h2 { margin-top: 0; margin-bottom: 8px; }
     .auth-help { color: var(--muted); margin-bottom: 14px; }
-    .auth-gate.open #btnArcgisLogin {
-      display: inline-flex !important;
-    }
-    .auth-login-fallback {
-      display: none;
-      margin-top: 12px;
-      width: fit-content;
-      text-decoration: none;
-    }
-    .auth-gate.open .auth-login-fallback {
+    .auth-gate.open #btnArcgisLogin,
+    .auth-gate.open #btnArcgisLoginGate,
+    .auth-gate.open #btnArcgisCheck,
+    .auth-gate.open #btnArcgisCheckGate {
       display: inline-flex !important;
     }
     .auth-error {
