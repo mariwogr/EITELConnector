@@ -54,6 +54,10 @@
         if (parsed && typeof parsed === 'object') Object.assign(settings, parsed);
 
         const normalized = normalizeManagementApiBaseUrl(settings.apiBaseUrl || '');
+        if (normalized && normalized !== settings.apiBaseUrl) {
+          settings.apiBaseUrl = normalized;
+          try { localStorage.setItem(settingsKey, JSON.stringify(settings)); } catch {}
+        }
         if (!String(normalized).includes('/api/management')) {
           settings.apiBaseUrl = buildSafeManagementApiBaseUrl();
           try { localStorage.setItem(settingsKey, JSON.stringify(settings)); } catch {}
@@ -76,12 +80,36 @@
       secretsApi: null,
     };
 
+    function getConnectorPathPrefix() {
+      const pathParts = (window.location.pathname || '/').split('/').filter(Boolean);
+      const pathPrefix = pathParts[0] || '';
+      if (/^conector/i.test(pathPrefix)) return pathPrefix;
+      const configuredName = String(cfg.connectorName || '').trim();
+      if (/^conector/i.test(configuredName)) return configuredName;
+      return pathPrefix;
+    }
+
+    function buildPrefixedManagementApiBaseUrl() {
+      const pathPrefix = getConnectorPathPrefix();
+      return pathPrefix ? `/${pathPrefix}/api/management` : '/api/management';
+    }
+
     function normalizeManagementApiBaseUrl(rawUrl) {
       const raw = String(rawUrl || '').trim();
-      if (!raw) return '/api/management';
+      if (!raw) return buildPrefixedManagementApiBaseUrl();
+
+      if (raw === '/api/management' && getConnectorPathPrefix()) {
+        return buildPrefixedManagementApiBaseUrl();
+      }
 
       // Si tiene protocolo y host, devolverla tal cual
       if (raw.startsWith('http://') || raw.startsWith('https://')) {
+        try {
+          const url = new URL(raw);
+          if (url.origin === window.location.origin && url.pathname.replace(/\/+$/, '') === '/api/management' && getConnectorPathPrefix()) {
+            return buildPrefixedManagementApiBaseUrl();
+          }
+        } catch {}
         return raw.replace(/\/+$/, '');
       }
 
@@ -102,14 +130,8 @@
       if (configured) return configured;
 
       // Fallback: extraer del pathname actual
-      const origin = window.location.origin;
-      const pathParts = (window.location.pathname || '/').split('/').filter(Boolean);
-      const pathPrefix = pathParts[0] || '';
-      
-      if (pathPrefix) {
-        // Estamos bajo un prefijo como /conectorFuenlabrada/
-        return `/${pathPrefix}/api/management`;
-      }
+      const prefixed = buildPrefixedManagementApiBaseUrl();
+      if (prefixed !== '/api/management') return prefixed;
 
       // Último recurso: solo /api/management
       return '/api/management';

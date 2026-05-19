@@ -208,9 +208,7 @@
         const apiBaseNormalized = typeof normalizeManagementApiBaseUrl === 'function'
           ? normalizeManagementApiBaseUrl(apiBaseRaw)
           : apiBaseRaw;
-        settings.apiBaseUrl = String(apiBaseNormalized).includes('/api/management')
-          ? apiBaseNormalized
-          : (typeof buildSafeManagementApiBaseUrl === 'function' ? buildSafeManagementApiBaseUrl() : '/api/management');
+        settings.apiBaseUrl = apiBaseNormalized;
         settings.apiKeyOverride = (document.getElementById('setApiKey')?.value || '').trim();
         settings.apiTimeoutMs = Math.max(1000, Number(document.getElementById('setApiTimeout')?.value || 15000));
         settings.apiRetries = Math.max(0, Math.min(5, Number(document.getElementById('setApiRetries')?.value || 1)));
