@@ -4903,6 +4903,19 @@ function summarizePolicyTerms(policyObj) {
       const normalizedConnector = normalizeRemoteConnectorId(connectorId);
       const address = buildDspUrl(normalizedConnector);
       const counterPartyId = resolveCounterPartyId(normalizedConnector, address);
+      const currentCanonical = canonicalConnectorPrefix(cfg?.connectorName || '').toLowerCase();
+      const targetCanonical = canonicalConnectorPrefix(normalizedConnector).toLowerCase();
+      const isCurrentConnector = currentCanonical && targetCanonical && currentCanonical === targetCanonical;
+
+      if (isCurrentConnector) {
+        // When querying the same connector that hosts this UI, use the local assets endpoint
+        // instead of a remote catalog request. This avoids self-referential catalog dispatch
+        // failures and matches the published assets available in the local connector.
+        const response = await callApi('POST', '/v3/assets/request', q(), { timeoutMs: 120000, retries: 1 });
+        const rows = mapPublishedAssetsToCatalogVisualRows(unwrap(response));
+        return { response, rows, connectorId: normalizedConnector, address };
+      }
+
       const response = await callApi('POST', '/v3/catalog/request', JSON.stringify({
         '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
         '@type': 'CatalogRequest',
