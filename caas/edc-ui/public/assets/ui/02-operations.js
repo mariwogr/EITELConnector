@@ -1673,10 +1673,10 @@ function summarizePolicyTerms(policyObj) {
         const canContract = Boolean(row.offerId) && !isPrivate;
         const actionLabel = canContract
           ? 'Iniciar contratacion'
-          : (isPrivate ? 'Solicitar acceso' : 'Solo visualizacion local');
+          : 'Solicitar acceso';
         const actionOnClick = canContract
           ? `window.useCatalogAssetByIndex(${idx})`
-          : (isPrivate ? `window.openAccessRequestByIndex(${idx})` : `window.useCatalogAssetByIndex(${idx})`);
+          : `window.openAccessRequestByIndex(${idx})`;
         const media = `<div class="asset-card-media${defaultImageClass}"><img src="${htmlEscape(image)}" alt="Imagen del asset ${title}" /><span class="asset-card-badge">${connectorBadge}</span><div class="asset-card-media-overlay"><span class="asset-card-media-title">${title}</span></div></div>`;
         const chips = keywords.length
           ? `<div class="asset-card-keywords">${keywords.map(k => `<span class="asset-chip">${htmlEscape(k)}</span>`).join('')}</div>`
@@ -1695,7 +1695,7 @@ function summarizePolicyTerms(policyObj) {
                 ${chips}
               </details>
               <div class="row">
-                <button class="primary" onclick="${actionOnClick}" ${canContract || isPrivate ? '' : 'disabled'}>${actionLabel}</button>
+                <button class="primary" onclick="${actionOnClick}">${actionLabel}</button>
               </div>
             </div>
           </article>
@@ -1720,8 +1720,9 @@ function summarizePolicyTerms(policyObj) {
       if (contractBox) contractBox.style.display = selected ? 'block' : 'none';
       const requestBtn = document.getElementById('btnRequestContract');
       const requestAccessBtn = document.getElementById('btnOpenAccessRequest');
-      if (requestBtn) requestBtn.style.display = selected && !isPrivate ? 'inline-flex' : 'none';
-      if (requestAccessBtn) requestAccessBtn.style.display = selected && isPrivate ? 'inline-flex' : 'none';
+      const hasOffer = Boolean(selected?.offerId);
+      if (requestBtn) requestBtn.style.display = selected && hasOffer && !isPrivate ? 'inline-flex' : 'none';
+      if (requestAccessBtn) requestAccessBtn.style.display = selected && (!hasOffer || isPrivate) ? 'inline-flex' : 'none';
       if (accept) {
         if (isPrivate) {
           accept.checked = false;
@@ -2012,7 +2013,7 @@ function summarizePolicyTerms(policyObj) {
         assigner: connectorId,
         connectorId,
         counterPartyAddress,
-        policySummary: 'Visualización local. Este asset no tiene una oferta remota de catálogo activa.',
+        policySummary: 'Asset publicado por el conector. Puedes solicitar acceso al propietario.',
         policyRaw: null,
         sourceHintUrl: '',
         assetTitle: row.title,
@@ -5252,11 +5253,8 @@ function summarizePolicyTerms(policyObj) {
       }
 
       if (!selected.offerId) {
-        writeOut({
-          status: 400,
-          error: 'La oferta del catálogo no tiene policy/@id. Recarga catálogos y selecciona otro asset.',
-          selected
-        });
+        openAccessRequestModalForRow(selected);
+        writeOut({ status: 202, message: 'Este asset no tiene oferta negociable activa. Se abre la solicitud de acceso al propietario.', selected });
         if (actionBtn) {
           actionBtn.disabled = false;
           actionBtn.textContent = 'Realizar contrato';
