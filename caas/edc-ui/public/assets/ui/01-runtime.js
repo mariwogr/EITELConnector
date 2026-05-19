@@ -301,14 +301,20 @@
 
     function startArcgisLogin() {
       if (!arcgis.portalUrl) {
-        showAuthGate('Falta configurar ARCGIS_PORTAL_URL en .env.production. El botón estará disponible en cuanto el contenedor reciba esa variable.', true);
-        return;
+        arcgis.portalUrl = 'https://gis.eiteldata.eu/arcgis';
       }
       const clientId = arcgis.clientId || 'arcgisonline';
       const redirectUri = arcgis.redirectUri || window.location.href;
       const authorizeUrl = `${arcgis.portalUrl}/sharing/oauth2/authorize?client_id=${encodeURIComponent(clientId)}&response_type=token&expiration=20160&redirect_uri=${encodeURIComponent(redirectUri)}`;
       window.location.assign(authorizeUrl);
     }
+
+    function startArcgisEnterpriseLoginFromGate(event) {
+      if (event?.preventDefault) event.preventDefault();
+      startArcgisLogin();
+      return false;
+    }
+    window.startArcgisEnterpriseLoginFromGate = startArcgisEnterpriseLoginFromGate;
 
     function arcgisLogout() {
       // Only clear the stored token locally; keep the ArcGIS session intact.

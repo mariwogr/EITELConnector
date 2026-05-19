@@ -378,6 +378,15 @@
     .auth-gate.open #btnArcgisLogin {
       display: inline-flex !important;
     }
+    .auth-login-fallback {
+      display: none;
+      margin-top: 12px;
+      width: fit-content;
+      text-decoration: none;
+    }
+    .auth-gate.open .auth-login-fallback {
+      display: inline-flex !important;
+    }
     .auth-error {
       margin-top: 10px;
       border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--line));

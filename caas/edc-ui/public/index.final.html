@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Conector EITEL</title>
   <link rel="icon" type="image/png" href="assets/eitel-logo.png" />
-    <link rel="stylesheet" href="assets/ui.css?v=20260519b" />
+    <link rel="stylesheet" href="assets/ui.css?v=20260519c" />
 </head>
 <body data-theme="light">
   <div class="app" id="app">
@@ -672,6 +672,12 @@
         <button class="primary" id="btnArcgisLogin">Entrar con ArcGIS Enterprise</button>
         <button class="ghost" id="btnArcgisCheck">Ya inicie sesion</button>
       </div>
+      <a
+        class="primary auth-login-fallback"
+        id="arcgisEnterpriseLoginLink"
+        href="https://gis.eiteldata.eu/arcgis/sharing/oauth2/authorize?client_id=arcgisonline&response_type=token&expiration=20160&redirect_uri=https%3A%2F%2Fgis.eiteldata.eu%2Fconectoruc3m%2F"
+        onclick="return window.startArcgisEnterpriseLoginFromGate ? window.startArcgisEnterpriseLoginFromGate(event) : true"
+      >Entrar con ArcGIS Enterprise</a>
       <div class="auth-error" id="authError" style="display:none"></div>
     </div>
   </div>
@@ -717,11 +723,11 @@
     </div>
   </div>
 
-  <script src="config.js?v=20260519b"></script>
-  <script src="assets/ui/01-runtime.js?v=20260519b"></script>
-  <script src="assets/ui/02-operations.js?v=20260519b"></script>
-  <script src="assets/ui/03-secrets.js?v=20260519b"></script>
-  <script src="assets/ui/04-bootstrap.js?v=20260519b"></script>
+  <script src="config.js?v=20260519c"></script>
+  <script src="assets/ui/01-runtime.js?v=20260519c"></script>
+  <script src="assets/ui/02-operations.js?v=20260519c"></script>
+  <script src="assets/ui/03-secrets.js?v=20260519c"></script>
+  <script src="assets/ui/04-bootstrap.js?v=20260519c"></script>
 </body>
 </html>
 
