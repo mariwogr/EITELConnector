@@ -2002,14 +2002,16 @@ function summarizePolicyTerms(policyObj) {
       });
     }
 
-    function mapPublishedAssetsToCatalogVisualRows(rawAssets = []) {
+    function mapPublishedAssetsToCatalogVisualRows(rawAssets = [], options = {}) {
+      const connectorId = options.connectorId || PROD_CONNECTOR_ID;
+      const counterPartyAddress = options.counterPartyAddress || '';
       return mapPublishedAssetRows(rawAssets).map((row) => ({
         offerId: '',
         assetId: row.id || '',
         policyTarget: row.id || '',
-        assigner: PROD_CONNECTOR_ID,
-        connectorId: PROD_CONNECTOR_ID,
-        counterPartyAddress: '',
+        assigner: connectorId,
+        connectorId,
+        counterPartyAddress,
         policySummary: 'Visualización local. Este asset no tiene una oferta remota de catálogo activa.',
         policyRaw: null,
         sourceHintUrl: '',
@@ -4905,7 +4907,7 @@ function summarizePolicyTerms(policyObj) {
 
     async function callCatalogRequest(body) {
       const payload = typeof body === 'string' ? body : JSON.stringify(body);
-      const endpoints = ['/v2/catalog', '/v1/catalog', '/v3/catalog/request'];
+      const endpoints = ['/v3/catalog/request', '/v2/catalog', '/v1/catalog'];
       let lastResponse = null;
 
       for (const endpoint of endpoints) {
@@ -4918,10 +4920,70 @@ function summarizePolicyTerms(policyObj) {
       return lastResponse || { status: 0, catalogEndpoint: endpoints[0], error: 'No se pudo consultar el catálogo.' };
     }
 
+    function buildManagementApiBaseUrlForConnector(connectorId) {
+      const raw = String(connectorId || '').trim();
+      const absolute = raw.startsWith('http://') || raw.startsWith('https://');
+      if (absolute) {
+        try {
+          const url = new URL(raw);
+          if (/\/api\/management\/?$/i.test(url.pathname)) return `${url.origin}${url.pathname.replace(/\/+$/, '')}`;
+          const prefix = (url.pathname || '/').split('/').filter(Boolean)[0] || '';
+          if (prefix) return `${url.origin}/${prefix}/api/management`;
+          return `${url.origin}/api/management`;
+        } catch {}
+      }
+
+      const configuredDsp = resolveConfiguredDspUrl(raw);
+      if (configuredDsp) {
+        try {
+          const url = new URL(configuredDsp, window.location.origin);
+          const prefix = (url.pathname || '/').split('/').filter(Boolean)[0] || canonicalConnectorPrefix(raw);
+          return `${url.origin}/${prefix}/api/management`;
+        } catch {}
+      }
+
+      const prefix = canonicalConnectorPrefix(raw || getDefaultRemoteConnector());
+      return `${getPublicConnectorOrigin()}/${prefix}/api/management`;
+    }
+
+    function getManagementApiBaseCandidatesForConnector(connectorId) {
+      const primary = buildManagementApiBaseUrlForConnector(connectorId);
+      const candidates = [primary];
+      if (primary.includes('/conectorFuenlabrada/')) candidates.push(primary.replace('/conectorFuenlabrada/', '/conectorfuenlabrada/'));
+      if (primary.includes('/conectorfuenlabrada/')) candidates.push(primary.replace('/conectorfuenlabrada/', '/conectorFuenlabrada/'));
+      return [...new Set(candidates)].filter(Boolean);
+    }
+
+    async function callConnectorManagementApi(connectorId, method, path, body, options = {}) {
+      const bases = getManagementApiBaseCandidatesForConnector(connectorId);
+      let last = null;
+      for (const base of bases) {
+        try {
+          const res = await fetch(`${base}${path}`, {
+            method,
+            headers: {
+              'x-api-key': getApiKey(),
+              'content-type': 'application/json',
+              ...(options.headers || {}),
+            },
+            body: method === 'GET' || method === 'DELETE' ? undefined : body,
+          });
+          const text = await res.text();
+          let data = text;
+          try { data = JSON.parse(text); } catch {}
+          const response = { status: res.status, data, managementApiBase: base };
+          if (res.status >= 200 && res.status < 300) return response;
+          last = response;
+        } catch (error) {
+          last = { status: 0, error: String(error), managementApiBase: base };
+        }
+      }
+      return last || { status: 0, error: 'No se pudo llamar al Management API del conector.' };
+    }
+
     async function fetchCatalogRowsForConnector(connectorId) {
       const normalizedConnector = normalizeRemoteConnectorId(connectorId);
       const address = buildDspUrl(normalizedConnector);
-      const counterPartyId = resolveCounterPartyId(normalizedConnector, address);
       const currentCanonical = canonicalConnectorPrefix(cfg?.connectorName || '').toLowerCase();
       const targetCanonical = canonicalConnectorPrefix(normalizedConnector).toLowerCase();
       const isCurrentConnector = currentCanonical && targetCanonical && currentCanonical === targetCanonical;
@@ -4931,18 +4993,20 @@ function summarizePolicyTerms(policyObj) {
         // instead of a remote catalog request. This avoids self-referential catalog dispatch
         // failures and matches the published assets available in the local connector.
         const response = await callApi('POST', '/v3/assets/request', q(), { timeoutMs: 120000, retries: 1 });
-        const rows = mapPublishedAssetsToCatalogVisualRows(unwrap(response));
+        response.assetEndpoint = '/v3/assets/request';
+        const rows = mapPublishedAssetsToCatalogVisualRows(unwrap(response), {
+          connectorId: normalizedConnector,
+          counterPartyAddress: address,
+        });
         return { response, rows, connectorId: normalizedConnector, address };
       }
 
-      const response = await callCatalogRequest({
-        '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
-        '@type': 'CatalogRequest',
-        counterPartyId,
+      const response = await callConnectorManagementApi(normalizedConnector, 'POST', '/v3/assets/request', q());
+      response.assetEndpoint = '/v3/assets/request';
+      const rows = mapPublishedAssetsToCatalogVisualRows(unwrap(response), {
+        connectorId: normalizedConnector,
         counterPartyAddress: address,
-        protocol: 'dataspace-protocol-http:2025-1'
       });
-      const rows = mapCatalogRowsFromResponse(response?.data || {}, normalizedConnector, address);
       return { response, rows, connectorId: normalizedConnector, address };
     }
 
@@ -5098,6 +5162,8 @@ function summarizePolicyTerms(policyObj) {
           connectorId,
           status: result?.response?.status || 0,
           catalogEndpoint: result?.response?.catalogEndpoint || '',
+          assetEndpoint: result?.response?.assetEndpoint || '',
+          managementApiBase: result?.response?.managementApiBase || '',
           assets: (result.rows || []).length,
           dspUrl: result?.address || ''
         });
