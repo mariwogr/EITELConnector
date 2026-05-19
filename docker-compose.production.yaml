@@ -71,6 +71,9 @@ services:
       dockerfile: Dockerfile
     container_name: conectoruc3m-ui
     restart: always
+    env_file:
+      - path: .env.production
+        required: false
     depends_on:
       conectoruc3m:
         condition: service_healthy
@@ -82,9 +85,9 @@ services:
       NEXT_PUBLIC_UI_VARIANT: production
       NEXT_PUBLIC_STAR_MODE: "false"
       NEXT_PUBLIC_ARCGIS_AUTH_ENABLED: ${ARCGIS_AUTH_ENABLED:-true}
-      NEXT_PUBLIC_ARCGIS_PORTAL_URL: ${ARCGIS_PORTAL_URL:-}
-      NEXT_PUBLIC_ARCGIS_CLIENT_ID: ${ARCGIS_CLIENT_ID:-}
-      NEXT_PUBLIC_ARCGIS_REDIRECT_URI: ${ARCGIS_REDIRECT_URI:-}
+      NEXT_PUBLIC_ARCGIS_PORTAL_URL: ${ARCGIS_PORTAL_URL:-https://gis.eiteldata.eu/arcgis}
+      NEXT_PUBLIC_ARCGIS_CLIENT_ID: ${ARCGIS_CLIENT_ID:-arcgisonline}
+      NEXT_PUBLIC_ARCGIS_REDIRECT_URI: ${ARCGIS_REDIRECT_URI:-https://gis.eiteldata.eu/conectoruc3m/}
       NEXT_PUBLIC_ARCGIS_REQUIRED_ORG_ID: ${ARCGIS_REQUIRED_ORG_ID:-}
       NEXT_PUBLIC_ARCGIS_REQUIRED_GROUP_ID: ${ARCGIS_REQUIRED_GROUP_ID:-}
     volumes:
