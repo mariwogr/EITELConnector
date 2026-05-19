@@ -1128,7 +1128,7 @@ function summarizePolicyTerms(policyObj) {
           let text = await res.text();
 
           // Some deployments return 502 on one connector-prefix variant; try alternates for catalog calls.
-          if (res.status === 502 && path === '/v3/catalog/request' && !options.noAutoBaseFallback) {
+          if (res.status === 502 && (path === '/v1/catalog' || path === '/v3/catalog/request') && !options.noAutoBaseFallback) {
             const candidates = [];
             const fixed = getAutoFixedApiBaseUrl();
             if (fixed) candidates.push(fixed);
@@ -4916,7 +4916,7 @@ function summarizePolicyTerms(policyObj) {
         return { response, rows, connectorId: normalizedConnector, address };
       }
 
-      const response = await callApi('POST', '/v3/catalog/request', JSON.stringify({
+      const response = await callApi('POST', '/v1/catalog', JSON.stringify({
         '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
         '@type': 'CatalogRequest',
         counterPartyId,

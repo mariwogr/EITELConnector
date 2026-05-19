@@ -1081,7 +1081,7 @@
           protocol: 'dataspace-protocol-http:2025-1'
         };
 
-        const r = await callApi('POST', '/v3/catalog/request', JSON.stringify(body));
+        const r = await callApi('POST', '/v1/catalog', JSON.stringify(body));
         writeOut(r);
         renderOffers(r);
       };
@@ -1986,7 +1986,7 @@
           counterPartyAddress: document.getElementById('catalogAddress').value.trim(),
           protocol: 'dataspace-protocol-http:2025-1'
         };
-        const r = await callApi('POST', '/v3/catalog/request', JSON.stringify(body));
+        const r = await callApi('POST', '/v1/catalog', JSON.stringify(body));
         out(r);
         renderOffers(r);
       };
@@ -2632,7 +2632,7 @@
               <label>Método</label>
               <select id="method"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select>
               <label>Path (sobre management API)</label>
-              <input id="path" value="/v3/catalog/request" />
+              <input id="path" value="/v1/catalog" />
               <label>Body JSON</label>
               <textarea id="body" rows="10">{
   "@context": {"edc":"https://w3id.org/edc/v0.0.1/ns/"},
@@ -2995,7 +2995,7 @@
           protocol: 'dataspace-protocol-http:2025-1'
         });
 
-        const r = await callApi('POST', '/v3/catalog/request', body);
+        const r = await callApi('POST', '/v1/catalog', body);
         print('outCatalog', r);
         renderCatalogOffers(r);
 
@@ -3123,7 +3123,7 @@
           counterPartyAddress,
           protocol: 'dataspace-protocol-http:2025-1'
         });
-        const r = await callApi('POST', '/v3/catalog/request', body);
+        const r = await callApi('POST', '/v1/catalog', body);
         print('out', r);
         try {
           const d = r.data?.['dcat:dataset'] || r.data?.dataset || null;
