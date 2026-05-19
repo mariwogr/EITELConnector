@@ -5769,16 +5769,24 @@ function summarizePolicyTerms(policyObj) {
       policy.prohibition = policy.prohibition.map(normalizeRuleTarget);
       policy.obligation = policy.obligation.map(normalizeRuleTarget);
 
+      const negotiatedCounterPartyAddress = ensureDspVersion(selected.counterPartyAddress || document.getElementById('resolvedAddress').value || buildDspUrl(selected.connectorId || selected.assigner));
+      const negotiatedCounterPartyId = resolveCounterPartyId(selected.connectorId || selected.assigner || '', negotiatedCounterPartyAddress);
+      const resolvedAddressInputForNegotiation = document.getElementById('resolvedAddress');
+      if (resolvedAddressInputForNegotiation) resolvedAddressInputForNegotiation.value = negotiatedCounterPartyAddress;
+
       const beforeAgreementsResp = await callApi('POST', '/v3/contractagreements/request', q());
       const beforeAgreementIds = new Set(unwrap(beforeAgreementsResp).map(a => a['@id'] || a.id).filter(Boolean));
 
-      const r = await callApi('POST', '/v3/contractnegotiations', JSON.stringify({
+      const contractRequestBody = {
         '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
         '@type': 'ContractRequest',
         protocol: 'dataspace-protocol-http:2025-1',
-        counterPartyAddress: document.getElementById('resolvedAddress').value,
+        counterPartyAddress: negotiatedCounterPartyAddress,
+        counterPartyId: negotiatedCounterPartyId,
         policy
-      }));
+      };
+
+      const r = await callApi('POST', '/v3/contractnegotiations', JSON.stringify(contractRequestBody));
       if (starTrustConfig.enabled) {
         if (r.status >= 200 && r.status < 300) {
           starTrustState.handshakeState = 'negotiating';
@@ -5863,12 +5871,15 @@ function summarizePolicyTerms(policyObj) {
           errorDetail: snapshot.errorDetail || '',
           assetId: selected.assetId || '',
           provider: selected.connectorId || selected.assigner || '',
+          counterPartyId: negotiatedCounterPartyId,
+          counterPartyAddress: negotiatedCounterPartyAddress,
+          offerId: selected.offerId || '',
           attempts: monitorResult.attempts,
           checkedForSeconds: monitorResult.attempts * 2.5,
           probableCause: snapshot.errorDetail
             ? 'El runtime ha devuelto un detalle de error en la negociación.'
             : 'El provider no ha materializado aún el ContractAgreement o ha rechazado la policy inferida.',
-          nextStep: 'Revisa en el conector proveedor que existen PolicyDefinition y ContractDefinition para este asset, y mira el detalle de la negociación en la consola.',
+          nextStep: 'Si vuelve a aparecer 404, comprueba que el proveedor expone este offerId en su catalogo DSP y que la ContractDefinition selecciona exactamente este asset.',
         });
       }
     }
