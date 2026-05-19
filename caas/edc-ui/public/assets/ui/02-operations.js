@@ -5317,18 +5317,102 @@ function summarizePolicyTerms(policyObj) {
     }
 
     async function fetchRemoteCatalogOffers(connectorId, address) {
-      const counterPartyId = resolveCounterPartyId(connectorId, address);
-      const response = await callCatalogRequest({
-        '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
-        '@type': 'CatalogRequest',
-        counterPartyId,
-        counterPartyAddress: address,
-        protocol: 'dataspace-protocol-http:2025-1'
-      });
-      const rows = response?.status >= 200 && response?.status < 300
-        ? mapCatalogRowsFromResponse(response?.data || {}, connectorId, address)
-        : [];
-      return { response, rows };
+      const candidates = getDspAddressCandidates(address);
+      let best = null;
+
+      for (const candidateAddress of candidates) {
+        const counterPartyId = resolveCounterPartyId(connectorId, candidateAddress);
+        const response = await callCatalogRequest({
+          '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@type': 'CatalogRequest',
+          counterPartyId,
+          counterPartyAddress: candidateAddress,
+          protocol: 'dataspace-protocol-http:2025-1'
+        });
+        response.triedCounterPartyAddress = candidateAddress;
+        response.triedCounterPartyAddresses = candidates;
+        const rows = response?.status >= 200 && response?.status < 300
+          ? mapCatalogRowsFromResponse(response?.data || {}, connectorId, candidateAddress)
+          : [];
+        const result = { response, rows, address: candidateAddress };
+        if (response?.status >= 200 && response?.status < 300 && rows.length) return result;
+        if (response?.status >= 200 && response?.status < 300 && !best) best = result;
+        if (!best || Number(response?.status || 0) < Number(best.response?.status || 999)) best = result;
+      }
+
+      return best || { response: { status: 0, error: 'No se pudo consultar el catalogo DSP.', triedCounterPartyAddresses: candidates }, rows: [], address: candidates[0] || address };
+    }
+
+    async function resolveCatalogOfferFromRemoteManagement(row) {
+      const connectorId = row?.connectorId || row?.assigner || getDefaultRemoteConnector();
+      const assetId = String(row?.assetId || row?.policyTarget || '').trim();
+      if (!connectorId || !assetId) return null;
+
+      const [contractsResp, policiesResp] = await Promise.all([
+        callConnectorManagementApi(connectorId, 'POST', '/v3/contractdefinitions/request', q(), { silent: true }),
+        callConnectorManagementApi(connectorId, 'POST', '/v3/policydefinitions/request', q(), { silent: true }),
+      ]);
+      const contractDefinitions = unwrap(contractsResp);
+      const policyDefinitions = unwrap(policiesResp);
+      const contractDefinition = contractDefinitions.find(contractDef => getContractDefinitionAssetId(contractDef) === assetId);
+      if (!contractDefinition) {
+        return {
+          resolved: false,
+          response: {
+            status: contractsResp?.status || 0,
+            managementApiBase: contractsResp?.managementApiBase || '',
+            reason: 'No existe ContractDefinition para este asset en el proveedor.',
+            contractDefinitions: contractDefinitions.length,
+          },
+        };
+      }
+
+      const policyId = String(
+        contractDefinition.contractPolicyId ||
+        contractDefinition['edc:contractPolicyId'] ||
+        contractDefinition.accessPolicyId ||
+        contractDefinition['edc:accessPolicyId'] ||
+        ''
+      ).trim();
+      const policyDefinition = policyDefinitions.find(policyDef => String(policyDef?.['@id'] || policyDef?.id || '').trim() === policyId);
+      const policyRaw = policyDefinition?.policy || policyDefinition?.['edc:policy'] || null;
+      if (!policyId || !policyRaw) {
+        return {
+          resolved: false,
+          response: {
+            status: policiesResp?.status || 0,
+            managementApiBase: policiesResp?.managementApiBase || '',
+            reason: 'Existe ContractDefinition, pero no se ha encontrado su PolicyDefinition asociada.',
+            contractDefinitionId: contractDefinition?.['@id'] || contractDefinition?.id || '',
+            policyId,
+          },
+        };
+      }
+
+      const counterPartyAddress = getDspAddressCandidates(row?.counterPartyAddress || buildDspUrl(connectorId))[0] || row?.counterPartyAddress || '';
+      return {
+        resolved: true,
+        response: {
+          status: 200,
+          catalogEndpoint: 'provider-management-fallback',
+          managementApiBase: contractsResp?.managementApiBase || policiesResp?.managementApiBase || '',
+          contractDefinitionId: contractDefinition?.['@id'] || contractDefinition?.id || '',
+          policyId,
+        },
+        row: {
+          ...row,
+          offerId: policyRaw?.['@id'] || policyRaw?.id || policyId,
+          policyTarget: row?.policyTarget || assetId,
+          assigner: row?.assigner || connectorId,
+          connectorId,
+          counterPartyAddress,
+          policyRaw,
+          policySummary: row?.policySummary || summarizePolicyTerms(policyRaw),
+          catalogOfferResolved: true,
+          catalogOfferInferred: false,
+          catalogOfferSource: 'provider-management-fallback',
+        },
+      };
     }
 
     async function fetchCatalogRowsForConnector(connectorId) {
@@ -5368,11 +5452,21 @@ function summarizePolicyTerms(policyObj) {
     function ensureDspVersion(url) {
       const trimmed = String(url || '').replace(/\/+$/, '');
       if (!trimmed) return trimmed;
-      // The protocol version belongs in the Contract/Catalog/Transfer request body
-      // (`protocol: dataspace-protocol-http:2025-1`). The counterPartyAddress must
-      // point to the connector DSP base path advertised by EDC_DSP_CALLBACK_ADDRESS.
       if (/\/api\/v1\/dsp\/2025-1$/i.test(trimmed)) return trimmed.replace(/\/2025-1$/i, '');
       return trimmed;
+    }
+
+    function withDspProtocolVersion(url) {
+      const base = ensureDspVersion(url);
+      if (!base) return base;
+      if (/\/api\/v1\/dsp$/i.test(base)) return `${base}/2025-1`;
+      return base;
+    }
+
+    function getDspAddressCandidates(url) {
+      const versioned = withDspProtocolVersion(url);
+      const base = ensureDspVersion(url);
+      return [...new Set([versioned, base].filter(Boolean))];
     }
 
     function getConfiguredConnectorDirectory() {
@@ -5571,6 +5665,8 @@ function summarizePolicyTerms(policyObj) {
       });
 
       if (!match?.offerId || !match?.policyRaw) {
+        const managementFallback = await resolveCatalogOfferFromRemoteManagement(row);
+        if (managementFallback?.resolved) return managementFallback;
         return {
           row,
           response: result.response,
@@ -5769,7 +5865,7 @@ function summarizePolicyTerms(policyObj) {
       policy.prohibition = policy.prohibition.map(normalizeRuleTarget);
       policy.obligation = policy.obligation.map(normalizeRuleTarget);
 
-      const negotiatedCounterPartyAddress = ensureDspVersion(selected.counterPartyAddress || document.getElementById('resolvedAddress').value || buildDspUrl(selected.connectorId || selected.assigner));
+      const negotiatedCounterPartyAddress = getDspAddressCandidates(selected.counterPartyAddress || document.getElementById('resolvedAddress').value || buildDspUrl(selected.connectorId || selected.assigner))[0] || '';
       const negotiatedCounterPartyId = resolveCounterPartyId(selected.connectorId || selected.assigner || '', negotiatedCounterPartyAddress);
       const resolvedAddressInputForNegotiation = document.getElementById('resolvedAddress');
       if (resolvedAddressInputForNegotiation) resolvedAddressInputForNegotiation.value = negotiatedCounterPartyAddress;
