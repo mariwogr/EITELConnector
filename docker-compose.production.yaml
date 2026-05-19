@@ -117,6 +117,12 @@ services:
       # CAAS_SMTP_USE_TLS: "true"
     volumes:
       - local_assets_data:/app/data/local-assets
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/v1/config', timeout=3).read()\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     networks:
       - edc-net
 
@@ -136,10 +142,14 @@ services:
     container_name: conectoruc3m-gateway
     restart: always
     depends_on:
-      - conectoruc3m-ui
-      - conectoruc3m
-      - conectoruc3m-local-assets
-      - conectoruc3m-download-sink
+      conectoruc3m-ui:
+        condition: service_started
+      conectoruc3m:
+        condition: service_started
+      conectoruc3m-local-assets:
+        condition: service_healthy
+      conectoruc3m-download-sink:
+        condition: service_started
     ports:
       - "12000:80"
     volumes:

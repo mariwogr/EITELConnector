@@ -117,6 +117,12 @@ services:
       # CAAS_SMTP_USE_TLS: "true"
     volumes:
       - conectorfuenlabrada_local_assets_data:/app/data/local-assets
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/v1/config', timeout=3).read()\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     networks:
       - edc-fuenlabrada-net
 
@@ -136,10 +142,14 @@ services:
     container_name: conectorfuenlabrada-gateway
     restart: always
     depends_on:
-      - conectorfuenlabrada-ui
-      - conectorfuenlabrada
-      - conectorfuenlabrada-local-assets
-      - conectorfuenlabrada-download-sink
+      conectorfuenlabrada-ui:
+        condition: service_started
+      conectorfuenlabrada:
+        condition: service_started
+      conectorfuenlabrada-local-assets:
+        condition: service_healthy
+      conectorfuenlabrada-download-sink:
+        condition: service_started
     ports:
       - "12000:80"
     volumes:
