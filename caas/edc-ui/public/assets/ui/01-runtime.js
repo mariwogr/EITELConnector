@@ -1,7 +1,34 @@
 ﻿const cfg = window.EITEL_UI_CONFIG || {};
-    const PROD_DSP_URL = cfg.dspUrl || 'http://conectoruc3m:11003/api/v1/dsp/2025-1';
-    const PROD_CONNECTOR_ID = (cfg.connectorName || 'conectoruc3m').toLowerCase();
-    const connectorName = cfg.connectorName || 'CONNECTOR';
+    function isPlaceholderConfigValue(value) {
+      const txt = String(value || '').trim();
+      return !txt || txt === 'CONNECTOR' || /^\$\{[^}]+\}$/.test(txt);
+    }
+
+    function deriveConnectorNameFromRuntime() {
+      const configuredName = String(cfg.connectorName || '').trim();
+      if (!isPlaceholderConfigValue(configuredName)) return configuredName;
+
+      const pathPrefix = (window.location.pathname || '/').split('/').filter(Boolean)[0] || '';
+      if (/^conector/i.test(pathPrefix)) return pathPrefix;
+
+      const configuredDsp = String(cfg.dspUrl || '').trim();
+      if (!isPlaceholderConfigValue(configuredDsp)) {
+        try {
+          const url = new URL(configuredDsp, window.location.origin);
+          const dspPrefix = (url.pathname || '/').split('/').filter(Boolean)[0] || '';
+          if (/^conector/i.test(dspPrefix)) return dspPrefix;
+        } catch {}
+      }
+
+      return 'connector';
+    }
+
+    const connectorName = deriveConnectorNameFromRuntime();
+    const configuredRuntimeDsp = String(cfg.dspUrl || '').trim();
+    const PROD_DSP_URL = !isPlaceholderConfigValue(configuredRuntimeDsp)
+      ? configuredRuntimeDsp
+      : `${window.location.origin}/${connectorName}/api/v1/dsp/2025-1`;
+    const PROD_CONNECTOR_ID = connectorName.toLowerCase();
     const role = connectorName.toLowerCase().includes('provider') ? 'Provider' : (connectorName.toLowerCase().includes('consumer') ? 'Consumer' : 'Connector');
 
     const isTruthy = (value) => ['1', 'true', 'yes', 'on'].includes(String(value || '').toLowerCase());

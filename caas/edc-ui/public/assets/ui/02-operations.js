@@ -4478,6 +4478,14 @@ function summarizePolicyTerms(policyObj) {
       const ownerName = (document.getElementById('assetOwnerName')?.value || '').trim();
       const ownerEmail = (document.getElementById('assetOwnerEmail')?.value || '').trim().toLowerCase();
       const accessLevel = normalizeAccessLevel(document.getElementById('policyAccessLevel')?.value || 'public');
+      const managedConnector = String(connectorName || '').trim();
+      if (!managedConnector || managedConnector.toLowerCase() === 'connector') {
+        writeOut({
+          status: 400,
+          error: 'No se ha podido resolver el conector local. Revisa config.js/NEXT_PUBLIC_CONNECTOR_NAME antes de publicar el asset.'
+        });
+        return { status: 400 };
+      }
       let assetImageUrl = '';
       const sourceMode = getSelectedAssetSourceMode();
 
@@ -4590,7 +4598,7 @@ function summarizePolicyTerms(policyObj) {
           description: assetDescription,
           'dct:accessRights': accessLevel,
           keywords: assetKeywords.join(', '),
-          'eitel:managedByConnector': connectorName,
+          'eitel:managedByConnector': managedConnector,
           'eitel:visibility': accessLevel,
           'eitel:ownerName': ownerName,
           'eitel:ownerEmail': ownerEmail,
