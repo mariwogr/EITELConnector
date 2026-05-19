@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>Conector EITEL</title>
   <link rel="icon" type="image/png" href="assets/eitel-logo.png" />
     <link rel="stylesheet" href="assets/ui.css?v=20260519d" />
@@ -722,6 +725,77 @@
   <script src="assets/ui/02-operations.js?v=20260519d"></script>
   <script src="assets/ui/03-secrets.js?v=20260519d"></script>
   <script src="assets/ui/04-bootstrap.js?v=20260519d"></script>
+  <script>
+    (function () {
+      function cfg() {
+        return window.EITEL_UI_CONFIG || {};
+      }
+
+      function arcgisPortalUrl() {
+        return String(cfg().arcgisPortalUrl || 'https://gis.eiteldata.eu/arcgis').replace(/\/+$/, '');
+      }
+
+      function arcgisRedirectUri() {
+        return String(cfg().arcgisRedirectUri || window.location.href);
+      }
+
+      function startArcgisEnterpriseLogin(event) {
+        if (event && event.preventDefault) event.preventDefault();
+        var clientId = String(cfg().arcgisClientId || 'arcgisonline');
+        var url = arcgisPortalUrl() + '/sharing/oauth2/authorize'
+          + '?client_id=' + encodeURIComponent(clientId)
+          + '&response_type=token'
+          + '&expiration=20160'
+          + '&redirect_uri=' + encodeURIComponent(arcgisRedirectUri());
+        window.location.assign(url);
+        return false;
+      }
+
+      function ensureArcgisGateButton() {
+        var gate = document.getElementById('authGate');
+        if (!gate) return;
+
+        var help = gate.querySelector('.auth-help');
+        if (help) {
+          help.textContent = 'Para acceder a este conector inicia sesión con ArcGIS Enterprise. La consola validará la sesión del portal antes de operar.';
+        }
+
+        var row = gate.querySelector('.auth-card .row') || gate.querySelector('.auth-card');
+        var login = document.getElementById('btnArcgisLoginGate') || document.getElementById('btnArcgisLogin');
+        if (!login && row) {
+          login = document.createElement('button');
+          login.type = 'button';
+          login.className = 'primary';
+          login.id = 'btnArcgisLoginGate';
+          login.textContent = 'Entrar con ArcGIS Enterprise';
+          row.insertBefore(login, row.firstChild);
+        }
+
+        if (login) {
+          login.textContent = 'Entrar con ArcGIS Enterprise';
+          login.disabled = false;
+          login.style.setProperty('display', 'inline-flex', 'important');
+          login.onclick = startArcgisEnterpriseLogin;
+        }
+
+        var check = document.getElementById('btnArcgisCheckGate') || document.getElementById('btnArcgisCheck');
+        if (check) {
+          check.disabled = false;
+          check.style.setProperty('display', 'inline-flex', 'important');
+        }
+
+        var error = document.getElementById('authError');
+        if (error && /Acceso no disponible|Contacte con el administrador|Falta configurar ARCGIS_PORTAL_URL/i.test(error.textContent || '')) {
+          error.textContent = 'Inicia sesión con ArcGIS Enterprise para acceder al conector.';
+          error.style.display = 'block';
+        }
+      }
+
+      window.startArcgisEnterpriseLoginFromGate = startArcgisEnterpriseLogin;
+      ensureArcgisGateButton();
+      setInterval(ensureArcgisGateButton, 250);
+    })();
+  </script>
 </body>
 </html>
 
