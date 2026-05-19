@@ -351,6 +351,16 @@
       max-height: calc(100dvh - 40px);
       overflow: auto;
     }
+    #infoModal .modal-card {
+      border-top: 6px solid var(--primary);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--primary-soft) 32%, var(--surface)) 0%, var(--surface) 120px);
+    }
+    #infoTitle {
+      margin-bottom: 8px;
+      color: var(--primary);
+      font-size: 18px;
+      letter-spacing: 0;
+    }
 
     .auth-gate {
       position: fixed;
@@ -436,6 +446,11 @@
       font-size: 12px;
       line-height: 1.45;
     }
+    #infoModal .info-pre {
+      background: color-mix(in srgb, var(--surface) 82%, #f7fbff 18%);
+      border-color: color-mix(in srgb, var(--primary) 22%, var(--line));
+      font-size: 13px;
+    }
 
     .asset-showcase {
       margin-top: 12px;
@@ -448,6 +463,10 @@
     .catalog-group {
       grid-column: 1 / -1;
       min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      background: color-mix(in srgb, var(--surface) 92%, var(--surface-2));
     }
     .catalog-group + .catalog-group {
       margin-top: 8px;
@@ -457,8 +476,15 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      margin: 4px 0 2px;
+      margin: 0 0 2px;
+      border-left: 6px solid var(--primary);
+      padding-left: 10px;
     }
+    .catalog-group-own { border-left-color: #6b7a90; }
+    .catalog-group-no-access { border-left-color: #d96b6b; }
+    .catalog-group-pending { border-left-color: #d9a441; }
+    .catalog-group-approved { border-left-color: #2f9f69; }
+    .catalog-group-public { border-left-color: #22a06b; }
     .catalog-group-head h3 {
       margin: 0;
       font-size: 16px;
@@ -488,6 +514,24 @@
       animation: catalogCardIn .46s ease forwards;
       animation-delay: var(--delay, 0ms);
       transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .asset-card.catalog-state-public,
+    .asset-card.catalog-state-approved {
+      border-color: color-mix(in srgb, #22a06b 48%, var(--line));
+      background: linear-gradient(180deg, #f0fbf5 0%, var(--surface) 42%);
+    }
+    .asset-card.catalog-state-no-access {
+      border-color: color-mix(in srgb, #d96b6b 45%, var(--line));
+      background: linear-gradient(180deg, #fff1f1 0%, var(--surface) 46%);
+    }
+    .asset-card.catalog-state-pending {
+      border-color: color-mix(in srgb, #d9a441 48%, var(--line));
+      background: linear-gradient(180deg, #fff8e8 0%, var(--surface) 46%);
+    }
+    .asset-card.catalog-state-own {
+      border-color: color-mix(in srgb, #6b7a90 42%, var(--line));
+      background: linear-gradient(180deg, #f4f7fb 0%, var(--surface) 46%);
+      opacity: .96;
     }
     .asset-card:hover {
       transform: translateY(-4px) scale(1);
@@ -558,6 +602,45 @@
       text-overflow: ellipsis;
       white-space: nowrap;
       box-shadow: 0 6px 14px rgba(0,0,0,.22);
+    }
+    .asset-state-badge {
+      position: absolute;
+      left: 10px;
+      top: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.92);
+      color: var(--text);
+      border: 1px solid var(--line);
+      padding: 4px 8px;
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      max-width: 52%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      box-shadow: 0 8px 18px rgba(14, 35, 70, .14);
+    }
+    .catalog-state-public .asset-state-badge,
+    .catalog-state-approved .asset-state-badge {
+      color: #176f49;
+      border-color: color-mix(in srgb, #22a06b 45%, var(--line));
+      background: #e9f8ef;
+    }
+    .catalog-state-no-access .asset-state-badge {
+      color: #9f3434;
+      border-color: color-mix(in srgb, #d96b6b 45%, var(--line));
+      background: #ffe7e7;
+    }
+    .catalog-state-pending .asset-state-badge {
+      color: #8a5b00;
+      border-color: color-mix(in srgb, #d9a441 50%, var(--line));
+      background: #fff1c9;
+    }
+    .catalog-state-own .asset-state-badge {
+      color: #40506a;
+      border-color: color-mix(in srgb, #6b7a90 44%, var(--line));
+      background: #edf2f8;
     }
     .asset-card-media-overlay {
       position: absolute;

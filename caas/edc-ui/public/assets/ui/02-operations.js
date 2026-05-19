@@ -1777,13 +1777,13 @@ function summarizePolicyTerms(policyObj) {
             ? `window.openAccessRequestByIndex(${idx})`
             : `window.showCatalogAssetStatusByIndex(${idx})`);
         const stateLabel = htmlEscape(catalogStateLabel(stateName));
-        const media = `<div class="asset-card-media${defaultImageClass}"><img src="${htmlEscape(image)}" alt="Imagen del asset ${title}" /><span class="asset-card-badge">${connectorBadge}</span><div class="asset-card-media-overlay"><span class="asset-card-media-title">${title}</span></div></div>`;
+        const media = `<div class="asset-card-media${defaultImageClass}"><img src="${htmlEscape(image)}" alt="Imagen del asset ${title}" /><span class="asset-card-badge">${connectorBadge}</span><span class="asset-state-badge">${stateLabel}</span><div class="asset-card-media-overlay"><span class="asset-card-media-title">${title}</span></div></div>`;
         const chips = keywords.length
           ? `<div class="asset-card-keywords">${keywords.map(k => `<span class="asset-chip">${htmlEscape(k)}</span>`).join('')}</div>`
           : '<div class="asset-card-meta">Sin keywords</div>';
 
         return `
-          <article class="asset-card" style="--delay:${delayMs}ms">
+          <article class="asset-card catalog-state-${htmlEscape(stateName)}" style="--delay:${delayMs}ms">
             ${media}
             <div class="asset-card-body">
               <div class="asset-card-title">${title}</div>
@@ -1807,7 +1807,7 @@ function summarizePolicyTerms(policyObj) {
         .filter(group => group.rows.length)
         .map(group => `
           <section class="catalog-group">
-            <div class="catalog-group-head">
+            <div class="catalog-group-head catalog-group-${htmlEscape(group.key)}">
               <h3>${htmlEscape(group.title)}</h3>
               <span class="muted">${group.rows.length} assets</span>
             </div>
