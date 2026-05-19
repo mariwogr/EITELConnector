@@ -5368,8 +5368,10 @@ function summarizePolicyTerms(policyObj) {
     function ensureDspVersion(url) {
       const trimmed = String(url || '').replace(/\/+$/, '');
       if (!trimmed) return trimmed;
-      if (/\/api\/v1\/dsp\/2025-1$/i.test(trimmed)) return trimmed;
-      if (/\/api\/v1\/dsp$/i.test(trimmed)) return `${trimmed}/2025-1`;
+      // The protocol version belongs in the Contract/Catalog/Transfer request body
+      // (`protocol: dataspace-protocol-http:2025-1`). The counterPartyAddress must
+      // point to the connector DSP base path advertised by EDC_DSP_CALLBACK_ADDRESS.
+      if (/\/api\/v1\/dsp\/2025-1$/i.test(trimmed)) return trimmed.replace(/\/2025-1$/i, '');
       return trimmed;
     }
 
@@ -5425,7 +5427,7 @@ function summarizePolicyTerms(policyObj) {
     // Construir URL DSP absoluta en base al conector remoto indicado por el usuario.
     function buildDspUrl(connectorId) {
       const raw = String(connectorId || getDefaultRemoteConnector()).trim();
-      if (!raw) return ensureDspVersion(`${window.location.origin}/${canonicalConnectorPrefix(getDefaultRemoteConnector())}/api/v1/dsp/2025-1`);
+      if (!raw) return ensureDspVersion(`${window.location.origin}/${canonicalConnectorPrefix(getDefaultRemoteConnector())}/api/v1/dsp`);
 
       const currentConnectorRaw = String(cfg?.connectorName || '').trim();
       const currentCanonical = canonicalConnectorPrefix(currentConnectorRaw).toLowerCase();
@@ -5437,7 +5439,7 @@ function summarizePolicyTerms(policyObj) {
         const connectorPrefix = canonicalConnectorPrefix(currentConnectorRaw);
         const publicOrigin = getPublicConnectorOrigin();
         if (connectorPrefix) {
-          return ensureDspVersion(`${publicOrigin}/${connectorPrefix}/api/v1/dsp/2025-1`);
+          return ensureDspVersion(`${publicOrigin}/${connectorPrefix}/api/v1/dsp`);
         }
       }
 
@@ -5470,13 +5472,13 @@ function summarizePolicyTerms(policyObj) {
 
       const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname.startsWith('127.');
       if (isLocalHost) {
-        return ensureDspVersion(`http://${raw}-connector:19103/api/v1/dsp/2025-1`);
+        return ensureDspVersion(`http://${raw}-connector:19103/api/v1/dsp`);
       }
 
       // Producción: resolver por mismo dominio público y prefijo canónico del conector remoto.
       const connectorPrefix = canonicalConnectorPrefix(raw);
       const publicOrigin = getPublicConnectorOrigin();
-      return ensureDspVersion(`${publicOrigin}/${connectorPrefix}/api/v1/dsp/2025-1`);
+      return ensureDspVersion(`${publicOrigin}/${connectorPrefix}/api/v1/dsp`);
     }
 
     function resolveCounterPartyId(connectorId, address) {
