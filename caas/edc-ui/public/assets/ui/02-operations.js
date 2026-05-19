@@ -4900,7 +4900,7 @@ function summarizePolicyTerms(policyObj) {
     }
 
     async function fetchCatalogRowsForConnector(connectorId) {
-      const normalizedConnector = String(connectorId || '').trim() || 'provider';
+      const normalizedConnector = String(connectorId || getDefaultRemoteConnector()).trim() || getDefaultRemoteConnector();
       const address = buildDspUrl(normalizedConnector);
       const counterPartyId = resolveCounterPartyId(normalizedConnector, address);
       const response = await callApi('POST', '/v3/catalog/request', JSON.stringify({
@@ -4953,10 +4953,20 @@ function summarizePolicyTerms(policyObj) {
       return '';
     }
 
+    function getDefaultRemoteConnector() {
+      const configured = String(cfg.defaultRemoteConnector || '').trim();
+      if (configured) return configured;
+      const candidates = String(cfg.connectorCatalogList || '')
+        .split(/[\n,;]+/g)
+        .map(v => String(v || '').trim())
+        .filter(Boolean);
+      return candidates[0] || 'conectoruc3m';
+    }
+
     // Construir URL DSP absoluta en base al conector remoto indicado por el usuario.
     function buildDspUrl(connectorId) {
-      const raw = String(connectorId || 'provider').trim();
-      if (!raw) return 'http://provider-connector:19103/api/v1/dsp/2025-1';
+      const raw = String(connectorId || getDefaultRemoteConnector()).trim();
+      if (!raw) return ensureDspVersion(`${window.location.origin}/${canonicalConnectorPrefix(getDefaultRemoteConnector())}/api/v1/dsp/2025-1`);
 
       const currentConnectorRaw = String(cfg?.connectorName || '').trim();
       const currentCanonical = canonicalConnectorPrefix(currentConnectorRaw).toLowerCase();
@@ -4988,8 +4998,16 @@ function summarizePolicyTerms(policyObj) {
       }
 
       const connectorIdLower = raw.toLowerCase();
-      if (connectorIdLower === 'provider') return 'http://provider-connector:19103/api/v1/dsp/2025-1';
-      if (connectorIdLower === 'consumer') return 'http://consumer-connector:19203/api/v1/dsp/2025-1';
+      if (connectorIdLower === 'provider') {
+        const configured = resolveConfiguredDspUrl(raw);
+        if (configured) return ensureDspVersion(configured);
+        return buildDspUrl(getDefaultRemoteConnector());
+      }
+      if (connectorIdLower === 'consumer') {
+        const configured = resolveConfiguredDspUrl(raw);
+        if (configured) return ensureDspVersion(configured);
+        return buildDspUrl(getDefaultRemoteConnector());
+      }
 
       const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname.startsWith('127.');
       if (isLocalHost) {
@@ -5015,7 +5033,7 @@ function summarizePolicyTerms(policyObj) {
     }
 
     async function loadCatalogs(showOutput = true) {
-      const connectorId = (document.getElementById('searchConnectorId').value || 'provider').trim() || 'provider';
+      const connectorId = (document.getElementById('searchConnectorId').value || getDefaultRemoteConnector()).trim() || getDefaultRemoteConnector();
       const { response, rows, address } = await fetchCatalogRowsForConnector(connectorId);
       document.getElementById('resolvedAddress').value = address;
       document.getElementById('transferAddress').value = address;

@@ -58,7 +58,7 @@
       
       // Actualizar URL DSP dinámicamente cuando cambia el connector ID
       document.getElementById('searchConnectorId').addEventListener('input', (e) => {
-        const connectorId = (e.target.value || 'provider').trim() || 'provider';
+        const connectorId = (e.target.value || getDefaultRemoteConnector()).trim() || getDefaultRemoteConnector();
         const dspUrl = buildDspUrl(connectorId);
         document.getElementById('resolvedAddress').value = dspUrl;
         document.getElementById('transferAddress').value = dspUrl;
@@ -308,7 +308,7 @@
       hideAuthGate();
       document.getElementById('badge').textContent = `${role} · EDC · ${getApiBaseUrl() || 'management api'}`;
       const configuredRemoteConnector = (cfg.defaultRemoteConnector || '').trim();
-      document.getElementById('searchConnectorId').value = configuredRemoteConnector;
+      document.getElementById('searchConnectorId').value = configuredRemoteConnector || getDefaultRemoteConnector();
       document.getElementById('transferAddress').value = '';
       if (document.getElementById('catalogConnectorsList')) {
         document.getElementById('catalogConnectorsList').value = (cfg.connectorCatalogList || 'conectoruc3m, conectorFuenlabrada').trim();
@@ -325,7 +325,7 @@
       bindEvents();
       
       // Inicializar URL DSP con el valor por defecto
-      const initialConnectorId = (document.getElementById('searchConnectorId').value || configuredRemoteConnector || 'provider').trim() || 'provider';
+      const initialConnectorId = (document.getElementById('searchConnectorId').value || configuredRemoteConnector || getDefaultRemoteConnector()).trim() || getDefaultRemoteConnector();
       document.getElementById('resolvedAddress').value = buildDspUrl(initialConnectorId);
       document.getElementById('transferAddress').value = buildDspUrl(initialConnectorId);
       
