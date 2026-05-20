@@ -2322,11 +2322,7 @@ function summarizePolicyTerms(policyObj) {
     function mapPublishedAssetsToCatalogVisualRows(rawAssets = [], options = {}) {
       const connectorId = options.connectorId || PROD_CONNECTOR_ID;
       const counterPartyAddress = options.counterPartyAddress || '';
-      const allowedAssetIds = options.allowedAssetIds instanceof Set ? options.allowedAssetIds : null;
-      return mapPublishedAssetRows(rawAssets).filter((row) => {
-        if (!allowedAssetIds) return true;
-        return allowedAssetIds.has(String(row.id || '').trim());
-      }).map((row) => ({
+      return mapPublishedAssetRows(rawAssets).map((row) => ({
         offerId: '',
         assetId: row.id || '',
         policyTarget: row.id || '',
@@ -5606,6 +5602,73 @@ function summarizePolicyTerms(policyObj) {
       return best || { response: { status: 0, error: 'No se pudo consultar el catalogo DSP.', triedCounterPartyAddresses: candidates }, rows: [], address: candidates[0] || address };
     }
 
+    async function fetchRemoteCatalogRowsFromManagement(connectorId, address) {
+      const [assetsResp, contractsResp, policiesResp] = await Promise.all([
+        callConnectorManagementApi(connectorId, 'POST', '/v3/assets/request', q(), { silent: true }),
+        callConnectorManagementApi(connectorId, 'POST', '/v3/contractdefinitions/request', q(), { silent: true }),
+        callConnectorManagementApi(connectorId, 'POST', '/v3/policydefinitions/request', q(), { silent: true }),
+      ]);
+
+      const assets = mapPublishedAssetRows(unwrap(assetsResp));
+      const assetsById = new Map(assets.map(asset => [String(asset.id || '').trim(), asset]));
+      const contractDefinitions = unwrap(contractsResp);
+      const policyDefinitions = unwrap(policiesResp);
+      const policyMap = new Map(policyDefinitions.map(policyDef => [String(policyDef?.['@id'] || policyDef?.id || '').trim(), policyDef]));
+      const contractByAssetId = new Map(contractDefinitions.map(contractDef => [String(getContractDefinitionAssetId(contractDef) || '').trim(), contractDef]));
+      const counterPartyAddress = ensureDspVersion(address || buildDspUrl(connectorId));
+
+      const rows = assets.map((asset) => {
+        const assetId = String(asset?.id || '').trim();
+        const contractDef = contractByAssetId.get(assetId);
+        const policyId = String(
+          contractDef?.contractPolicyId ||
+          contractDef?.['edc:contractPolicyId'] ||
+          contractDef?.accessPolicyId ||
+          contractDef?.['edc:accessPolicyId'] ||
+          ''
+        ).trim();
+        const policyDefinition = policyId ? policyMap.get(policyId) : null;
+        const policyRaw = policyDefinition?.policy || policyDefinition?.['edc:policy'] || null;
+
+        return {
+          offerId: String(policyRaw?.['@id'] || policyRaw?.id || policyId || '').trim(),
+          assetId,
+          policyTarget: assetId,
+          assigner: connectorId,
+          connectorId,
+          counterPartyAddress,
+          accessLevel: policyRaw ? extractAccessLevelFromPolicy(policyRaw) : normalizeAccessLevel(asset.visibility || 'public'),
+          ownerEmail: asset.ownerEmail || '',
+          ownerName: asset.ownerName || '',
+          policySummary: policyRaw ? summarizePolicyTerms(policyRaw) : 'Asset visible en el catalogo, pendiente de oferta contractual o acceso.',
+          policyRaw,
+          sourceHintUrl: '',
+          assetTitle: asset.title,
+          assetDescription: asset.description,
+          assetKeywords: asset.keywords,
+          assetImageUrl: asset.imageUrl,
+          catalogOfferResolved: Boolean(policyRaw && policyId),
+          catalogOfferInferred: false,
+          catalogOfferSource: policyRaw ? 'provider-management-fallback' : 'provider-management-assets',
+        };
+      }).filter(Boolean);
+
+      const status = [assetsResp?.status, contractsResp?.status, policiesResp?.status].every(code => Number(code) >= 200 && Number(code) < 300) ? 200 : (contractsResp?.status || policiesResp?.status || assetsResp?.status || 0);
+      return {
+        response: {
+          status,
+          catalogEndpoint: 'provider-management-fallback',
+          managementApiBase: contractsResp?.managementApiBase || policiesResp?.managementApiBase || assetsResp?.managementApiBase || '',
+          assets: assets.length,
+          contractDefinitions: contractDefinitions.length,
+          policies: policyDefinitions.length,
+          catalogOffers: rows.length,
+        },
+        rows,
+        address: counterPartyAddress,
+      };
+    }
+
     async function resolveCatalogOfferFromRemoteManagement(row) {
       const connectorId = row?.connectorId || row?.assigner || getDefaultRemoteConnector();
       const assetId = String(row?.assetId || row?.policyTarget || '').trim();
@@ -5689,23 +5752,30 @@ function summarizePolicyTerms(policyObj) {
         // When querying the same connector that hosts this UI, use the local assets endpoint
         // instead of a remote catalog request. This avoids self-referential catalog dispatch
         // failures and matches the published assets available in the local connector.
-        const [response, contractsResponse] = await Promise.all([
-          callApi('POST', '/v3/assets/request', q(), { timeoutMs: 120000, retries: 1 }),
-          callApi('POST', '/v3/contractdefinitions/request', q(), { timeoutMs: 120000, retries: 0, silent: true })
-        ]);
+        const response = await callApi('POST', '/v3/assets/request', q(), { timeoutMs: 120000, retries: 1 });
         response.assetEndpoint = '/v3/assets/request';
-        const allowedAssetIds = new Set(unwrap(contractsResponse).map(contractDef => getContractDefinitionAssetId(contractDef)).filter(Boolean).map(id => String(id).trim()));
         const rows = mapPublishedAssetsToCatalogVisualRows(unwrap(response), {
           connectorId: normalizedConnector,
           counterPartyAddress: address,
-          allowedAssetIds,
         });
         response.catalogOffers = rows.length;
         return { response, rows, connectorId: normalizedConnector, address };
       }
 
-      const { response, rows: dspRows, address: resolvedAddress } = await fetchRemoteCatalogOffers(normalizedConnector, address);
-      let rows = dspRows;
+      const dspResult = await fetchRemoteCatalogOffers(normalizedConnector, address);
+      let response = dspResult.response;
+      let rows = dspResult.rows || [];
+      let resolvedAddress = dspResult.address || address;
+
+      if (!(response?.status >= 200 && response?.status < 300) || !rows.length) {
+        const managementResult = await fetchRemoteCatalogRowsFromManagement(normalizedConnector, address);
+        if ((managementResult?.rows || []).length) {
+          response = managementResult.response;
+          rows = managementResult.rows;
+          resolvedAddress = managementResult.address || resolvedAddress;
+        }
+      }
+
       rows = enrichCatalogRowsWithAccessRequests(rows, await fetchAccessRequestsForProviderAddress(address));
       response.assetEndpoint = '';
       response.catalogStatus = response?.status >= 200 && response?.status < 300 ? 'used' : 'error';
