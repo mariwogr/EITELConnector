@@ -312,6 +312,7 @@ function summarizePolicyTerms(policyObj) {
     function canUseCatalogRow(row) {
       if (!row) return false;
       if (sameConnectorId(row.connectorId || row.assigner || '', cfg?.connectorName || PROD_CONNECTOR_ID)) return false;
+      if (normalizeAccessLevel(row?.accessLevel || 'public') === 'private') return false;
       const stateName = getCatalogRowState(row);
       return stateName === 'public' || stateName === 'approved';
     }
@@ -1954,7 +1955,7 @@ function summarizePolicyTerms(policyObj) {
       const requestAccessBtn = document.getElementById('btnOpenAccessRequest');
       const selectedState = selected ? getCatalogRowState(selected) : '';
       if (requestBtn) requestBtn.style.display = selected && canUseCatalogRow(selected) ? 'inline-flex' : 'none';
-      if (requestAccessBtn) requestAccessBtn.style.display = selected && selectedState === 'no-access' ? 'inline-flex' : 'none';
+      if (requestAccessBtn) requestAccessBtn.style.display = selected && !sameConnectorId(selected?.connectorId || selected?.assigner || '', cfg?.connectorName || PROD_CONNECTOR_ID) && normalizeAccessLevel(selected?.accessLevel || 'public') === 'private' ? 'inline-flex' : 'none';
       if (accept) {
         if (isPrivate && selectedState !== 'approved') {
           accept.checked = false;
@@ -6066,13 +6067,13 @@ function summarizePolicyTerms(policyObj) {
       }
 
       const selectedState = getCatalogRowState(selected);
-      if (normalizeAccessLevel(selected.accessLevel || 'public') === 'private' && selectedState !== 'approved') {
+      if (normalizeAccessLevel(selected.accessLevel || 'public') === 'private') {
         openAccessRequestModalForRow(selected);
         if (actionBtn) {
           actionBtn.disabled = false;
           actionBtn.textContent = 'Realizar contrato';
         }
-        writeOut({ status: 403, error: 'Este asset es privado. Debes solicitar acceso al propietario.' });
+        writeOut({ status: 403, error: 'Este asset es privado. Solo puede gestionarse mediante solicitud de acceso.' });
         return;
       }
 
