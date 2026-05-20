@@ -5827,26 +5827,42 @@ function summarizePolicyTerms(policyObj) {
         if (selectedConnector) selectedConnector.value = selected.connectorId || '';
       }
 
-      const policy = selected.policyRaw
+      const sourcePolicy = selected.policyRaw
         ? JSON.parse(JSON.stringify(selected.policyRaw))
         : {};
 
-      // Para ContractRequest, EDC espera los términos ODRL compactados (assigner/target)
-      // con el contexto oficial ODRL JSON-LD.
+      const compactOdrlNode = (node) => {
+        if (Array.isArray(node)) return node.map(compactOdrlNode);
+        if (!node || typeof node !== 'object') return node;
+        const compacted = {};
+        Object.entries(node).forEach(([key, value]) => {
+          if (key === '@context') return;
+          const normalizedKey = key.startsWith('odrl:') ? key.slice(5) : key;
+          const normalizedValue = normalizedKey === '@type' && typeof value === 'string' && value.startsWith('odrl:')
+            ? value.slice(5)
+            : compactOdrlNode(value);
+          if (!(normalizedKey in compacted)) compacted[normalizedKey] = normalizedValue;
+        });
+        return compacted;
+      };
+
+      const policy = compactOdrlNode(sourcePolicy);
+
+      // Para ContractRequest, EDC espera términos ODRL compactados bajo el contexto ODRL.
       policy['@context'] = 'http://www.w3.org/ns/odrl.jsonld';
-      policy['@type'] = 'odrl:Offer';
+      policy['@type'] = typeof policy['@type'] === 'string' && policy['@type'] ? policy['@type'] : 'Offer';
       policy['@id'] = policy['@id'] || selected.offerId;
-      const resolvedAssigner = (policy.assigner || policy['odrl:assigner'] || selected.assigner || 'provider').toString().trim();
+      const resolvedAssigner = (policy.assigner || selected.assigner || 'provider').toString().trim();
       policy.assigner = resolvedAssigner || 'provider';
       // Forzar el asset real del dataset seleccionado; algunas policies publicadas traen target placeholder.
-      const resolvedTarget = (selected.assetId || policy.target || policy['odrl:target'] || selected.policyTarget || '').toString().trim();
+      const resolvedTarget = (selected.assetId || policy.target || selected.policyTarget || '').toString().trim();
       policy.target = resolvedTarget;
-      policy['odrl:target'] = resolvedTarget;
 
       const normalizeRuleTarget = (rule) => {
         if (!rule || typeof rule !== 'object') return rule;
-        const resolved = (selected.assetId || rule.target || rule['odrl:target'] || selected.policyTarget || '').toString().trim();
-        return { ...rule, target: resolved, 'odrl:target': resolved };
+        const compactRule = compactOdrlNode(rule);
+        const resolved = (selected.assetId || compactRule.target || selected.policyTarget || '').toString().trim();
+        return { ...compactRule, target: resolved };
       };
 
       if (!resolvedTarget) {
