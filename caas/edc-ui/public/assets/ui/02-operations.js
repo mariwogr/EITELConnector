@@ -1406,7 +1406,8 @@ function summarizePolicyTerms(policyObj) {
         'Transferencias': 'Transfers',
         'Política': 'Policy',
         'Contrato': 'Contract',
-        'Mis assets': 'My assets',
+        'Mis assets': 'My publications',
+        'Mis publicaciones': 'My publications',
         'Secretos': 'Secrets',
         'Sobre EITEL': 'About EITEL',
         'Actualizar': 'Refresh',
@@ -1469,8 +1470,15 @@ function summarizePolicyTerms(policyObj) {
         'Dirección partner': 'Partner address',
         'Listar transferencias': 'List transfers',
         'Iniciar transferencia': 'Start transfer',
-        'Mis assets publicados en este conector': 'My published assets in this connector',
-        'Lista visual de los assets que ya tienes publicados en el runtime actual.': 'Visual list of assets published in the current runtime.',
+        'Mis assets publicados en este conector': 'My publications in this connector',
+        'Mis publicaciones de este conector': 'My publications in this connector',
+        'Lista visual de los assets que ya tienes publicados en el runtime actual.': 'Visual list of publications managed by this connector runtime.',
+        'Lista visual de assets, policies y contratos que tienes publicados en el runtime actual.': 'Visual list of assets, policies, and contracts managed by this connector runtime.',
+        'Editar asset': 'Edit asset',
+        'Editar policy': 'Edit policy',
+        'Editar contrato': 'Edit contract',
+        'Borrar asset': 'Delete asset',
+        'Borrar contrato': 'Delete contract',
         'Editar': 'Edit',
         'Guardar': 'Save',
         'Listar': 'List',
@@ -2166,6 +2174,59 @@ function summarizePolicyTerms(policyObj) {
       });
     }
 
+    async function getMergedAssetBundleBackups() {
+      const localRows = getAssetBundleBackups();
+      const serverRows = await listServerAssetBundleBackups();
+      const merged = new Map();
+
+      [...serverRows, ...localRows].forEach((row) => {
+        const assetId = String(row?.assetId || '').trim();
+        if (!assetId) return;
+        const current = merged.get(assetId);
+        const currentUpdatedAt = Date.parse(String(current?.updatedAt || '')) || 0;
+        const nextUpdatedAt = Date.parse(String(row?.updatedAt || '')) || 0;
+        if (!current || nextUpdatedAt >= currentUpdatedAt) merged.set(assetId, row);
+      });
+
+      return [...merged.values()];
+    }
+
+    function resolvePublicationAccessLevel(row = {}, bundle = null) {
+      const assetProps = bundle?.assetBody?.properties || bundle?.assetBody?.['edc:properties'] || {};
+      const policy = bundle?.policyBody?.policy || bundle?.policyBody?.['edc:policy'] || null;
+      return normalizeAccessLevel(firstNonEmpty([
+        policy?.['dct:accessRights'],
+        extractAccessLevelFromPolicy(policy),
+        assetProps?.['eitel:visibility'],
+        assetProps?.['dct:accessRights'],
+        row?.visibility,
+        'public'
+      ]));
+    }
+
+    function enrichPublishedAssetsWithBundles(rows = [], bundles = []) {
+      const byAssetId = new Map((Array.isArray(bundles) ? bundles : []).map(bundle => [String(bundle?.assetId || '').trim(), bundle]));
+      return (Array.isArray(rows) ? rows : []).map((row) => {
+        const assetId = String(row?.id || '').trim();
+        const bundle = byAssetId.get(assetId) || null;
+        return {
+          ...row,
+          bundle,
+          visibility: resolvePublicationAccessLevel(row, bundle),
+          policyId: String(bundle?.policyId || bundle?.policyBody?.['@id'] || '').trim(),
+          contractDefId: String(bundle?.contractDefId || bundle?.contractBody?.['@id'] || '').trim(),
+          updatedAt: String(bundle?.updatedAt || '').trim(),
+        };
+      });
+    }
+
+    async function getPublicationBundleByAssetId(assetId) {
+      const target = String(assetId || '').trim();
+      if (!target) return null;
+      const bundles = await getMergedAssetBundleBackups();
+      return bundles.find(bundle => String(bundle?.assetId || '').trim() === target) || null;
+    }
+
     function mapPublishedAssetsToCatalogVisualRows(rawAssets = [], options = {}) {
       const connectorId = options.connectorId || PROD_CONNECTOR_ID;
       const counterPartyAddress = options.counterPartyAddress || '';
@@ -2212,7 +2273,13 @@ function summarizePolicyTerms(policyObj) {
         const title = htmlEscape(safeText(row.title, clean(row.id)));
         const desc = htmlEscape(safeText(row.description, 'Sin descripción.'));
         const id = htmlEscape(row.id || '');
+        const jsId = (row.id || '').replace(/'/g, "\\'");
         const managedBy = htmlEscape(String(row.managedBy || '-'));
+        const visibility = htmlEscape(row.visibility === 'private' ? 'privado' : 'publico');
+        const ownerEmail = htmlEscape(String(row.ownerEmail || '-'));
+        const policyId = htmlEscape(String(row.policyId || '-'));
+        const contractDefId = htmlEscape(String(row.contractDefId || '-'));
+        const updatedAt = htmlEscape(row.updatedAt ? fmtDate(row.updatedAt) : '-');
         const image = resolveAssetImageUrl(row.imageUrl);
         const defaultImageClass = isDefaultAssetImage(image) ? ' is-default' : '';
         const delayMs = Math.min(idx * 40, 480);
@@ -2228,14 +2295,25 @@ function summarizePolicyTerms(policyObj) {
               <div class="asset-card-title">${title}</div>
               <div class="asset-card-meta">${id}</div>
               <div class="asset-card-meta">managedBy: ${managedBy}</div>
+              <div class="asset-card-meta">Visibilidad: ${visibility}</div>
+              <div class="asset-card-meta">Owner email: ${ownerEmail}</div>
+              <div class="asset-card-meta">Policy: ${policyId}</div>
+              <div class="asset-card-meta">Contract: ${contractDefId}</div>
+              <div class="asset-card-meta">Actualizado: ${updatedAt}</div>
               <details>
                 <summary>Detalles</summary>
                 <div class="asset-card-desc">${desc}</div>
                 ${chips}
               </details>
               <div class="row">
-                <button class="ghost" onclick="window.editPublishedAsset('${(row.id || '').replace(/'/g, "\\'")}')">Editar</button>
-                <button class="danger" onclick="window.deletePublishedAsset('${(row.id || '').replace(/'/g, "\\'")}')">Borrar</button>
+                <button class="ghost" onclick="window.editPublishedAsset('${jsId}')">Editar asset</button>
+                <button class="ghost" onclick="window.editPublishedPolicy('${jsId}')" ${row.policyId ? '' : 'disabled'}>Editar policy</button>
+                <button class="ghost" onclick="window.editPublishedContract('${jsId}')" ${row.contractDefId ? '' : 'disabled'}>Editar contrato</button>
+              </div>
+              <div class="row">
+                <button class="danger" onclick="window.deletePublishedAsset('${jsId}')">Borrar asset</button>
+                <button class="danger" onclick="window.deletePublishedPolicy('${jsId}')" ${row.policyId ? '' : 'disabled'}>Borrar policy</button>
+                <button class="danger" onclick="window.deletePublishedContract('${jsId}')" ${row.contractDefId ? '' : 'disabled'}>Borrar contrato</button>
               </div>
             </div>
           </article>
@@ -2257,11 +2335,12 @@ function summarizePolicyTerms(policyObj) {
      */
     async function loadPublishedAssets(showOutput = false) {
       const r = await callApi('POST', '/v3/assets/request', q());
-      const allRows = mapPublishedAssetRows(unwrap(r));
+      const bundleRows = await getMergedAssetBundleBackups();
+      const allRows = enrichPublishedAssetsWithBundles(mapPublishedAssetRows(unwrap(r)), bundleRows);
       const ownRows = allRows.filter(row => String(row.managedBy || '').trim().toLowerCase() === String(connectorName || '').trim().toLowerCase());
       const rowsToRender = ownRows.length ? ownRows : allRows;
       renderPublishedAssets(rowsToRender);
-      if (showOutput) writeOut({ ...r, totalPublishedAssets: allRows.length, connectorOwnedAssets: ownRows.length, rendered: rowsToRender.length });
+      if (showOutput) writeOut({ ...r, totalPublishedAssets: allRows.length, connectorOwnedAssets: ownRows.length, rendered: rowsToRender.length, bundles: bundleRows.length });
       return r;
     }
 
@@ -4958,6 +5037,7 @@ function summarizePolicyTerms(policyObj) {
       }
       const props = asset.properties || asset['edc:properties'] || {};
       const dataAddress = asset.dataAddress || asset['edc:dataAddress'] || {};
+      const bundle = await getPublicationBundleByAssetId(id);
       const keyGuess = String(id || '').replace(/^asset-/, '');
       const setVal = (elId, value) => { const el = document.getElementById(elId); if (el) el.value = value; };
       setVal('assetKey', keyGuess);
@@ -4966,14 +5046,70 @@ function summarizePolicyTerms(policyObj) {
       setVal('assetKeywords', parseKeywordList(props?.keywords || '').join(', '));
       setVal('assetOwnerName', firstNonEmpty([props?.['eitel:ownerName'], '']));
       setVal('assetOwnerEmail', firstNonEmpty([props?.['eitel:ownerEmail'], '']));
-      const accessLevel = normalizeAccessLevel(firstNonEmpty([props?.['eitel:visibility'], props?.['dct:accessRights'], 'public']));
+      const accessLevel = resolvePublicationAccessLevel({ visibility: firstNonEmpty([props?.['eitel:visibility'], props?.['dct:accessRights'], 'public']) }, bundle);
       const policyAccessSelect = document.getElementById('policyAccessLevel');
       if (policyAccessSelect) policyAccessSelect.value = accessLevel;
+      if (bundle?.policyId) {
+        setVal('policyIdPreview', bundle.policyId);
+        setVal('policyIdMirror', bundle.policyId);
+        setVal('policyAssetPreview', id);
+      }
+      if (bundle?.contractDefId) {
+        setVal('contractDefIdPreview', bundle.contractDefId);
+        setVal('contractDefIdMirror', bundle.contractDefId);
+        setVal('contractAssetPreview', id);
+        setVal('contractAccessPolicyId', bundle.policyId || '');
+        setVal('contractContractPolicyId', bundle.policyId || '');
+      }
       setVal('assetBaseUrl', dataAddress?.baseUrl || '');
       setVal('assetPath', dataAddress?.path || '');
       if (typeof updateAssetPreview === 'function') updateAssetPreview();
       activateView('asset');
       showInfoPopup('Asset cargado para edición', { assetId: id, note: 'Revisa y pulsa Crear/Actualizar asset para guardar cambios.' });
+    }
+
+    async function editPublishedPolicy(assetId) {
+      const id = String(assetId || '').trim();
+      if (!id) return;
+      const bundle = await getPublicationBundleByAssetId(id);
+      const policyId = String(bundle?.policyId || bundle?.policyBody?.['@id'] || '').trim();
+      const policy = bundle?.policyBody?.policy || bundle?.policyBody?.['edc:policy'] || null;
+      if (!policyId || !policy) {
+        showInfoPopup('Policy no encontrada', { assetId: id, message: 'No hay policy asociada guardada para esta publicación.' });
+        return;
+      }
+      const setVal = (elId, value) => { const el = document.getElementById(elId); if (el) el.value = value; };
+      setVal('policyIdPreview', policyId);
+      setVal('policyIdMirror', policyId);
+      setVal('policyAssetPreview', id);
+      setVal('policyCustomJson', JSON.stringify(policy, null, 2));
+      const policyMode = document.getElementById('policyMode');
+      if (policyMode) policyMode.value = 'jsonld';
+      if (typeof applyPolicyMode === 'function') applyPolicyMode();
+      const policyAccessSelect = document.getElementById('policyAccessLevel');
+      if (policyAccessSelect) policyAccessSelect.value = resolvePublicationAccessLevel({}, bundle);
+      activateView('policy');
+      showInfoPopup('Policy cargada para edición', { assetId: id, policyId, note: 'Se ha cargado en modo JSON-LD para editarla sin perder detalle.' });
+    }
+
+    async function editPublishedContract(assetId) {
+      const id = String(assetId || '').trim();
+      if (!id) return;
+      const bundle = await getPublicationBundleByAssetId(id);
+      const contractDefId = String(bundle?.contractDefId || bundle?.contractBody?.['@id'] || '').trim();
+      const policyId = String(bundle?.policyId || bundle?.policyBody?.['@id'] || '').trim();
+      if (!contractDefId) {
+        showInfoPopup('ContractDefinition no encontrada', { assetId: id, message: 'No hay ContractDefinition asociada guardada para esta publicación.' });
+        return;
+      }
+      const setVal = (elId, value) => { const el = document.getElementById(elId); if (el) el.value = value; };
+      setVal('contractDefIdPreview', contractDefId);
+      setVal('contractDefIdMirror', contractDefId);
+      setVal('contractAssetPreview', id);
+      setVal('contractAccessPolicyId', policyId);
+      setVal('contractContractPolicyId', policyId);
+      activateView('contractdef');
+      showInfoPopup('ContractDefinition cargada', { assetId: id, contractDefId, policyId });
     }
 
     /**
@@ -4996,6 +5132,46 @@ function summarizePolicyTerms(policyObj) {
         showInfoPopup('Asset eliminado', { assetId: id, status: r.status });
       } else {
         showInfoPopup('Error eliminando asset', { assetId: id, response: r });
+      }
+      await loadPublishedAssets(false);
+      await refreshOverview();
+    }
+
+    async function deletePublishedPolicy(assetId) {
+      const id = String(assetId || '').trim();
+      if (!id) return;
+      const bundle = await getPublicationBundleByAssetId(id);
+      const policyId = String(bundle?.policyId || bundle?.policyBody?.['@id'] || '').trim();
+      if (!policyId) {
+        showInfoPopup('Policy no encontrada', { assetId: id });
+        return;
+      }
+      const response = await callApi('DELETE', `/v3/policydefinitions/${encodeURIComponent(policyId)}`);
+      if (response.status >= 200 && response.status < 300) {
+        upsertAssetBundleBackup({ assetId: id, policyId: '', policyBody: null });
+        showInfoPopup('Policy eliminada', { assetId: id, policyId, status: response.status });
+      } else {
+        showInfoPopup('Error eliminando policy', { assetId: id, policyId, response });
+      }
+      await loadPublishedAssets(false);
+      await refreshOverview();
+    }
+
+    async function deletePublishedContract(assetId) {
+      const id = String(assetId || '').trim();
+      if (!id) return;
+      const bundle = await getPublicationBundleByAssetId(id);
+      const contractDefId = String(bundle?.contractDefId || bundle?.contractBody?.['@id'] || '').trim();
+      if (!contractDefId) {
+        showInfoPopup('ContractDefinition no encontrada', { assetId: id });
+        return;
+      }
+      const response = await callApi('DELETE', `/v3/contractdefinitions/${encodeURIComponent(contractDefId)}`);
+      if (response.status >= 200 && response.status < 300) {
+        upsertAssetBundleBackup({ assetId: id, contractDefId: '', contractBody: null });
+        showInfoPopup('ContractDefinition eliminada', { assetId: id, contractDefId, status: response.status });
+      } else {
+        showInfoPopup('Error eliminando ContractDefinition', { assetId: id, contractDefId, response });
       }
       await loadPublishedAssets(false);
       await refreshOverview();
@@ -6494,6 +6670,12 @@ function summarizePolicyTerms(policyObj) {
       await listTransfers();
     }
     window.terminateTransfer = terminateTransfer;
+    window.editPublishedAsset = editPublishedAsset;
+    window.editPublishedPolicy = editPublishedPolicy;
+    window.editPublishedContract = editPublishedContract;
+    window.deletePublishedAsset = deletePublishedAsset;
+    window.deletePublishedPolicy = deletePublishedPolicy;
+    window.deletePublishedContract = deletePublishedContract;
 
     /**
      * Deletes a transfer record from local or remote storage.

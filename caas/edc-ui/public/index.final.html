@@ -33,7 +33,7 @@
         <div class="nav-group">
           <div class="nav-group-title">Publicar</div>
           <button data-view="asset"><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M3 12h18"/></svg><span>Asset</span></button>
-          <button data-view="my-assets"><svg viewBox="0 0 24 24"><path d="M4 7h16v10H4z"/><path d="M8 11h8M8 15h5"/></svg><span>Mis assets</span></button>
+          <button data-view="my-assets"><svg viewBox="0 0 24 24"><path d="M4 7h16v10H4z"/><path d="M8 11h8M8 15h5"/></svg><span>Mis publicaciones</span></button>
           <button data-view="solicitudes"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Solicitudes</span><em id="solicitudesBadge" style="display:none;background:#e74c3c;color:#fff;border-radius:999px;font-size:10px;padding:1px 6px;margin-left:6px;font-style:normal;font-weight:700;line-height:16px"></em></button>
           <button data-view="policy"><svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.5 8.5 8 9 4.5-.5 8-4 8-9V7z"/><path d="M9 12h6"/></svg><span>Política</span></button>
           <button data-view="contractdef"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4"/><path d="M9 11h6M9 15h4"/></svg><span>Contrato</span></button>
@@ -375,19 +375,19 @@
       <section class="panel" id="panel-my-assets">
         <div class="grid">
           <section class="card wide">
-            <h2>Mis assets publicados en este conector</h2>
-            <p class="muted">Lista visual de los assets que has publicado en el runtime actual.</p>
+            <h2>Mis publicaciones de este conector</h2>
+            <p class="muted">Lista visual de assets, policies y contratos que tienes publicados en el runtime actual.</p>
             <div class="row" style="margin-top:10px">
-              <button class="ghost" id="btnRefreshPublishedAssets">Ver mis assets publicados</button>
+              <button class="ghost" id="btnRefreshPublishedAssets">Ver mis publicaciones</button>
             </div>
             <div id="publishedAssetsGrid" class="asset-showcase"></div>
           </section>
           <section class="card wide tutorial">
             <h3>Mini tutorial</h3>
             <ol>
-              <li>Abre esta pestaña para revisar solo los assets de tu conector.</li>
-              <li>Usa Editar para cargar el asset en el formulario de publicación.</li>
-              <li>Usa Borrar para eliminar el asset y refrescar automáticamente la vista.</li>
+              <li>Abre esta pestaña para revisar las publicaciones completas de tu conector.</li>
+              <li>Usa los botones de edición para cargar asset, policy o contrato en su panel correspondiente.</li>
+              <li>Usa los botones de borrado para eliminar el artefacto concreto y refrescar automáticamente la vista.</li>
             </ol>
           </section>
         </div>
