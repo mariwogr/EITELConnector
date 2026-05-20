@@ -306,6 +306,9 @@
       const parsed = Number(idx);
       if (!Number.isInteger(parsed) || parsed < 0 || parsed >= (state.catalogRows || []).length) return;
       const row = state.catalogRows[parsed] || {};
+      const availability = typeof getCatalogContractAvailability === 'function'
+        ? getCatalogContractAvailability(row)
+        : { canContract: false, reason: 'Estado no disponible.', nextStep: 'Recarga el catalogo.' };
       const select = document.getElementById('catalogAssetId');
       if (select) select.value = String(parsed);
       syncCatalogSelectionState();
@@ -317,12 +320,10 @@
         acceso: row.accessRequestStatus || 'sin solicitud',
         requestId: row.accessRequestId || '',
         offerId: row.offerId || '',
-        contratacion: typeof canUseCatalogRow === 'function' && canUseCatalogRow(row)
-          ? 'Puedes iniciar contratación. Si no hay offerId real, la UI usará la policy convencional publicada con el asset.'
-          : 'Todavía no puedes contratar este asset.',
-        siguientePaso: typeof canUseCatalogRow === 'function' && canUseCatalogRow(row)
-          ? 'Selecciona el asset y pulsa Realizar contrato.'
-          : 'Solicita acceso o espera la aprobación del propietario.',
+        contratacion: availability.canContract
+          ? 'Puedes iniciar contratación.'
+          : availability.reason,
+        siguientePaso: availability.nextStep,
       });
     };
     window.showAgreementDetail = (index) => showInfoPopup('Detalle de contrato', state.agreementRows[index] || {});

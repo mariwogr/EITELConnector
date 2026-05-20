@@ -325,6 +325,57 @@ function summarizePolicyTerms(policyObj) {
       return String(row.catalogOfferSource || '').trim().toLowerCase() !== 'provider-management-fallback';
     }
 
+    function getCatalogContractAvailability(row) {
+      if (!row) {
+        return {
+          canContract: false,
+          reason: 'No se ha seleccionado ningun asset.',
+          nextStep: 'Selecciona un asset del catalogo.',
+        };
+      }
+
+      const stateName = getCatalogRowState(row);
+      if (sameConnectorId(row.connectorId || row.assigner || '', cfg?.connectorName || PROD_CONNECTOR_ID)) {
+        return {
+          canContract: false,
+          reason: 'Es un asset propio. Aparece en catálogo para trazabilidad, pero no se contrata desde el mismo conector.',
+          nextStep: 'Gestiona este asset desde Mis publicaciones.',
+        };
+      }
+
+      if (normalizeAccessLevel(row.accessLevel || 'public') === 'private') {
+        return {
+          canContract: false,
+          reason: 'Este asset es privado. Solo puede gestionarse mediante solicitud de acceso.',
+          nextStep: stateName === 'approved' ? 'Cuando el proveedor publique una oferta DSP valida, podras contratarlo.' : 'Solicita acceso al propietario.',
+        };
+      }
+
+      if (!hasNegotiableCatalogOffer(row)) {
+        return {
+          canContract: false,
+          reason: stateName === 'public'
+            ? 'El asset es publico y visible, pero el proveedor no lo esta publicando como oferta DSP negociable.'
+            : 'Tienes visibilidad del asset, pero no existe una oferta DSP negociable para este asset.',
+          nextStep: 'Pide al proveedor que publique o repare la ContractDefinition y la PolicyDefinition del asset, y luego recarga el catálogo.',
+        };
+      }
+
+      if (!(stateName === 'public' || stateName === 'approved')) {
+        return {
+          canContract: false,
+          reason: 'Todavia no tienes permiso para contratar este asset.',
+          nextStep: stateName === 'no-access' ? 'Solicita acceso al propietario.' : 'Espera a que el propietario apruebe la solicitud.',
+        };
+      }
+
+      return {
+        canContract: true,
+        reason: 'Existe una oferta DSP negociable para este asset.',
+        nextStep: 'Selecciona el asset y pulsa Realizar contrato.',
+      };
+    }
+
     function ensureNegotiableCatalogRow(row) {
       if (!row || !canUseCatalogRow(row)) return row;
       if (row.offerId && row.policyRaw) return row;
@@ -6098,14 +6149,13 @@ function summarizePolicyTerms(policyObj) {
       }
 
       if (!canUseCatalogRow(selected)) {
+        const availability = getCatalogContractAvailability(selected);
         showInfoPopup('No puedes contratar este asset todavía', {
           assetId: selected.assetId || '',
           estado: selectedState,
           visibility: selected.accessLevel || '',
-          reason: selectedState === 'own'
-            ? 'Es un asset propio. Aparece en catálogo para trazabilidad, pero no se contrata desde el mismo conector.'
-            : 'Todavía no tienes permiso para contratar este asset.',
-          nextStep: selectedState === 'no-access' ? 'Solicita acceso al propietario.' : 'Revisa el estado de la solicitud.',
+          reason: availability.reason,
+          nextStep: availability.nextStep,
         });
         if (actionBtn) {
           actionBtn.disabled = false;
