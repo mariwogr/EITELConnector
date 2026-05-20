@@ -5080,7 +5080,7 @@ function summarizePolicyTerms(policyObj) {
 
     async function callCatalogRequest(body) {
       const payload = typeof body === 'string' ? body : JSON.stringify(body);
-      const endpoints = ['/v3/catalog/request', '/v2/catalog', '/v1/catalog'];
+      const endpoints = ['/v2/catalog', '/v1/catalog', '/v3/catalog/request'];
       let lastResponse = null;
 
       for (const endpoint of endpoints) {
@@ -5389,7 +5389,7 @@ function summarizePolicyTerms(policyObj) {
         };
       }
 
-      const counterPartyAddress = getDspAddressCandidates(row?.counterPartyAddress || buildDspUrl(connectorId))[0] || row?.counterPartyAddress || '';
+      const counterPartyAddress = ensureDspVersion(row?.counterPartyAddress || buildDspUrl(connectorId));
       return {
         resolved: true,
         response: {
@@ -5865,7 +5865,7 @@ function summarizePolicyTerms(policyObj) {
       policy.prohibition = policy.prohibition.map(normalizeRuleTarget);
       policy.obligation = policy.obligation.map(normalizeRuleTarget);
 
-      const negotiatedCounterPartyAddress = getDspAddressCandidates(selected.counterPartyAddress || document.getElementById('resolvedAddress').value || buildDspUrl(selected.connectorId || selected.assigner))[0] || '';
+      const negotiatedCounterPartyAddress = ensureDspVersion(selected.counterPartyAddress || document.getElementById('resolvedAddress').value || buildDspUrl(selected.connectorId || selected.assigner));
       const negotiatedCounterPartyId = resolveCounterPartyId(selected.connectorId || selected.assigner || '', negotiatedCounterPartyAddress);
       const resolvedAddressInputForNegotiation = document.getElementById('resolvedAddress');
       if (resolvedAddressInputForNegotiation) resolvedAddressInputForNegotiation.value = negotiatedCounterPartyAddress;
