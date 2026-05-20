@@ -393,7 +393,8 @@ function summarizePolicyTerms(policyObj) {
      * const connectors = parseConnectorCandidates();
      * // Returns: ['conectoruc3m', 'conectorFuenlabrada', ...]
      */
-    function parseConnectorCandidates() {
+    function parseConnectorCandidates(options = {}) {
+      const includeSingle = options.includeSingle !== false;
       const listRaw = document.getElementById('catalogConnectorsList')?.value || '';
       const values = listRaw
         .split(/[\n,;]+/g)
@@ -403,8 +404,10 @@ function summarizePolicyTerms(policyObj) {
           if (v.startsWith('http://') || v.startsWith('https://') || v.startsWith('/')) return v;
           return canonicalConnectorPrefix(v) || v;
         });
-      const single = String(document.getElementById('searchConnectorId')?.value || '').trim();
-      if (single) values.unshift(canonicalConnectorPrefix(single) || single);
+      if (includeSingle) {
+        const single = String(document.getElementById('searchConnectorId')?.value || '').trim();
+        if (single) values.unshift(canonicalConnectorPrefix(single) || single);
+      }
       if (!values.length) {
         const configuredList = String(cfg.connectorCatalogList || '').trim();
         if (configuredList) {
@@ -5251,16 +5254,16 @@ function summarizePolicyTerms(policyObj) {
     }
 
     function isCatalogRequestPath(path) {
-      return ['/v3/catalog/request', '/v2/catalog', '/v1/catalog'].includes(String(path || ''));
+      return ['/v3/catalog/request'].includes(String(path || ''));
     }
 
     async function callCatalogRequest(body) {
       const payload = typeof body === 'string' ? body : JSON.stringify(body);
-      const endpoints = ['/v3/catalog/request', '/v2/catalog', '/v1/catalog'];
+      const endpoints = ['/v3/catalog/request'];
       let lastResponse = null;
 
       for (const endpoint of endpoints) {
-        const response = await callApi('POST', endpoint, payload, { timeoutMs: 120000, retries: 1 });
+        const response = await callApi('POST', endpoint, payload, { timeoutMs: 30000, retries: 0, noAutoBaseFallback: true });
         response.catalogEndpoint = endpoint;
         if (![404, 405].includes(Number(response?.status))) return response;
         lastResponse = response;
@@ -5771,54 +5774,57 @@ function summarizePolicyTerms(policyObj) {
     }
 
     async function loadCatalogShowcase(showOutput = true) {
-      const connectors = parseConnectorCandidates();
+      if (state.catalogAutoRequestInFlight) return;
+      state.catalogAutoRequestInFlight = true;
+
+      const connectors = parseConnectorCandidates({ includeSingle: false });
       const allRows = [];
       const connectorSummaries = [];
 
-      for (const connectorId of connectors) {
-        const result = await fetchCatalogRowsForConnector(connectorId);
-        if (result?.response?.status >= 200 && result?.response?.status < 300) {
-          allRows.push(...(result.rows || []));
+      try {
+
+        for (const connectorId of connectors) {
+          const result = await fetchCatalogRowsForConnector(connectorId);
+          if (result?.response?.status >= 200 && result?.response?.status < 300) {
+            allRows.push(...(result.rows || []));
+          }
+          connectorSummaries.push({
+            connectorId,
+            status: result?.response?.status || 0,
+            catalogEndpoint: result?.response?.catalogEndpoint || '',
+            catalogStatus: result?.response?.catalogStatus || '',
+            catalogOffers: result?.response?.catalogOffers || 0,
+            catalogError: result?.response?.catalogError || '',
+            assetEndpoint: result?.response?.assetEndpoint || '',
+            managementApiBase: result?.response?.managementApiBase || '',
+            assets: (result.rows || []).length,
+            dspUrl: result?.address || ''
+          });
         }
-        connectorSummaries.push({
-          connectorId,
-          status: result?.response?.status || 0,
-          catalogEndpoint: result?.response?.catalogEndpoint || '',
-          catalogStatus: result?.response?.catalogStatus || '',
-          catalogOffers: result?.response?.catalogOffers || 0,
-          catalogError: result?.response?.catalogError || '',
-          assetEndpoint: result?.response?.assetEndpoint || '',
-          managementApiBase: result?.response?.managementApiBase || '',
-          assets: (result.rows || []).length,
-          dspUrl: result?.address || ''
+
+        const dedupe = new Map();
+        allRows.forEach(row => {
+          const key = `${row.connectorId}::${row.assetId}::${row.offerId}`;
+          if (!dedupe.has(key)) dedupe.set(key, row);
         });
-      }
+        state.catalogRows = [...dedupe.values()];
 
-      const dedupe = new Map();
-      allRows.forEach(row => {
-        const key = `${row.connectorId}::${row.assetId}::${row.offerId}`;
-        if (!dedupe.has(key)) dedupe.set(key, row);
-      });
-      state.catalogRows = [...dedupe.values()];
-      if (!state.catalogRows.length) {
-        const localAssetsResp = await callApi('POST', '/v3/assets/request', q(), { silent: true, retries: 0 });
-        const localAssets = unwrap(localAssetsResp);
-        state.catalogRows = mapPublishedAssetsToCatalogVisualRows(localAssets);
-      }
+        renderCatalogShowcase(state.catalogRows);
+        refreshCatalogAssetOptions();
+        syncCatalogSelectionState();
 
-      renderCatalogShowcase(state.catalogRows);
-      refreshCatalogAssetOptions();
-      syncCatalogSelectionState();
-
-      if (showOutput) {
-        writeOut({
-          status: 200,
-          action: 'catalog-showcase',
-          connectors: connectorSummaries,
-          totalAssets: state.catalogRows.length,
-        });
+        if (showOutput) {
+          writeOut({
+            status: 200,
+            action: 'catalog-showcase',
+            connectors: connectorSummaries,
+            totalAssets: state.catalogRows.length,
+          });
+        }
+      } finally {
+        state.catalogShowcaseLoaded = true;
+        state.catalogAutoRequestInFlight = false;
       }
-      state.catalogShowcaseLoaded = state.catalogRows.length > 0;
     }
 
     async function resolveNegotiableCatalogOffer(row) {
