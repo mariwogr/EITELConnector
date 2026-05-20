@@ -5251,12 +5251,12 @@ function summarizePolicyTerms(policyObj) {
     }
 
     function isCatalogRequestPath(path) {
-      return ['/v2/catalog', '/v1/catalog', '/v3/catalog/request'].includes(String(path || ''));
+      return ['/v3/catalog/request', '/v2/catalog', '/v1/catalog'].includes(String(path || ''));
     }
 
     async function callCatalogRequest(body) {
       const payload = typeof body === 'string' ? body : JSON.stringify(body);
-      const endpoints = ['/v2/catalog', '/v1/catalog', '/v3/catalog/request'];
+      const endpoints = ['/v3/catalog/request', '/v2/catalog', '/v1/catalog'];
       let lastResponse = null;
 
       for (const endpoint of endpoints) {
