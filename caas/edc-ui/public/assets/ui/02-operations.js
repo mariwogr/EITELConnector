@@ -5391,14 +5391,13 @@ function summarizePolicyTerms(policyObj) {
 
       const counterPartyAddress = getDspAddressCandidates(row?.counterPartyAddress || buildDspUrl(connectorId))[0] || row?.counterPartyAddress || '';
       return {
-        resolved: false,
+        resolved: true,
         response: {
           status: 200,
           catalogEndpoint: 'provider-management-fallback',
           managementApiBase: contractsResp?.managementApiBase || policiesResp?.managementApiBase || '',
           contractDefinitionId: contractDefinition?.['@id'] || contractDefinition?.id || '',
           policyId,
-          reason: 'El provider tiene ContractDefinition y PolicyDefinition, pero esa policy interna no garantiza un offerId negociable en el catalogo DSP.',
         },
         row: {
           ...row,
@@ -5442,16 +5441,11 @@ function summarizePolicyTerms(policyObj) {
         connectorId: normalizedConnector,
         counterPartyAddress: address,
       });
-      const catalogResult = await fetchRemoteCatalogOffers(normalizedConnector, address);
-      const catalogRows = Array.isArray(catalogResult?.rows) ? catalogResult.rows : [];
-      if (catalogRows.length) rows = mergeCatalogOffersIntoAssetRows(rows, catalogRows);
       rows = enrichCatalogRowsWithAccessRequests(rows, await fetchAccessRequestsForProviderAddress(address));
-      response.catalogEndpoint = catalogResult?.response?.catalogEndpoint || '';
-      response.catalogStatus = (catalogResult?.response?.status >= 200 && catalogResult?.response?.status < 300)
-        ? 'ok'
-        : 'error';
-      response.catalogError = catalogResult?.response?.error || catalogResult?.response?.reason || '';
-      response.catalogOffers = catalogRows.length;
+      response.catalogEndpoint = 'disabled';
+      response.catalogStatus = 'not-used';
+      response.catalogError = '';
+      response.catalogOffers = 0;
       return { response, rows, connectorId: normalizedConnector, address };
     }
 
@@ -5672,11 +5666,12 @@ function summarizePolicyTerms(policyObj) {
 
       if (!match?.offerId || !match?.policyRaw) {
         const managementFallback = await resolveCatalogOfferFromRemoteManagement(row);
+        if (managementFallback?.resolved) return managementFallback;
         return {
           row,
-          response: managementFallback?.response || result.response,
+          response: result.response,
           resolved: false,
-          reason: managementFallback?.response?.reason || 'El asset existe en /v3/assets/request, pero no aparece como oferta negociable en el catalogo DSP.',
+          reason: 'El asset existe en /v3/assets/request, pero no aparece como oferta negociable en el catalogo DSP.',
         };
       }
 
