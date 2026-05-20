@@ -5850,7 +5850,7 @@ function summarizePolicyTerms(policyObj) {
 
       // Para ContractRequest, EDC espera términos ODRL compactados bajo el contexto ODRL.
       policy['@context'] = 'http://www.w3.org/ns/odrl.jsonld';
-      policy['@type'] = typeof policy['@type'] === 'string' && policy['@type'] ? policy['@type'] : 'Offer';
+      policy['@type'] = 'Offer';
       policy['@id'] = policy['@id'] || selected.offerId;
       const resolvedAssigner = (policy.assigner || selected.assigner || 'provider').toString().trim();
       policy.assigner = resolvedAssigner || 'provider';
