@@ -5471,11 +5471,15 @@ function summarizePolicyTerms(policyObj) {
 
     async function callConnectorManagementApi(connectorId, method, path, body, options = {}) {
       const bases = getManagementApiBaseCandidatesForConnector(connectorId);
+      const timeoutMs = Number.isFinite(Number(options.timeoutMs)) ? Number(options.timeoutMs) : 10000;
       let last = null;
       for (const base of bases) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
         try {
           const res = await fetch(`${base}${path}`, {
             method,
+            signal: controller.signal,
             headers: {
               'x-api-key': getApiKey(),
               'content-type': 'application/json',
@@ -5483,6 +5487,7 @@ function summarizePolicyTerms(policyObj) {
             },
             body: method === 'GET' || method === 'DELETE' ? undefined : body,
           });
+          clearTimeout(timer);
           const text = await res.text();
           let data = text;
           try { data = JSON.parse(text); } catch {}
@@ -5490,6 +5495,7 @@ function summarizePolicyTerms(policyObj) {
           if (res.status >= 200 && res.status < 300) return response;
           last = response;
         } catch (error) {
+          clearTimeout(timer);
           last = { status: 0, error: String(error), managementApiBase: base };
         }
       }
@@ -5701,6 +5707,14 @@ function summarizePolicyTerms(policyObj) {
         const policyDefinition = policyId ? policyMap.get(policyId) : null;
         const policyRaw = policyDefinition?.policy || policyDefinition?.['edc:policy'] || null;
 
+        // accessLevel: asset.visibility is the ground truth (set at publish time by the publisher).
+        // extractAccessLevelFromPolicy is a secondary signal — if the ODRL policy has no
+        // dct:accessRights constraint it falls back to 'public', so we must check the asset property
+        // first to avoid treating a privately-published asset as public.
+        const fromAssetVisibility = normalizeAccessLevel(asset.visibility || 'public');
+        const fromPolicy = policyRaw ? extractAccessLevelFromPolicy(policyRaw) : fromAssetVisibility;
+        const rowAccessLevel = (fromAssetVisibility === 'private' || fromPolicy === 'private') ? 'private' : fromAssetVisibility;
+
         return {
           offerId: '',
           assetId,
@@ -5708,7 +5722,7 @@ function summarizePolicyTerms(policyObj) {
           assigner: connectorId,
           connectorId,
           counterPartyAddress,
-          accessLevel: policyRaw ? extractAccessLevelFromPolicy(policyRaw) : normalizeAccessLevel(asset.visibility || 'public'),
+          accessLevel: rowAccessLevel,
           ownerEmail: asset.ownerEmail || '',
           ownerName: asset.ownerName || '',
           policySummary: policyRaw ? summarizePolicyTerms(policyRaw) : 'Asset visible en el catalogo, pendiente de oferta contractual o acceso.',
