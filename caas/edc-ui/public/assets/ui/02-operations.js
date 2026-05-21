@@ -362,14 +362,6 @@ function summarizePolicyTerms(policyObj) {
         };
       }
 
-      if (hasManagementPublishedOffer(row)) {
-        return {
-          canContract: false,
-          reason: 'El proveedor tiene ContractDefinition y PolicyDefinition para este asset, pero su catálogo DSP no está devolviendo una oferta negociable válida.',
-          nextStep: 'Pide al proveedor que recargue o republique el asset hasta que aparezca con offerId en el catálogo DSP, y luego recarga el catálogo.',
-        };
-      }
-
       if (!hasNegotiableCatalogOffer(row)) {
         return {
           canContract: false,
@@ -5838,7 +5830,7 @@ function summarizePolicyTerms(policyObj) {
 
     async function fetchCatalogRowsForConnector(connectorId) {
       const normalizedConnector = normalizeRemoteConnectorId(connectorId);
-      const address = buildDspUrl(normalizedConnector);
+      const address = getPreferredEdcDspAddress(normalizedConnector, buildDspUrl(normalizedConnector));
       const currentCanonical = canonicalConnectorPrefix(cfg?.connectorName || '').toLowerCase();
       const targetCanonical = canonicalConnectorPrefix(normalizedConnector).toLowerCase();
       const isCurrentConnector = currentCanonical && targetCanonical && currentCanonical === targetCanonical;
@@ -5857,34 +5849,23 @@ function summarizePolicyTerms(policyObj) {
         return { response, rows, connectorId: normalizedConnector, address };
       }
 
-      const dspResult = await fetchRemoteCatalogOffers(normalizedConnector, address);
-      const managementResult = await fetchRemoteCatalogRowsFromManagement(normalizedConnector, address);
-      let response = dspResult.response;
-      let rows = dspResult.rows || [];
-      let resolvedAddress = dspResult.address || address;
-
-      if ((managementResult?.rows || []).length) {
-        rows = mergeCatalogOffersIntoAssetRows(managementResult.rows, dspResult.rows || []);
-        resolvedAddress = managementResult.address || resolvedAddress;
-        response = {
-          ...(managementResult.response || {}),
-          dspStatus: dspResult?.response?.status || 0,
-          dspCatalogEndpoint: dspResult?.response?.catalogEndpoint || '',
-          dspCatalogOffers: Array.isArray(dspResult?.rows) ? dspResult.rows.length : 0,
-          catalogEndpoint: (managementResult.response?.catalogEndpoint || 'provider-management-assets'),
-        };
-      } else if (!(response?.status >= 200 && response?.status < 300) || !rows.length) {
-        response = {
-          ...(response || {}),
-          catalogEndpoint: response?.catalogEndpoint || 'dsp-catalog',
-        };
-      }
-
-      rows = enrichCatalogRowsWithAccessRequests(rows, await fetchAccessRequestsForProviderAddress(address));
+      const counterPartyId = resolveCounterPartyId(normalizedConnector, address);
+      const response = await callApi('POST', '/v3/catalog/request', JSON.stringify({
+        '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+        '@type': 'CatalogRequest',
+        counterPartyId,
+        counterPartyAddress: address,
+        protocol: 'dataspace-protocol-http:2025-1'
+      }));
+      response.catalogEndpoint = response?.catalogEndpoint || '/v3/catalog/request';
+      const rows = enrichCatalogRowsWithAccessRequests(
+        mapCatalogRowsFromResponse(response?.data || {}, normalizedConnector, address),
+        await fetchAccessRequestsForProviderAddress(address)
+      );
       response.assetEndpoint = '';
       response.catalogStatus = response?.status >= 200 && response?.status < 300 ? 'used' : 'error';
       response.catalogOffers = rows.length;
-      return { response, rows, connectorId: normalizedConnector, address: resolvedAddress || address };
+      return { response, rows, connectorId: normalizedConnector, address };
     }
 
     function ensureDspVersion(url) {
@@ -6123,14 +6104,6 @@ function summarizePolicyTerms(policyObj) {
       });
 
       if (!match?.offerId || !match?.policyRaw) {
-        if (hasManagementPublishedOffer(row)) {
-          return {
-            row,
-            response: result.response,
-            resolved: false,
-            reason: 'El asset está publicado en Management API, pero el proveedor no lo expone como oferta negociable en su catálogo DSP.',
-          };
-        }
         return {
           row,
           response: result.response,
