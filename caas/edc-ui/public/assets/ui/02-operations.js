@@ -5744,6 +5744,21 @@ function summarizePolicyTerms(policyObj) {
       };
     }
 
+    // EDC ContractOfferId wire format: Base64(contractDefinitionId):Base64(assetId):Base64(uuid)
+    // ContractOfferId.parseId() splits by ':' and base64-decodes each part.
+    // Sending plain-text ids (e.g. "def:asset") will be rejected because parseId requires exactly 3 parts.
+    function makeEdcOfferId(contractDefinitionId, assetId) {
+      const uuid = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+        ? crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+          });
+      // btoa encodes to standard base64 (same as Java Base64.getEncoder().encodeToString)
+      const b64 = (s) => btoa(unescape(encodeURIComponent(String(s || ''))));
+      return `${b64(contractDefinitionId)}:${b64(assetId)}:${b64(uuid)}`;
+    }
+
     async function resolveCatalogOfferFromRemoteManagement(row) {
       const connectorId = row?.connectorId || row?.assigner || getDefaultRemoteConnector();
       const assetId = String(row?.assetId || row?.policyTarget || '').trim();
@@ -5790,12 +5805,11 @@ function summarizePolicyTerms(policyObj) {
         };
       }
 
-      // EDC offer IDs use the format "{contractDefinitionId}:{assetId}".
-      // Using the policyDefinitionId as the offer ID causes 404 "Not found" from the provider
-      // because ContractNegotiationProviderService parses the offer ID to extract the contractDefinitionId.
+      // EDC ContractOfferId format: Base64(contractDefinitionId):Base64(assetId):Base64(UUID)
+      // parseId() splits by ':' and base64-decodes each of the 3 parts; plain-text or 2-part IDs are rejected.
       const contractDefinitionId = String(contractDefinition?.['@id'] || contractDefinition?.id || '').trim();
       const compositeOfferId = (contractDefinitionId && assetId)
-        ? `${contractDefinitionId}:${assetId}`
+        ? makeEdcOfferId(contractDefinitionId, assetId)
         : policyId;
       // Override policyRaw['@id'] so that requestContractByAsset uses the composite offer ID
       // (policy['@id'] = policy['@id'] || selected.offerId — if policyRaw['@id'] is wrong, offerId is ignored)
@@ -6099,7 +6113,8 @@ function summarizePolicyTerms(policyObj) {
       // Skip the DSP re-fetch (which will 502 anyway) and compute the correct composite offer ID directly.
       const assetIdForShortcut = String(row.assetId || row.policyTarget || '').trim();
       if (row.managementContractDefinitionId && row.managementPolicyRaw && assetIdForShortcut) {
-        const compositeOfferId = `${row.managementContractDefinitionId}:${assetIdForShortcut}`;
+        // Use EDC ContractOfferId format: Base64(defId):Base64(assetId):Base64(UUID)
+        const compositeOfferId = makeEdcOfferId(row.managementContractDefinitionId, assetIdForShortcut);
         const correctedPolicyRaw = { ...row.managementPolicyRaw, '@id': compositeOfferId };
         return {
           row: {
