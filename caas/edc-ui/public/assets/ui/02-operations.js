@@ -5790,6 +5790,17 @@ function summarizePolicyTerms(policyObj) {
         };
       }
 
+      // EDC offer IDs use the format "{contractDefinitionId}:{assetId}".
+      // Using the policyDefinitionId as the offer ID causes 404 "Not found" from the provider
+      // because ContractNegotiationProviderService parses the offer ID to extract the contractDefinitionId.
+      const contractDefinitionId = String(contractDefinition?.['@id'] || contractDefinition?.id || '').trim();
+      const compositeOfferId = (contractDefinitionId && assetId)
+        ? `${contractDefinitionId}:${assetId}`
+        : policyId;
+      // Override policyRaw['@id'] so that requestContractByAsset uses the composite offer ID
+      // (policy['@id'] = policy['@id'] || selected.offerId — if policyRaw['@id'] is wrong, offerId is ignored)
+      const correctedPolicyRaw = { ...policyRaw, '@id': compositeOfferId };
+
       const counterPartyAddress = ensureDspVersion(row?.counterPartyAddress || buildDspUrl(connectorId));
       return {
         resolved: true,
@@ -5797,18 +5808,18 @@ function summarizePolicyTerms(policyObj) {
           status: 200,
           catalogEndpoint: 'provider-management-fallback',
           managementApiBase: contractsResp?.managementApiBase || policiesResp?.managementApiBase || '',
-          contractDefinitionId: contractDefinition?.['@id'] || contractDefinition?.id || '',
+          contractDefinitionId,
           policyId,
         },
         row: {
           ...row,
-          offerId: policyRaw?.['@id'] || policyRaw?.id || policyId,
+          offerId: compositeOfferId,
           policyTarget: row?.policyTarget || assetId,
           assigner: row?.assigner || connectorId,
           connectorId,
           counterPartyAddress,
-          policyRaw,
-          policySummary: row?.policySummary || summarizePolicyTerms(policyRaw),
+          policyRaw: correctedPolicyRaw,
+          policySummary: row?.policySummary || summarizePolicyTerms(correctedPolicyRaw),
           catalogOfferResolved: true,
           catalogOfferInferred: false,
           catalogOfferSource: 'provider-management-fallback',
@@ -5824,17 +5835,12 @@ function summarizePolicyTerms(policyObj) {
       const isCurrentConnector = currentCanonical && targetCanonical && currentCanonical === targetCanonical;
 
       if (isCurrentConnector) {
-        // When querying the same connector that hosts this UI, use the local assets endpoint
-        // instead of a remote catalog request. This avoids self-referential catalog dispatch
-        // failures and matches the published assets available in the local connector.
-        const response = await callApi('POST', '/v3/assets/request', q(), { timeoutMs: 120000, retries: 1 });
-        response.assetEndpoint = '/v3/assets/request';
-        const rows = mapPublishedAssetsToCatalogVisualRows(unwrap(response), {
-          connectorId: normalizedConnector,
-          counterPartyAddress: address,
-        });
-        response.catalogOffers = rows.length;
-        return { response, rows, connectorId: normalizedConnector, address };
+        // Use the management API to load the self-connector's catalog including contract/policy data.
+        // This avoids self-referential DSP dispatch failures (DSP 500 on self-catalog) and ensures
+        // that catalog rows carry managementContractDefinitionId + managementPolicyRaw, which lets
+        // resolveNegotiableCatalogOffer construct the correct composite offer ID without an extra
+        // DSP round-trip (which would just fail again).
+        return await fetchRemoteCatalogRowsFromManagement(normalizedConnector, address);
       }
 
       const counterPartyId = resolveCounterPartyId(normalizedConnector, address);
@@ -5844,7 +5850,7 @@ function summarizePolicyTerms(policyObj) {
         counterPartyId,
         counterPartyAddress: address,
         protocol: 'dataspace-protocol-http:2025-1'
-      }));
+      }), { noAutoBaseFallback: true });
       response.catalogEndpoint = response?.catalogEndpoint || '/v3/catalog/request';
 
       // DSP endpoint devolvio error de servidor (ej. JSON-LD compaction crash).
@@ -6040,8 +6046,9 @@ function summarizePolicyTerms(policyObj) {
 
       try {
 
-        for (const connectorId of connectors) {
-          const result = await fetchCatalogRowsForConnector(connectorId);
+        const results = await Promise.all(connectors.map(id => fetchCatalogRowsForConnector(id)));
+        results.forEach((result, idx) => {
+          const connectorId = connectors[idx];
           if (result?.response?.status >= 200 && result?.response?.status < 300) {
             allRows.push(...(result.rows || []));
           }
@@ -6057,7 +6064,7 @@ function summarizePolicyTerms(policyObj) {
             assets: (result.rows || []).length,
             dspUrl: result?.address || ''
           });
-        }
+        });
 
         const dedupe = new Map();
         allRows.forEach(row => {
@@ -6087,6 +6094,25 @@ function summarizePolicyTerms(policyObj) {
     async function resolveNegotiableCatalogOffer(row) {
       if (!row || !canPrepareCatalogContract(row)) return { row, response: null, resolved: false };
       if (row.offerId && row.policyRaw && row.catalogOfferResolved) return { row, response: null, resolved: true };
+
+      // Shortcut: row was loaded via management API fallback and already has contract/policy data.
+      // Skip the DSP re-fetch (which will 502 anyway) and compute the correct composite offer ID directly.
+      const assetIdForShortcut = String(row.assetId || row.policyTarget || '').trim();
+      if (row.managementContractDefinitionId && row.managementPolicyRaw && assetIdForShortcut) {
+        const compositeOfferId = `${row.managementContractDefinitionId}:${assetIdForShortcut}`;
+        const correctedPolicyRaw = { ...row.managementPolicyRaw, '@id': compositeOfferId };
+        return {
+          row: {
+            ...row,
+            offerId: compositeOfferId,
+            policyRaw: correctedPolicyRaw,
+            catalogOfferResolved: true,
+            catalogOfferSource: 'provider-management-cached',
+          },
+          response: null,
+          resolved: true,
+        };
+      }
 
       const connectorId = row.connectorId || row.assigner || getDefaultRemoteConnector();
       const address = row.counterPartyAddress || buildDspUrl(connectorId);
