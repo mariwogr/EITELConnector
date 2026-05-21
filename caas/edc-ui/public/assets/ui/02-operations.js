@@ -3590,7 +3590,7 @@ function summarizePolicyTerms(policyObj) {
 
       const providerRaw = row?.providerId || row?.['edc:providerId'] || row?.provider || row?.cp || '';
       const hint = extractConnectorIdHint(providerRaw);
-      const resolvedAddress = hint ? buildDspUrl(hint) : currentTransferAddress;
+      const resolvedAddress = hint ? getPreferredEdcDspAddress(hint, buildDspUrl(hint)) : currentTransferAddress;
 
       let counterPartyId = String(providerRaw || '').trim();
       if (!counterPartyId && hint) {
@@ -5667,7 +5667,7 @@ function summarizePolicyTerms(policyObj) {
     }
 
     async function fetchRemoteCatalogOffers(connectorId, address) {
-      const candidates = getDspAddressCandidates(address);
+      const candidates = getEdcDspAddressCandidates(connectorId, address);
       let best = null;
 
       for (const candidateAddress of candidates) {
@@ -5907,6 +5907,23 @@ function summarizePolicyTerms(policyObj) {
       return [...new Set([versioned, base].filter(Boolean))];
     }
 
+    function resolveInternalDspUrl(connectorId) {
+      const canonical = canonicalConnectorPrefix(connectorId || '').toLowerCase();
+      if (!canonical) return '';
+      if (canonical === 'conectoruc3m') return withDspProtocolVersion('http://conectoruc3m:11003/api/v1/dsp');
+      if (canonical === 'conectorfuenlabrada') return withDspProtocolVersion('http://conectorfuenlabrada:11003/api/v1/dsp');
+      return '';
+    }
+
+    function getEdcDspAddressCandidates(connectorId, address) {
+      const internal = resolveInternalDspUrl(connectorId);
+      return [...new Set([internal, ...getDspAddressCandidates(address)].filter(Boolean))];
+    }
+
+    function getPreferredEdcDspAddress(connectorId, address) {
+      return getEdcDspAddressCandidates(connectorId, address)[0] || withDspProtocolVersion(address);
+    }
+
     function getConfiguredConnectorDirectory() {
       const source = cfg.connectorDirectory;
       const parsed = (source && typeof source === 'object' && !Array.isArray(source))
@@ -6096,7 +6113,7 @@ function summarizePolicyTerms(policyObj) {
       if (row.offerId && row.policyRaw && row.catalogOfferResolved) return { row, response: null, resolved: true };
 
       const connectorId = row.connectorId || row.assigner || getDefaultRemoteConnector();
-      const address = row.counterPartyAddress || buildDspUrl(connectorId);
+      const address = getPreferredEdcDspAddress(connectorId, row.counterPartyAddress || buildDspUrl(connectorId));
       const result = await fetchRemoteCatalogOffers(connectorId, address);
       const assetId = String(row.assetId || row.policyTarget || '').trim();
       const match = (result.rows || []).find(offer => {
@@ -6327,7 +6344,10 @@ function summarizePolicyTerms(policyObj) {
       policy.prohibition = policy.prohibition.map(normalizeRuleTarget);
       policy.obligation = policy.obligation.map(normalizeRuleTarget);
 
-      const negotiatedCounterPartyAddress = withDspProtocolVersion(selected.counterPartyAddress || document.getElementById('resolvedAddress').value || buildDspUrl(selected.connectorId || selected.assigner));
+      const negotiatedCounterPartyAddress = getPreferredEdcDspAddress(
+        selected.connectorId || selected.assigner,
+        selected.counterPartyAddress || document.getElementById('resolvedAddress').value || buildDspUrl(selected.connectorId || selected.assigner)
+      );
       const negotiatedCounterPartyId = resolveCounterPartyId(selected.connectorId || selected.assigner || '', negotiatedCounterPartyAddress);
       const resolvedAddressInputForNegotiation = document.getElementById('resolvedAddress');
       if (resolvedAddressInputForNegotiation) resolvedAddressInputForNegotiation.value = negotiatedCounterPartyAddress;
