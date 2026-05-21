@@ -315,7 +315,7 @@ function summarizePolicyTerms(policyObj) {
       if (normalizeAccessLevel(row?.accessLevel || 'public') === 'private') return false;
       const stateName = getCatalogRowState(row);
       if (!(stateName === 'public' || stateName === 'approved')) return false;
-      return hasNegotiableCatalogOffer(row) || hasManagementPublishedOffer(row);
+      return hasNegotiableCatalogOffer(row);
     }
 
     function hasNegotiableCatalogOffer(row) {
@@ -358,9 +358,9 @@ function summarizePolicyTerms(policyObj) {
 
       if (hasManagementPublishedOffer(row)) {
         return {
-          canContract: true,
-          reason: 'El proveedor tiene ContractDefinition y PolicyDefinition publicadas para este asset, aunque su catálogo DSP no esté devolviendo la oferta correctamente.',
-          nextStep: 'Selecciona el asset y pulsa Realizar contrato.',
+          canContract: false,
+          reason: 'El proveedor tiene ContractDefinition y PolicyDefinition para este asset, pero su catálogo DSP no está devolviendo una oferta negociable válida.',
+          nextStep: 'Pide al proveedor que recargue o republique el asset hasta que aparezca con offerId en el catálogo DSP, y luego recarga el catálogo.',
         };
       }
 
@@ -6092,13 +6092,11 @@ function summarizePolicyTerms(policyObj) {
 
       if (!match?.offerId || !match?.policyRaw) {
         if (hasManagementPublishedOffer(row)) {
-          const managementResolution = await resolveCatalogOfferFromRemoteManagement(row);
-          if (managementResolution?.resolved) return managementResolution;
           return {
             row,
-            response: managementResolution?.response || result.response,
+            response: result.response,
             resolved: false,
-            reason: managementResolution?.response?.reason || 'El proveedor tiene publicación parcial, pero no se ha podido resolver una oferta contractual válida.',
+            reason: 'El asset está publicado en Management API, pero el proveedor no lo expone como oferta negociable en su catálogo DSP.',
           };
         }
         return {
