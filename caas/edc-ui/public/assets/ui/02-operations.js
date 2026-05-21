@@ -5846,6 +5846,13 @@ function summarizePolicyTerms(policyObj) {
         protocol: 'dataspace-protocol-http:2025-1'
       }));
       response.catalogEndpoint = response?.catalogEndpoint || '/v3/catalog/request';
+
+      // DSP endpoint devolvio error de servidor (ej. JSON-LD compaction crash).
+      // Caemos al management API del proveedor para obtener los assets publicados.
+      if (response.status >= 500) {
+        return await fetchRemoteCatalogRowsFromManagement(normalizedConnector, address);
+      }
+
       const rows = enrichCatalogRowsWithAccessRequests(
         mapCatalogRowsFromResponse(response?.data || {}, normalizedConnector, address),
         await fetchAccessRequestsForProviderAddress(address)
@@ -6092,6 +6099,11 @@ function summarizePolicyTerms(policyObj) {
       });
 
       if (!match?.offerId || !match?.policyRaw) {
+        // DSP fallo con error de servidor: intentar resolver la oferta via management API
+        if ((result.response?.status || 0) >= 500 || result.response?.status === 0) {
+          const mgmtResult = await resolveCatalogOfferFromRemoteManagement(row);
+          if (mgmtResult?.resolved) return mgmtResult;
+        }
         return {
           row,
           response: result.response,
