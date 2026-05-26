@@ -6227,17 +6227,24 @@ function summarizePolicyTerms(policyObj) {
       // For remote connectors NEVER call the remote management API — it is not exposed
       // externally. Only /asset-bundles/public (local-assets), DSP catalog offers and
       // local access-requests are reachable from outside.
-      const [bundlesSettled, offersSettled, requestsSettled] = await Promise.allSettled([
+      // skipDspOffers=true skips the /v3/catalog/request call (used in the showcase to avoid
+      // slow/failing management API round-trips when only display is needed).
+      const skipDspOffers = Boolean(options.skipDspOffers);
+
+      const parallelTasks = [
         fetchProviderAssetBundleMetadata(address, { timeoutMs: Math.min(timeoutMs, 8000) }),
-        fetchRemoteCatalogOffers(normalizedConnector, address, { timeoutMs: catalogTimeoutMs, retries: 0, silent: true }),
+        skipDspOffers ? Promise.resolve(null) : fetchRemoteCatalogOffers(normalizedConnector, address, { timeoutMs: catalogTimeoutMs, retries: 0, silent: true }),
         fetchAccessRequestsForProviderAddress(address, { timeoutMs: Math.min(timeoutMs, 5000) }),
-      ]);
+      ];
+      const [bundlesSettled, offersSettled, requestsSettled] = await Promise.allSettled(parallelTasks);
 
       const bundleRows = bundlesSettled.status === 'fulfilled' && Array.isArray(bundlesSettled.value)
         ? bundlesSettled.value : [];
-      const offersResult = offersSettled.status === 'fulfilled'
-        ? offersSettled.value
-        : { response: { status: 0, error: String(offersSettled.reason || 'No se pudo consultar catalogo DSP') }, rows: [], address };
+      const offersResult = skipDspOffers
+        ? { response: { status: 200 }, rows: [], address }
+        : (offersSettled.status === 'fulfilled'
+          ? offersSettled.value
+          : { response: { status: 0, error: String(offersSettled.reason || 'No se pudo consultar catalogo DSP') }, rows: [], address });
       const accessRequests = requestsSettled.status === 'fulfilled' && Array.isArray(requestsSettled.value)
         ? requestsSettled.value : [];
 
@@ -6471,7 +6478,7 @@ function summarizePolicyTerms(policyObj) {
         const tasks = connectors.map(async (connectorId) => {
           let result;
           try {
-            result = await fetchCatalogRowsForConnector(connectorId, { timeoutMs: 10000, catalogTimeoutMs: 5000, silent: true });
+            result = await fetchCatalogRowsForConnector(connectorId, { timeoutMs: 10000, skipDspOffers: true, silent: true });
           } catch (error) {
             result = {
               response: { status: 0, error: String(error || 'No se pudo consultar el conector.') },
