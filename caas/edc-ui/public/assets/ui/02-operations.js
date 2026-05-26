@@ -342,9 +342,9 @@ function summarizePolicyTerms(policyObj) {
     function catalogStateLabel(stateName) {
       const labels = {
         own: 'Asset propio',
-        public: 'Disponible para todo el mundo',
+        public: 'Público',
         pending: 'Solicitud pendiente',
-        'no-access': 'Sin solicitud',
+        'no-access': 'Privado',
         approved: 'Disponible (solicitud anterior)',
       };
       return labels[stateName] || 'Catalogo';
@@ -1999,10 +1999,10 @@ function summarizePolicyTerms(policyObj) {
 
       const groups = [
         { key: 'own', title: 'Tus assets', rows: [] },
-        { key: 'no-access', title: 'Sin solicitud', rows: [] },
+        { key: 'no-access', title: 'Privado', rows: [] },
         { key: 'pending', title: 'Solicitud pendiente', rows: [] },
         { key: 'approved', title: 'Disponibles por solicitud anterior', rows: [] },
-        { key: 'public', title: 'Disponibles para todo el mundo', rows: [] },
+        { key: 'public', title: 'Públicos', rows: [] },
       ];
       const groupMap = new Map(groups.map(group => [group.key, group]));
       filtered.forEach(item => {
