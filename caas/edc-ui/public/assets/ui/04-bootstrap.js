@@ -40,8 +40,8 @@
       document.getElementById('assetKey').oninput = updateAssetPreview;
       if (document.getElementById('assetSourceMode')) document.getElementById('assetSourceMode').addEventListener('change', syncAssetSourceModeUi);
       document.getElementById('btnRefreshOverview').onclick = refreshOverview;
-      document.getElementById('btnSearchOffers').onclick = () => loadCatalogs(true);
-      document.getElementById('btnRefreshCatalog').onclick = async () => { await loadCatalogs(false); };
+      document.getElementById('btnSearchOffers').onclick = () => loadCatalogShowcase(true);
+      document.getElementById('btnRefreshCatalog').onclick = async () => { await loadCatalogShowcase(true); };
       if (document.getElementById('btnLoadShowcase')) {
         document.getElementById('btnLoadShowcase').onclick = async () => { await loadCatalogShowcase(true); };
       }

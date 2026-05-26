@@ -579,6 +579,15 @@ function summarizePolicyTerms(policyObj) {
             .forEach(v => values.push(canonicalConnectorPrefix(v) || v));
         }
       }
+      const currentRawConnector = String(connectorName || cfg?.connectorName || '').trim();
+      const currentConnector = currentRawConnector.toLowerCase() === 'connector'
+        ? ''
+        : canonicalConnectorPrefix(currentRawConnector);
+      if (currentConnector) values.push(currentConnector);
+      Object.keys(getConfiguredConnectorDirectory()).forEach((key) => {
+        const normalized = canonicalConnectorPrefix(key);
+        if (normalized) values.push(normalized);
+      });
       if (!values.length) values.push('conectoruc3m', 'conectorFuenlabrada');
       return [...new Set(values)];
     }
@@ -1959,12 +1968,15 @@ function summarizePolicyTerms(policyObj) {
         const hasOffer = Boolean(row.offerId);
         const isOwn = stateName === 'own';
         const canContract = canPrepareCatalogContract(row);
+        const assetIdForAction = JSON.stringify(String(row.assetId || ''));
         const actionLabel = isOwn
-          ? 'Asset propio'
+          ? 'Modificar'
           : (canContract
             ? 'Iniciar contratacion'
             : (stateName === 'no-access' ? 'Solicitarla' : 'Ver estado'));
-        const actionOnClick = canContract
+        const actionOnClick = isOwn
+          ? `window.editPublishedAsset(${assetIdForAction})`
+          : canContract
           ? `window.useCatalogAssetByIndex(${idx})`
           : (stateName === 'no-access'
             ? `window.openAccessRequestByIndex(${idx})`
@@ -1989,7 +2001,7 @@ function summarizePolicyTerms(policyObj) {
                 ${chips}
               </details>
               <div class="row">
-                <button class="primary" onclick="${actionOnClick}" ${isOwn ? 'disabled' : ''}>${actionLabel}</button>
+                <button class="primary" onclick="${htmlEscape(actionOnClick)}">${actionLabel}</button>
               </div>
             </div>
           </article>
