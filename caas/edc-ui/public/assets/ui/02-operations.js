@@ -6224,13 +6224,13 @@ function summarizePolicyTerms(policyObj) {
         return await fetchRemoteCatalogRowsFromManagement(normalizedConnector, address, { timeoutMs });
       }
 
-      // All requests in parallel: /asset-bundles/public (fast), DSP catalog offers,
-      // access requests, and management API (may be unavailable for remote connectors).
-      const [bundlesSettled, offersSettled, requestsSettled, managementSettled] = await Promise.allSettled([
+      // For remote connectors NEVER call the remote management API — it is not exposed
+      // externally. Only /asset-bundles/public (local-assets), DSP catalog offers and
+      // local access-requests are reachable from outside.
+      const [bundlesSettled, offersSettled, requestsSettled] = await Promise.allSettled([
         fetchProviderAssetBundleMetadata(address, { timeoutMs: Math.min(timeoutMs, 8000) }),
         fetchRemoteCatalogOffers(normalizedConnector, address, { timeoutMs: catalogTimeoutMs, retries: 0, silent: true }),
         fetchAccessRequestsForProviderAddress(address, { timeoutMs: Math.min(timeoutMs, 5000) }),
-        fetchRemoteCatalogRowsFromManagement(normalizedConnector, address, { timeoutMs }),
       ]);
 
       const bundleRows = bundlesSettled.status === 'fulfilled' && Array.isArray(bundlesSettled.value)
@@ -6240,50 +6240,35 @@ function summarizePolicyTerms(policyObj) {
         : { response: { status: 0, error: String(offersSettled.reason || 'No se pudo consultar catalogo DSP') }, rows: [], address };
       const accessRequests = requestsSettled.status === 'fulfilled' && Array.isArray(requestsSettled.value)
         ? requestsSettled.value : [];
-      const managementResult = managementSettled.status === 'fulfilled'
-        ? managementSettled.value
-        : { response: { status: 0, error: String(managementSettled.reason || 'No se pudo consultar Management API del proveedor') }, rows: [], address };
 
-      const managementRows = Array.isArray(managementResult?.rows) ? managementResult.rows : [];
       const offerRows = Array.isArray(offersResult?.rows) ? offersResult.rows : [];
 
-      // Priority: bundle rows (from /asset-bundles/public) are the ground truth for visibility.
-      // If we also have management rows, merge them to get contract/policy IDs.
-      // Fall back to management rows alone, then offer rows alone.
+      // Bundle rows are the primary source (carry visibility/accessLevel).
+      // Merge with DSP offer rows to attach offerId + policyRaw for negotiation.
       let rows;
-      if (bundleRows.length) {
-        const baseRows = managementRows.length
-          ? mergeCatalogOffersIntoAssetRows(managementRows, offerRows)
-          : offerRows;
-        rows = mergeProviderAssetBundleMetadataIntoCatalogRows(baseRows, bundleRows);
-        // If merge produced nothing (no overlap), just map bundle rows directly
-        if (!rows.length) {
-          rows = mapProviderAssetBundleMetadataToCatalogRows(bundleRows, normalizedConnector, address);
-        }
-      } else if (managementRows.length) {
-        rows = mergeCatalogOffersIntoAssetRows(managementRows, offerRows);
+      if (bundleRows.length && offerRows.length) {
+        rows = mergeProviderAssetBundleMetadataIntoCatalogRows(offerRows, bundleRows);
+        if (!rows.length) rows = mapProviderAssetBundleMetadataToCatalogRows(bundleRows, normalizedConnector, address);
+      } else if (bundleRows.length) {
+        rows = mapProviderAssetBundleMetadataToCatalogRows(bundleRows, normalizedConnector, address);
       } else {
         rows = offerRows;
       }
 
       rows = enrichCatalogRowsWithAccessRequests(rows, accessRequests);
 
-      const managementResponse = managementResult?.response || {};
       const catalogResponse = offersResult?.response || {};
-      const ok = (managementResponse?.status >= 200 && managementResponse?.status < 300)
-        || (catalogResponse?.status >= 200 && catalogResponse?.status < 300)
-        || bundleRows.length > 0;
+      const ok = (catalogResponse?.status >= 200 && catalogResponse?.status < 300) || bundleRows.length > 0;
       const response = {
-        status: ok ? 200 : (managementResponse?.status || catalogResponse?.status || 0),
-        data: managementResponse?.data || catalogResponse?.data || null,
-        assetEndpoint: managementResponse?.catalogEndpoint || 'provider-management-fallback',
-        assetStatus: managementResponse?.status || 0,
-        assetError: managementResponse?.error || managementResponse?.data?.detail || managementResponse?.data?.error || '',
+        status: ok ? 200 : (catalogResponse?.status || 0),
+        data: catalogResponse?.data || null,
+        assetEndpoint: bundleRows.length ? 'local-assets-bundles' : '',
+        assetStatus: bundleRows.length ? 200 : 0,
         catalogEndpoint: catalogResponse?.catalogEndpoint || '',
         catalogStatus: catalogResponse?.status || 0,
         catalogOffers: offerRows.length,
         catalogError: catalogResponse?.error || catalogResponse?.data?.detail || catalogResponse?.data?.error || '',
-        managementApiBase: managementResponse?.managementApiBase || '',
+        managementApiBase: '',
         accessRequests: accessRequests.length,
         providerAssetMetadata: bundleRows.length,
       };
