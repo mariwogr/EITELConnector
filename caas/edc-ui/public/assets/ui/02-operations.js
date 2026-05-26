@@ -6004,7 +6004,7 @@ function summarizePolicyTerms(policyObj) {
     }
 
     async function fetchRemoteCatalogOffers(connectorId, address, options = {}) {
-      const candidates = getDspAddressCandidates(address);
+      const candidates = getEdcDspAddressCandidates(connectorId, address);
       const timeoutMs = Number.isFinite(Number(options.timeoutMs)) ? Number(options.timeoutMs) : 15000;
       const retries = Number.isFinite(Number(options.retries)) ? Number(options.retries) : 0;
       let best = null;
@@ -6471,7 +6471,7 @@ function summarizePolicyTerms(policyObj) {
         const tasks = connectors.map(async (connectorId) => {
           let result;
           try {
-            result = await fetchCatalogRowsForConnector(connectorId, { timeoutMs: 10000, catalogTimeoutMs: 10000, silent: true });
+            result = await fetchCatalogRowsForConnector(connectorId, { timeoutMs: 10000, catalogTimeoutMs: 5000, silent: true });
           } catch (error) {
             result = {
               response: { status: 0, error: String(error || 'No se pudo consultar el conector.') },
