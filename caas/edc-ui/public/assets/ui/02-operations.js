@@ -6557,6 +6557,14 @@ function summarizePolicyTerms(policyObj) {
 
       const connectorId = row.connectorId || row.assigner || getDefaultRemoteConnector();
       const address = row.counterPartyAddress || buildDspUrl(connectorId);
+
+      // Try to resolve the offer via the provider's management API from the browser first.
+      // This is faster and more reliable than the DSP catalog request in deployments where
+      // EDC-to-EDC DSP connectivity is limited (e.g. cross-server EC2 behind ALB).
+      const mgmtResult = await resolveCatalogOfferFromRemoteManagement(row);
+      if (mgmtResult?.resolved) return mgmtResult;
+
+      // Fallback to DSP catalog request only if management API resolution failed.
       const result = await fetchRemoteCatalogOffers(connectorId, address);
       const assetId = String(row.assetId || row.policyTarget || '').trim();
       const match = (result.rows || []).find(offer => {
@@ -6566,11 +6574,6 @@ function summarizePolicyTerms(policyObj) {
       });
 
       if (!match?.offerId || !match?.policyRaw) {
-        // DSP fallo con error de servidor: intentar resolver la oferta via management API
-        if ((result.response?.status || 0) >= 500 || result.response?.status === 0) {
-          const mgmtResult = await resolveCatalogOfferFromRemoteManagement(row);
-          if (mgmtResult?.resolved) return mgmtResult;
-        }
         return {
           row,
           response: result.response,
