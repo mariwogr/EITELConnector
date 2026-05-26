@@ -21,30 +21,83 @@ function summarizePolicyTerms(policyObj) {
     }
 
     function normalizeAccessLevel(value) {
-      const normalized = String(value || '').trim().toLowerCase();
+      const raw = extractPolicyScalar(value) || value;
+      const normalized = String(raw || '').trim().toLowerCase();
       if (!normalized) return 'public';
-      if (normalized === 'privado') return 'private';
-      if (normalized === 'publico') return 'public';
+      const token = normalized.split(/[\/#:]+/g).filter(Boolean).pop() || normalized;
+      if (['privado', 'private', 'restricted', 'partners', 'internal'].includes(token)) return 'private';
+      if (['publico', 'public'].includes(token)) return 'public';
       return normalized;
+    }
+
+    function isRestrictedAccessLevel(value) {
+      return normalizeAccessLevel(value || 'public') !== 'public';
+    }
+
+    function combineAccessLevels(...values) {
+      const normalized = values
+        .map(value => String(extractPolicyScalar(value) || value || '').trim())
+        .filter(Boolean)
+        .map(value => normalizeAccessLevel(value));
+      if (normalized.some(level => level && level !== 'public')) return 'private';
+      return 'public';
+    }
+
+    function extractPolicyScalar(value) {
+      if (value === undefined || value === null) return '';
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          const scalar = extractPolicyScalar(item);
+          if (scalar) return scalar;
+        }
+        return '';
+      }
+      if (typeof value !== 'object') return String(value).trim();
+      const candidates = [
+        value['@value'],
+        value.value,
+        value.rightOperand,
+        value['odrl:rightOperand'],
+        value.operandRight,
+        value['edc:operandRight'],
+        value.leftOperand,
+        value['odrl:leftOperand'],
+        value.operandLeft,
+        value['edc:operandLeft'],
+        value['@id'],
+        value.id,
+      ];
+      for (const candidate of candidates) {
+        const scalar = extractPolicyScalar(candidate);
+        if (scalar) return scalar;
+      }
+      return '';
     }
 
     function extractAccessLevelFromPolicy(policyObj) {
       const permsRaw = policyObj?.['odrl:permission'] || policyObj?.permission || [];
       const perms = Array.isArray(permsRaw) ? permsRaw : [permsRaw];
-      const constraints = perms.flatMap(p => {
-        const c = p?.constraint || p?.['odrl:constraint'] || [];
-        return Array.isArray(c) ? c : [c];
-      }).filter(Boolean);
+      const constraints = [
+        ...(Array.isArray(policyObj?.constraint || policyObj?.['odrl:constraint'])
+          ? (policyObj?.constraint || policyObj?.['odrl:constraint'])
+          : [policyObj?.constraint || policyObj?.['odrl:constraint']].filter(Boolean)),
+        ...perms.flatMap(p => {
+          const c = p?.constraint || p?.['odrl:constraint'] || [];
+          return Array.isArray(c) ? c : [c];
+        }),
+      ].filter(Boolean);
 
       const found = constraints.find(c => {
-        const left = String(c?.leftOperand || c?.['odrl:leftOperand'] || '').trim().toLowerCase();
+        const left = extractPolicyScalar(c?.leftOperand || c?.['odrl:leftOperand'] || c?.operandLeft || c?.['edc:operandLeft']).toLowerCase();
         return left === 'dct:accessrights'
           || left === 'accessrights'
           || left === 'http://purl.org/dc/terms/accessrights'
           || left === 'https://purl.org/dc/terms/accessrights';
       });
-      const right = found?.rightOperand || found?.['odrl:rightOperand'] || policyObj?.['dct:accessRights'] || '';
-      return normalizeAccessLevel(right || 'public');
+      const right = found
+        ? extractPolicyScalar(found?.rightOperand || found?.['odrl:rightOperand'] || found?.operandRight || found?.['edc:operandRight'])
+        : extractPolicyScalar(policyObj?.['dct:accessRights'] || policyObj?.accessRights || policyObj?.['dct:accessrights'] || '');
+      return right ? normalizeAccessLevel(right) : '';
     }
 
     function normalizePolicyOperandIri(value) {
@@ -270,11 +323,17 @@ function summarizePolicyTerms(policyObj) {
       return Boolean(a && b && a === b);
     }
 
+    function getCurrentConnectorId() {
+      const raw = firstNonEmpty([connectorName, cfg?.connectorName, PROD_CONNECTOR_ID]);
+      const canonical = canonicalConnectorPrefix(raw);
+      return canonical && canonical.toLowerCase() !== 'conectorconnector' ? canonical : '';
+    }
+
     function getCatalogRowState(row) {
-      const isOwn = sameConnectorId(row?.connectorId || row?.assigner || '', cfg?.connectorName || PROD_CONNECTOR_ID);
+      const isOwn = sameConnectorId(row?.connectorId || row?.assigner || '', getCurrentConnectorId());
       if (isOwn) return 'own';
       const accessLevel = normalizeAccessLevel(row?.accessLevel || 'public');
-      if (accessLevel === 'public') return 'public';
+      if (!isRestrictedAccessLevel(accessLevel)) return 'public';
       const accessStatus = String(row?.accessRequestStatus || '').trim().toLowerCase();
       if (accessStatus === 'approved') return 'approved';
       return accessStatus === 'pending' ? 'pending' : 'no-access';
@@ -317,9 +376,9 @@ function summarizePolicyTerms(policyObj) {
 
     function canPrepareCatalogContract(row) {
       if (!row) return false;
-      if (sameConnectorId(row.connectorId || row.assigner || '', cfg?.connectorName || PROD_CONNECTOR_ID)) return false;
+      if (sameConnectorId(row.connectorId || row.assigner || '', getCurrentConnectorId())) return false;
       const stateName = getCatalogRowState(row);
-      if (normalizeAccessLevel(row?.accessLevel || 'public') === 'private' && stateName !== 'approved') return false;
+      if (isRestrictedAccessLevel(row?.accessLevel || 'public') && stateName !== 'approved') return false;
       if (!(stateName === 'public' || stateName === 'approved')) return false;
       return true;
     }
@@ -346,7 +405,7 @@ function summarizePolicyTerms(policyObj) {
       }
 
       const stateName = getCatalogRowState(row);
-      if (sameConnectorId(row.connectorId || row.assigner || '', cfg?.connectorName || PROD_CONNECTOR_ID)) {
+      if (sameConnectorId(row.connectorId || row.assigner || '', getCurrentConnectorId())) {
         return {
           canContract: false,
           reason: 'Es un asset propio. Aparece en catálogo para trazabilidad, pero no se contrata desde el mismo conector.',
@@ -354,7 +413,7 @@ function summarizePolicyTerms(policyObj) {
         };
       }
 
-      if (normalizeAccessLevel(row.accessLevel || 'public') === 'private') {
+      if (isRestrictedAccessLevel(row.accessLevel || 'public')) {
         return {
           canContract: stateName === 'approved',
           reason: stateName === 'approved'
@@ -579,10 +638,7 @@ function summarizePolicyTerms(policyObj) {
             .forEach(v => values.push(canonicalConnectorPrefix(v) || v));
         }
       }
-      const currentRawConnector = String(connectorName || cfg?.connectorName || '').trim();
-      const currentConnector = currentRawConnector.toLowerCase() === 'connector'
-        ? ''
-        : canonicalConnectorPrefix(currentRawConnector);
+      const currentConnector = getCurrentConnectorId();
       if (currentConnector) values.push(currentConnector);
       Object.keys(getConfiguredConnectorDirectory()).forEach((key) => {
         const normalized = canonicalConnectorPrefix(key);
@@ -1964,7 +2020,7 @@ function summarizePolicyTerms(policyObj) {
         const defaultImageClass = isDefaultAssetImage(image) ? ' is-default' : '';
         const keywords = Array.isArray(row.assetKeywords) ? row.assetKeywords.slice(0, 8) : [];
         const delayMs = Math.min(idx * 55, 550);
-        const isPrivate = normalizeAccessLevel(row.accessLevel || 'public') === 'private';
+        const isPrivate = isRestrictedAccessLevel(row.accessLevel || 'public');
         const hasOffer = Boolean(row.offerId);
         const isOwn = stateName === 'own';
         const canContract = canPrepareCatalogContract(row);
@@ -2033,7 +2089,7 @@ function summarizePolicyTerms(policyObj) {
       const selected = Number.isInteger(idx) && idx >= 0 ? state.catalogRows[idx] : null;
       if (terms) terms.value = selected?.policySummary || '';
       if (policyJsonLd) policyJsonLd.value = selected ? buildPolicyDcatJsonLd(selected) : '';
-      const isPrivate = normalizeAccessLevel(selected?.accessLevel || 'public') === 'private';
+      const isPrivate = isRestrictedAccessLevel(selected?.accessLevel || 'public');
 
       const contractBox = document.getElementById('catalogContractBox');
       if (contractBox) contractBox.style.display = selected ? 'block' : 'none';
@@ -2190,7 +2246,7 @@ function summarizePolicyTerms(policyObj) {
         assetId: selected.assetId || '',
         assetTitle: selected.assetTitle || clean(selected.assetId || ''),
         ownerConnectorId: selected.connectorId || selected.assigner || '',
-        requesterConnectorId: canonicalConnectorPrefix(connectorName || cfg?.connectorName || PROD_CONNECTOR_ID),
+        requesterConnectorId: getCurrentConnectorId(),
         ownerEmail: String(document.getElementById('reqOwnerEmail')?.value || selected.ownerEmail || '').trim(),
         requesterName: String(document.getElementById('reqRequesterName')?.value || '').trim(),
         requesterEmail: String(document.getElementById('reqRequesterEmail')?.value || '').trim(),
@@ -2411,7 +2467,7 @@ function summarizePolicyTerms(policyObj) {
           title,
           description,
           imageUrl,
-          visibility: normalizeAccessLevel(firstNonEmpty([props?.['eitel:visibility'], props?.['dct:accessRights'], 'public'])),
+          visibility: combineAccessLevels(props?.['eitel:visibility'], props?.['dct:accessRights']),
           ownerEmail: firstNonEmpty([props?.['eitel:ownerEmail'], '']),
           ownerName: firstNonEmpty([props?.['eitel:ownerName'], '']),
           managedBy: firstNonEmpty([props?.['eitel:managedByConnector'], props?.['eitel:managedBy']]),
@@ -2440,14 +2496,13 @@ function summarizePolicyTerms(policyObj) {
     function resolvePublicationAccessLevel(row = {}, bundle = null) {
       const assetProps = bundle?.assetBody?.properties || bundle?.assetBody?.['edc:properties'] || {};
       const policy = bundle?.policyBody?.policy || bundle?.policyBody?.['edc:policy'] || null;
-      return normalizeAccessLevel(firstNonEmpty([
+      return combineAccessLevels(
         policy?.['dct:accessRights'],
         extractAccessLevelFromPolicy(policy),
         assetProps?.['eitel:visibility'],
         assetProps?.['dct:accessRights'],
-        row?.visibility,
-        'public'
-      ]));
+        row?.visibility
+      );
     }
 
     function enrichPublishedAssetsWithBundles(rows = [], bundles = []) {
@@ -5462,7 +5517,7 @@ function summarizePolicyTerms(policyObj) {
           const permsRaw = pol?.['odrl:permission'] || pol?.permission || [];
           const perms = Array.isArray(permsRaw) ? permsRaw : [permsRaw];
           const target = perms.find(p => p?.['odrl:target'] || p?.target)?.['odrl:target'] || perms.find(p => p?.['odrl:target'] || p?.target)?.target || datasetId;
-          const accessLevel = normalizeAccessLevel(meta.visibility || extractAccessLevelFromPolicy(pol) || 'public');
+          const accessLevel = combineAccessLevels(meta.visibility, extractAccessLevelFromPolicy(pol));
           return {
             offerId: pol?.['@id'] || pol?.id || '',
             assetId: datasetId || target,
@@ -5588,32 +5643,189 @@ function summarizePolicyTerms(policyObj) {
     async function fetchAccessRequestsForProviderAddress(address, options = {}) {
       const providerBase = deriveProviderLocalAssetsUrl(address);
       if (!providerBase) return [];
-      const requesterConnectorId = canonicalConnectorPrefix(options.requesterConnectorId || connectorName || cfg?.connectorName || PROD_CONNECTOR_ID);
+      const requesterConnectorId = canonicalConnectorPrefix(options.requesterConnectorId || getCurrentConnectorId());
       const requesterEmail = String(options.requesterEmail || getCatalogRequesterEmail() || '').trim();
       if (!requesterConnectorId && !requesterEmail) return [];
       const timeoutMs = Number.isFinite(Number(options.timeoutMs)) ? Number(options.timeoutMs) : 5000;
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
-      try {
+      const variants = [];
+      if (requesterConnectorId) variants.push({ requesterConnectorId });
+      if (requesterEmail) variants.push({ requesterEmail });
+      const merged = new Map();
+
+      for (const variant of variants) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
         const params = new URLSearchParams();
-        if (requesterConnectorId) params.set('requesterConnectorId', requesterConnectorId);
-        if (!requesterConnectorId && requesterEmail) params.set('requesterEmail', requesterEmail);
-        const url = `${providerBase}/access-requests${params.toString() ? `?${params.toString()}` : ''}`;
-        const res = await fetch(url, {
-          method: 'GET',
-          headers: { 'accept': 'application/json' },
-          credentials: 'include',
-          cache: 'no-store',
-          signal: controller.signal,
-        });
-        if (!res.ok) return [];
-        const data = await res.json();
-        return Array.isArray(data?.items) ? data.items : [];
-      } catch {
-        return [];
-      } finally {
-        clearTimeout(timeout);
+        if (variant.requesterConnectorId) params.set('requesterConnectorId', variant.requesterConnectorId);
+        if (variant.requesterEmail) params.set('requesterEmail', variant.requesterEmail);
+        try {
+          const url = `${providerBase}/access-requests${params.toString() ? `?${params.toString()}` : ''}`;
+          const res = await fetch(url, {
+            method: 'GET',
+            headers: { 'accept': 'application/json' },
+            credentials: 'include',
+            cache: 'no-store',
+            signal: controller.signal,
+          });
+          if (!res.ok) continue;
+          const data = await res.json();
+          (Array.isArray(data?.items) ? data.items : []).forEach((item) => {
+            const key = String(item?.requestId || `${item?.assetId || ''}:${item?.requesterConnectorId || ''}:${item?.requesterEmail || ''}`);
+            if (key) merged.set(key, item);
+          });
+        } catch {
+          // Keep the catalog usable even if one compatibility lookup fails.
+        } finally {
+          clearTimeout(timeout);
+        }
       }
+      return [...merged.values()];
+    }
+
+    function normalizeProviderAssetBundleMetadata(row = {}) {
+      const assetBody = row?.assetBody || {};
+      const props = assetBody?.properties || assetBody?.['edc:properties'] || {};
+      const assetId = String(row?.assetId || assetBody?.['@id'] || assetBody?.id || '').trim();
+      const keywords = [
+        ...parseKeywordList(row?.keywords),
+        ...parseKeywordList(props?.['dcat:keyword']),
+        ...parseKeywordList(props?.['eitel:keywords']),
+        ...parseKeywordList(props?.keywords),
+      ];
+      return {
+        assetId,
+        title: firstNonEmpty([row?.assetName, row?.title, props?.name, props?.title, props?.['dct:title'], assetId]),
+        description: firstNonEmpty([row?.description, props?.description, props?.['eitel:description'], props?.['dct:description']]),
+        imageUrl: firstNonEmpty([row?.imageUrl, props?.image, props?.['eitel:image'], props?.['schema:image']]),
+        accessLevel: resolvePublicationAccessLevel({ visibility: row?.visibility }, row),
+        ownerEmail: firstNonEmpty([row?.ownerEmail, props?.['eitel:ownerEmail']]),
+        ownerName: firstNonEmpty([row?.ownerName, props?.['eitel:ownerName']]),
+        policyId: String(row?.policyId || row?.policyBody?.['@id'] || '').trim(),
+        contractDefId: String(row?.contractDefId || row?.contractBody?.['@id'] || '').trim(),
+        updatedAt: String(row?.updatedAt || '').trim(),
+        keywords: [...new Set(keywords)],
+      };
+    }
+
+    async function fetchProviderAssetBundleMetadata(address, options = {}) {
+      const providerBase = deriveProviderLocalAssetsUrl(address);
+      if (!providerBase) return [];
+      const timeoutMs = Number.isFinite(Number(options.timeoutMs)) ? Number(options.timeoutMs) : 5000;
+      const paths = ['/asset-bundles/public', '/asset-bundles'];
+
+      for (const path of paths) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const res = await fetch(`${providerBase}${path}`, {
+            method: 'GET',
+            headers: { accept: 'application/json' },
+            credentials: 'include',
+            cache: 'no-store',
+            signal: controller.signal,
+          });
+          const text = await res.text();
+          let data = text;
+          try { data = JSON.parse(text); } catch {}
+          if (!res.ok) continue;
+          const rows = Array.isArray(data?.items) ? data.items : [];
+          return rows
+            .map(normalizeProviderAssetBundleMetadata)
+            .filter(row => row.assetId);
+        } catch {
+          // Try the next compatible endpoint.
+        } finally {
+          clearTimeout(timeout);
+        }
+      }
+
+      return [];
+    }
+
+    function mapProviderAssetBundleMetadataToCatalogRows(bundleRows = [], connectorId = '', address = '') {
+      const counterPartyAddress = ensureDspVersion(address || buildDspUrl(connectorId));
+      return (Array.isArray(bundleRows) ? bundleRows : []).map(row => ({
+        offerId: '',
+        assetId: row.assetId || '',
+        policyTarget: row.assetId || '',
+        assigner: connectorId,
+        connectorId,
+        counterPartyAddress,
+        accessLevel: row.accessLevel || 'public',
+        ownerEmail: row.ownerEmail || '',
+        ownerName: row.ownerName || '',
+        policySummary: 'Asset publicado por el conector. Puedes solicitar acceso al propietario.',
+        policyRaw: null,
+        sourceHintUrl: '',
+        assetTitle: row.title,
+        assetDescription: row.description,
+        assetKeywords: row.keywords,
+        assetImageUrl: row.imageUrl,
+        catalogOfferResolved: false,
+        catalogOfferInferred: false,
+        catalogOfferSource: 'provider-local-assets-metadata',
+      })).filter(row => row.assetId);
+    }
+
+    async function validatePrivateAgreementTransferAccess(assetId, transferParty = {}) {
+      const targetAssetId = String(assetId || '').trim();
+      if (!targetAssetId) return { allowed: true, known: false };
+
+      const providerId = String(transferParty?.counterPartyId || transferParty?.providerRaw || '').trim();
+      if (providerId && sameConnectorId(providerId, getCurrentConnectorId())) return { allowed: true, known: true, own: true };
+
+      const providerAddress = String(transferParty?.address || document.getElementById('transferAddress')?.value || '').trim();
+      const cachedRow = (state.catalogRows || []).find(row => {
+        const rowAssetId = String(row?.assetId || row?.policyTarget || '').trim();
+        if (rowAssetId !== targetAssetId) return false;
+        const rowProvider = String(row?.connectorId || row?.assigner || '').trim();
+        const rowAddress = String(row?.counterPartyAddress || '').trim();
+        return (providerId && sameConnectorId(rowProvider, providerId)) || (providerAddress && rowAddress === providerAddress) || (!providerId && !providerAddress);
+      });
+      if (cachedRow) {
+        const stateName = getCatalogRowState(cachedRow);
+        const restricted = isRestrictedAccessLevel(cachedRow.accessLevel || 'public');
+        return {
+          allowed: !restricted || stateName === 'approved',
+          known: true,
+          assetId: targetAssetId,
+          accessLevel: cachedRow.accessLevel || 'public',
+          accessStatus: cachedRow.accessRequestStatus || '',
+          stateName,
+          source: 'catalog-cache',
+        };
+      }
+
+      if (!providerAddress) return { allowed: true, known: false };
+      const bundleRows = await fetchProviderAssetBundleMetadata(providerAddress, { timeoutMs: 5000 });
+      const bundle = bundleRows.find(row => String(row?.assetId || '').trim() === targetAssetId);
+      if (!bundle || !isRestrictedAccessLevel(bundle.accessLevel || 'public')) {
+        return {
+          allowed: true,
+          known: Boolean(bundle),
+          assetId: targetAssetId,
+          accessLevel: bundle?.accessLevel || 'public',
+          source: bundle ? 'provider-local-assets' : 'unknown',
+        };
+      }
+
+      const requests = await fetchAccessRequestsForProviderAddress(providerAddress, { timeoutMs: 5000 });
+      const approved = requests.find(req =>
+        String(req?.assetId || '').trim() === targetAssetId
+        && String(req?.status || '').trim().toLowerCase() === 'approved'
+      );
+      const pending = requests.find(req =>
+        String(req?.assetId || '').trim() === targetAssetId
+        && String(req?.status || '').trim().toLowerCase() === 'pending'
+      );
+      return {
+        allowed: Boolean(approved),
+        known: true,
+        assetId: targetAssetId,
+        accessLevel: bundle.accessLevel || 'private',
+        accessStatus: approved ? 'approved' : (pending ? 'pending' : 'none'),
+        source: 'provider-local-assets',
+      };
     }
 
     async function logTransferEvent(event = {}, providerAddress = '') {
@@ -5729,6 +5941,35 @@ function summarizePolicyTerms(policyObj) {
       });
     }
 
+    function mergeProviderAssetBundleMetadataIntoCatalogRows(rows = [], bundleRows = []) {
+      if (!Array.isArray(rows) || !rows.length || !Array.isArray(bundleRows) || !bundleRows.length) return rows;
+      const byAsset = new Map();
+      bundleRows.forEach(bundle => {
+        const assetId = String(bundle?.assetId || '').trim();
+        if (!assetId) return;
+        const current = byAsset.get(assetId);
+        const currentUpdatedAt = Date.parse(current?.updatedAt || '') || 0;
+        const nextUpdatedAt = Date.parse(bundle?.updatedAt || '') || 0;
+        if (!current || nextUpdatedAt >= currentUpdatedAt) byAsset.set(assetId, bundle);
+      });
+
+      return rows.map(row => {
+        const bundle = byAsset.get(String(row?.assetId || '').trim());
+        if (!bundle) return row;
+        return {
+          ...row,
+          accessLevel: combineAccessLevels(row.accessLevel, bundle.accessLevel),
+          ownerEmail: row.ownerEmail || bundle.ownerEmail || '',
+          ownerName: row.ownerName || bundle.ownerName || '',
+          assetTitle: row.assetTitle || bundle.title || '',
+          assetDescription: row.assetDescription || bundle.description || '',
+          assetKeywords: (row.assetKeywords && row.assetKeywords.length) ? row.assetKeywords : bundle.keywords,
+          assetImageUrl: row.assetImageUrl || bundle.imageUrl || '',
+          providerMetadataSource: 'local-assets',
+        };
+      });
+    }
+
     function mergeCatalogOffersIntoAssetRows(assetRows = [], offerRows = []) {
       if (!Array.isArray(assetRows) || !assetRows.length || !Array.isArray(offerRows) || !offerRows.length) return assetRows;
       const byAsset = new Map();
@@ -5747,7 +5988,7 @@ function summarizePolicyTerms(policyObj) {
           offerId: offerRow.offerId || assetRow.offerId || '',
           policyTarget: offerRow.policyTarget || assetRow.policyTarget || '',
           assigner: offerRow.assigner || assetRow.assigner || '',
-          accessLevel: assetRow.accessLevel || offerRow.accessLevel || 'public',
+          accessLevel: combineAccessLevels(assetRow.accessLevel, offerRow.accessLevel),
           ownerEmail: assetRow.ownerEmail || offerRow.ownerEmail || '',
           ownerName: assetRow.ownerName || offerRow.ownerName || '',
           policySummary: offerRow.policySummary || assetRow.policySummary || '',
@@ -5823,9 +6064,7 @@ function summarizePolicyTerms(policyObj) {
         // extractAccessLevelFromPolicy is a secondary signal — if the ODRL policy has no
         // dct:accessRights constraint it falls back to 'public', so we must check the asset property
         // first to avoid treating a privately-published asset as public.
-        const fromAssetVisibility = normalizeAccessLevel(asset.visibility || 'public');
-        const fromPolicy = policyRaw ? extractAccessLevelFromPolicy(policyRaw) : fromAssetVisibility;
-        const rowAccessLevel = (fromAssetVisibility === 'private' || fromPolicy === 'private') ? 'private' : fromAssetVisibility;
+        const rowAccessLevel = combineAccessLevels(asset.visibility, policyRaw ? extractAccessLevelFromPolicy(policyRaw) : '');
 
         return {
           offerId: '',
@@ -5985,10 +6224,11 @@ function summarizePolicyTerms(policyObj) {
         return await fetchRemoteCatalogRowsFromManagement(normalizedConnector, address, { timeoutMs });
       }
 
-      const [managementSettled, offersSettled, requestsSettled] = await Promise.allSettled([
+      const [managementSettled, offersSettled, requestsSettled, bundlesSettled] = await Promise.allSettled([
         fetchRemoteCatalogRowsFromManagement(normalizedConnector, address, { timeoutMs }),
         fetchRemoteCatalogOffers(normalizedConnector, address, { timeoutMs: catalogTimeoutMs, retries: 0, silent: true }),
         fetchAccessRequestsForProviderAddress(address, { timeoutMs: Math.min(timeoutMs, 5000) }),
+        fetchProviderAssetBundleMetadata(address, { timeoutMs: Math.min(timeoutMs, 5000) }),
       ]);
 
       const managementResult = managementSettled.status === 'fulfilled'
@@ -6000,10 +6240,18 @@ function summarizePolicyTerms(policyObj) {
       const accessRequests = requestsSettled.status === 'fulfilled' && Array.isArray(requestsSettled.value)
         ? requestsSettled.value
         : [];
+      const bundleRows = bundlesSettled.status === 'fulfilled' && Array.isArray(bundlesSettled.value)
+        ? bundlesSettled.value
+        : [];
 
       const managementRows = Array.isArray(managementResult?.rows) ? managementResult.rows : [];
       const offerRows = Array.isArray(offersResult?.rows) ? offersResult.rows : [];
       let rows = managementRows.length ? mergeCatalogOffersIntoAssetRows(managementRows, offerRows) : offerRows;
+      if (!rows.length && bundleRows.length) {
+        rows = mapProviderAssetBundleMetadataToCatalogRows(bundleRows, normalizedConnector, address);
+      } else {
+        rows = mergeProviderAssetBundleMetadataIntoCatalogRows(rows, bundleRows);
+      }
       rows = enrichCatalogRowsWithAccessRequests(rows, accessRequests);
 
       const managementResponse = managementResult?.response || {};
@@ -6022,6 +6270,7 @@ function summarizePolicyTerms(policyObj) {
         catalogError: catalogResponse?.error || catalogResponse?.data?.detail || catalogResponse?.data?.error || '',
         managementApiBase: managementResponse?.managementApiBase || '',
         accessRequests: accessRequests.length,
+        providerAssetMetadata: bundleRows.length,
       };
       if (offersResult?.address) response.dspAddressUsed = offersResult.address;
       return { response, rows, connectorId: normalizedConnector, address };
@@ -6327,7 +6576,7 @@ function summarizePolicyTerms(policyObj) {
         row: {
           ...row,
           ...match,
-          accessLevel: row.accessLevel || match.accessLevel || 'public',
+          accessLevel: combineAccessLevels(row.accessLevel, match.accessLevel),
           ownerEmail: row.ownerEmail || match.ownerEmail || '',
           ownerName: row.ownerName || match.ownerName || '',
           accessRequestId: row.accessRequestId || '',
@@ -6379,7 +6628,7 @@ function summarizePolicyTerms(policyObj) {
       }
 
       const selectedState = getCatalogRowState(selected);
-      if (normalizeAccessLevel(selected.accessLevel || 'public') === 'private' && selectedState !== 'approved') {
+      if (isRestrictedAccessLevel(selected.accessLevel || 'public') && selectedState !== 'approved') {
         openAccessRequestModalForRow(selected);
         if (actionBtn) {
           actionBtn.disabled = false;
@@ -6779,6 +7028,25 @@ function summarizePolicyTerms(policyObj) {
           }))
         });
         writeOut({ status: 400, error: 'Contract agreement not found/valid for transfer', contractId });
+        return;
+      }
+
+      const privateAccess = await validatePrivateAgreementTransferAccess(agreementAssetId, transferParty);
+      if (!privateAccess.allowed) {
+        showInfoPopup('Transferencia bloqueada', {
+          message: 'Este contrato corresponde a un asset privado sin solicitud aprobada para este conector. Solicita acceso o espera a que el propietario apruebe la solicitud antes de transferir.',
+          contractId,
+          assetId: agreementAssetId,
+          estadoSolicitud: privateAccess.accessStatus || 'none',
+          source: privateAccess.source || '',
+        });
+        writeOut({
+          status: 403,
+          error: 'Asset privado sin solicitud aprobada. Transferencia bloqueada.',
+          contractId,
+          assetId: agreementAssetId,
+          privateAccess,
+        });
         return;
       }
 

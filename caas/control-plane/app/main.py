@@ -766,6 +766,116 @@ def list_asset_bundles():
     }
 
 
+def _policy_scalar(value) -> str:
+    if value is None:
+        return ''
+    if isinstance(value, list):
+        for item in value:
+            scalar = _policy_scalar(item)
+            if scalar:
+                return scalar
+        return ''
+    if not isinstance(value, dict):
+        return str(value).strip()
+    for key in (
+        '@value',
+        'value',
+        'rightOperand',
+        'odrl:rightOperand',
+        'operandRight',
+        'edc:operandRight',
+        'leftOperand',
+        'odrl:leftOperand',
+        'operandLeft',
+        'edc:operandLeft',
+        '@id',
+        'id',
+    ):
+        scalar = _policy_scalar(value.get(key))
+        if scalar:
+            return scalar
+    return ''
+
+
+def _policy_access_level(policy: dict) -> str:
+    if not isinstance(policy, dict):
+        return ''
+    permissions = policy.get('permission') or policy.get('odrl:permission') or []
+    if not isinstance(permissions, list):
+        permissions = [permissions]
+    constraints_raw = policy.get('constraint') or policy.get('odrl:constraint') or []
+    constraints = list(constraints_raw) if isinstance(constraints_raw, list) else [constraints_raw]
+    for permission in permissions:
+        if not isinstance(permission, dict):
+            continue
+        permission_constraints = permission.get('constraint') or permission.get('odrl:constraint') or []
+        if not isinstance(permission_constraints, list):
+            permission_constraints = [permission_constraints]
+        constraints.extend(permission_constraints)
+    for constraint in constraints:
+        if not isinstance(constraint, dict):
+            continue
+        left = _policy_scalar(
+            constraint.get('leftOperand')
+            or constraint.get('odrl:leftOperand')
+            or constraint.get('operandLeft')
+            or constraint.get('edc:operandLeft')
+        ).lower()
+        if left in {
+            'dct:accessrights',
+            'accessrights',
+            'http://purl.org/dc/terms/accessrights',
+            'https://purl.org/dc/terms/accessrights',
+        }:
+            return _policy_scalar(
+                constraint.get('rightOperand')
+                or constraint.get('odrl:rightOperand')
+                or constraint.get('operandRight')
+                or constraint.get('edc:operandRight')
+            )
+    return str(policy.get('dct:accessRights') or policy.get('accessRights') or '').strip()
+
+
+def _public_asset_bundle_metadata(row: dict) -> dict:
+    asset_body = row.get('assetBody') if isinstance(row.get('assetBody'), dict) else {}
+    props = asset_body.get('properties') or asset_body.get('edc:properties') or {}
+    if not isinstance(props, dict):
+        props = {}
+    policy_body = row.get('policyBody') if isinstance(row.get('policyBody'), dict) else {}
+    policy = policy_body.get('policy') or policy_body.get('edc:policy') or {}
+    contract_body = row.get('contractBody') if isinstance(row.get('contractBody'), dict) else {}
+    visibility = (
+        row.get('visibility')
+        or props.get('eitel:visibility')
+        or props.get('dct:accessRights')
+        or _policy_access_level(policy)
+        or (policy.get('dct:accessRights') if isinstance(policy, dict) else '')
+    )
+    return {
+        'assetId': str(row.get('assetId') or asset_body.get('@id') or asset_body.get('id') or '').strip(),
+        'assetName': str(row.get('assetName') or props.get('name') or props.get('title') or props.get('dct:title') or '').strip(),
+        'description': str(props.get('description') or props.get('eitel:description') or props.get('dct:description') or '').strip(),
+        'imageUrl': str(props.get('image') or props.get('eitel:image') or props.get('schema:image') or '').strip(),
+        'keywords': str(props.get('keywords') or props.get('eitel:keywords') or props.get('dcat:keyword') or '').strip(),
+        'visibility': str(visibility or 'public').strip(),
+        'ownerEmail': str(row.get('ownerEmail') or props.get('eitel:ownerEmail') or '').strip(),
+        'ownerName': str(row.get('ownerName') or props.get('eitel:ownerName') or '').strip(),
+        'policyId': str(row.get('policyId') or policy_body.get('@id') or '').strip(),
+        'contractDefId': str(row.get('contractDefId') or contract_body.get('@id') or '').strip(),
+        'updatedAt': str(row.get('updatedAt') or '').strip(),
+    }
+
+
+@app.get('/v1/local-assets/asset-bundles/public')
+def list_public_asset_bundle_metadata():
+    items = [
+        item
+        for item in (_public_asset_bundle_metadata(row) for row in reversed(asset_bundle_records) if isinstance(row, dict))
+        if item.get('assetId')
+    ]
+    return {'count': len(items), 'items': items}
+
+
 @app.post('/v1/local-assets/asset-bundles')
 async def upsert_asset_bundle(request: Request):
     payload = await request.json()
