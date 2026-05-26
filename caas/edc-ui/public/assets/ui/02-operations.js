@@ -6224,58 +6224,57 @@ function summarizePolicyTerms(policyObj) {
         return await fetchRemoteCatalogRowsFromManagement(normalizedConnector, address, { timeoutMs });
       }
 
-      // For remote connectors: try /asset-bundles/public first (fast metadata-only endpoint),
-      // then complement with Management API + DSP offers in parallel
-      const bundleRowsSettled = await Promise.allSettled([
+      // All requests in parallel: /asset-bundles/public (fast), DSP catalog offers,
+      // access requests, and management API (may be unavailable for remote connectors).
+      const [bundlesSettled, offersSettled, requestsSettled, managementSettled] = await Promise.allSettled([
         fetchProviderAssetBundleMetadata(address, { timeoutMs: Math.min(timeoutMs, 8000) }),
-      ]);
-      const bundleRows = bundleRowsSettled[0]?.status === 'fulfilled' && Array.isArray(bundleRowsSettled[0].value)
-        ? bundleRowsSettled[0].value
-        : [];
-
-      // If we got bundle rows, start complementing with Management API and access requests
-      const [managementSettled, offersSettled, requestsSettled] = await Promise.allSettled([
-        fetchRemoteCatalogRowsFromManagement(normalizedConnector, address, { timeoutMs }),
         fetchRemoteCatalogOffers(normalizedConnector, address, { timeoutMs: catalogTimeoutMs, retries: 0, silent: true }),
         fetchAccessRequestsForProviderAddress(address, { timeoutMs: Math.min(timeoutMs, 5000) }),
+        fetchRemoteCatalogRowsFromManagement(normalizedConnector, address, { timeoutMs }),
       ]);
 
-      const managementResult = managementSettled.status === 'fulfilled'
-        ? managementSettled.value
-        : { response: { status: 0, error: String(managementSettled.reason || 'No se pudo consultar Management API del proveedor') }, rows: [], address };
+      const bundleRows = bundlesSettled.status === 'fulfilled' && Array.isArray(bundlesSettled.value)
+        ? bundlesSettled.value : [];
       const offersResult = offersSettled.status === 'fulfilled'
         ? offersSettled.value
         : { response: { status: 0, error: String(offersSettled.reason || 'No se pudo consultar catalogo DSP') }, rows: [], address };
       const accessRequests = requestsSettled.status === 'fulfilled' && Array.isArray(requestsSettled.value)
-        ? requestsSettled.value
-        : [];
+        ? requestsSettled.value : [];
+      const managementResult = managementSettled.status === 'fulfilled'
+        ? managementSettled.value
+        : { response: { status: 0, error: String(managementSettled.reason || 'No se pudo consultar Management API del proveedor') }, rows: [], address };
 
       const managementRows = Array.isArray(managementResult?.rows) ? managementResult.rows : [];
       const offerRows = Array.isArray(offersResult?.rows) ? offersResult.rows : [];
-      
-      // Prefer bundleRows if we got them, otherwise use management rows
-      let rows = bundleRows.length
-        ? mapProviderAssetBundleMetadataToCatalogRows(bundleRows, normalizedConnector, address)
-        : (managementRows.length
-            ? mergeCatalogOffersIntoAssetRows(managementRows, offerRows)
-            : offerRows);
-      
-      // Merge management data if not already used
-      if (bundleRows.length && managementRows.length) {
-        rows = mergeProviderAssetBundleMetadataIntoCatalogRows(
-          mergeCatalogOffersIntoAssetRows(managementRows, offerRows),
-          bundleRows
-        );
+
+      // Priority: bundle rows (from /asset-bundles/public) are the ground truth for visibility.
+      // If we also have management rows, merge them to get contract/policy IDs.
+      // Fall back to management rows alone, then offer rows alone.
+      let rows;
+      if (bundleRows.length) {
+        const baseRows = managementRows.length
+          ? mergeCatalogOffersIntoAssetRows(managementRows, offerRows)
+          : offerRows;
+        rows = mergeProviderAssetBundleMetadataIntoCatalogRows(baseRows, bundleRows);
+        // If merge produced nothing (no overlap), just map bundle rows directly
+        if (!rows.length) {
+          rows = mapProviderAssetBundleMetadataToCatalogRows(bundleRows, normalizedConnector, address);
+        }
+      } else if (managementRows.length) {
+        rows = mergeCatalogOffersIntoAssetRows(managementRows, offerRows);
+      } else {
+        rows = offerRows;
       }
-      
+
       rows = enrichCatalogRowsWithAccessRequests(rows, accessRequests);
 
       const managementResponse = managementResult?.response || {};
       const catalogResponse = offersResult?.response || {};
+      const ok = (managementResponse?.status >= 200 && managementResponse?.status < 300)
+        || (catalogResponse?.status >= 200 && catalogResponse?.status < 300)
+        || bundleRows.length > 0;
       const response = {
-        status: (managementResponse?.status >= 200 && managementResponse?.status < 300) || (catalogResponse?.status >= 200 && catalogResponse?.status < 300) || (bundleRows.length > 0 ? 200 : 0)
-          ? 200
-          : (managementResponse?.status || catalogResponse?.status || 0),
+        status: ok ? 200 : (managementResponse?.status || catalogResponse?.status || 0),
         data: managementResponse?.data || catalogResponse?.data || null,
         assetEndpoint: managementResponse?.catalogEndpoint || 'provider-management-fallback',
         assetStatus: managementResponse?.status || 0,
