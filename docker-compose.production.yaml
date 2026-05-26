@@ -78,11 +78,11 @@ services:
       conectoruc3m:
         condition: service_started
     environment:
-      NEXT_PUBLIC_MANAGEMENT_API_URL: /conectoruc3m/api/management
+      NEXT_PUBLIC_MANAGEMENT_API_URL: /conectorFuenlabrada/api/management
       NEXT_PUBLIC_MANAGEMENT_API_AUTH_KEY: ${EDC_API_AUTH_KEY}
       NEXT_PUBLIC_CONNECTOR_NAME: conectoruc3m
-      NEXT_PUBLIC_DSP_URL: https://gis.eiteldata.eu/conectoruc3m/api/v1/dsp
-      NEXT_PUBLIC_CONNECTOR_DIRECTORY: '{"conectoruc3m":"https://gis.eiteldata.eu/conectoruc3m/api/v1/dsp","conectoruc3m":"https://gis.eiteldata.eu/conectorFuenlabrada/api/v1/dsp"}'
+      NEXT_PUBLIC_DSP_URL: https://gis.eiteldata.eu/conectorFuenlabrada/api/v1/dsp
+      NEXT_PUBLIC_CONNECTOR_DIRECTORY: '{"conectorFuenlabrada":"https://gis.eiteldata.eu/conectorFuenlabrada/api/v1/dsp","conectoruc3m":"https://gis.eiteldata.eu/conectoruc3m/api/v1/dsp"}'
       NEXT_PUBLIC_UI_VARIANT: production
       NEXT_PUBLIC_STAR_MODE: "false"
       NEXT_PUBLIC_ARCGIS_AUTH_ENABLED: ${ARCGIS_AUTH_ENABLED:-true}
