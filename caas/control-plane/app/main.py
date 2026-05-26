@@ -810,6 +810,7 @@ def list_access_requests(
     status: str | None = None,
     ownerEmail: str | None = None,
     requesterEmail: str | None = None,
+    requesterConnectorId: str | None = None,
 ):
     items = list(reversed(access_request_records))
 
@@ -829,6 +830,14 @@ def list_access_requests(
         target_requester_email = str(requesterEmail).strip().lower()
         items = [row for row in items if str(row.get('requesterEmail') or '').strip().lower() == target_requester_email]
 
+    if requesterConnectorId:
+        target_requester_connector_id = str(requesterConnectorId).strip().lower()
+        items = [
+            row
+            for row in items
+            if str(row.get('requesterConnectorId') or '').strip().lower() == target_requester_connector_id
+        ]
+
     return {'count': len(items), 'items': items}
 
 
@@ -842,6 +851,7 @@ async def create_access_request(request: Request):
     requester_name = str(payload.get('requesterName') or '').strip()
     requester_email = str(payload.get('requesterEmail') or '').strip()
     requester_org = str(payload.get('requesterOrg') or '').strip()
+    requester_connector_id = str(payload.get('requesterConnectorId') or '').strip()
     purpose = str(payload.get('purpose') or '').strip()
     owner_email = str(payload.get('ownerEmail') or '').strip()
 
@@ -854,6 +864,36 @@ async def create_access_request(request: Request):
     if not purpose:
         raise HTTPException(status_code=400, detail='purpose es obligatorio')
 
+    requester_key = requester_email.lower()
+    requester_connector_key = requester_connector_id.lower()
+    existing_active = next(
+        (
+            row
+            for row in reversed(access_request_records)
+            if str(row.get('assetId') or '').strip() == asset_id
+            and (
+                (
+                    requester_connector_key
+                    and str(row.get('requesterConnectorId') or '').strip().lower() == requester_connector_key
+                )
+                or (
+                    not requester_connector_key
+                    and str(row.get('requesterEmail') or '').strip().lower() == requester_key
+                )
+            )
+            and str(row.get('status') or '').strip().lower() in {'pending', 'approved'}
+        ),
+        None,
+    )
+    if existing_active:
+        return {
+            'ok': True,
+            'requestId': existing_active.get('requestId', ''),
+            'status': existing_active.get('status', ''),
+            'item': existing_active,
+            'duplicate': True,
+        }
+
     now_iso = datetime.now(UTC).isoformat()
     row = {
         'requestId': uuid4().hex,
@@ -862,6 +902,7 @@ async def create_access_request(request: Request):
         'ownerConnectorId': str(payload.get('ownerConnectorId') or '').strip(),
         'ownerEmail': owner_email,
         'status': 'pending',
+        'requesterConnectorId': requester_connector_id,
         'requesterName': requester_name,
         'requesterEmail': requester_email,
         'requesterOrg': requester_org,

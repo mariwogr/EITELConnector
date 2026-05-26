@@ -165,6 +165,8 @@
     }
 
     const getApiBaseUrl = () => {
+      const saved = normalizeManagementApiBaseUrl(settings.apiBaseUrl || '');
+      if (saved) return saved;
       const configured = normalizeManagementApiBaseUrl(cfg.managementApiUrl || '');
       if (configured) return configured;
       return buildSafeManagementApiBaseUrl();

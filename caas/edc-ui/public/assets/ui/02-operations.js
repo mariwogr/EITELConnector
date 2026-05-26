@@ -273,20 +273,20 @@ function summarizePolicyTerms(policyObj) {
     function getCatalogRowState(row) {
       const isOwn = sameConnectorId(row?.connectorId || row?.assigner || '', cfg?.connectorName || PROD_CONNECTOR_ID);
       if (isOwn) return 'own';
-      const accessStatus = String(row?.accessRequestStatus || '').trim().toLowerCase();
-      if (accessStatus === 'approved') return 'approved';
       const accessLevel = normalizeAccessLevel(row?.accessLevel || 'public');
       if (accessLevel === 'public') return 'public';
+      const accessStatus = String(row?.accessRequestStatus || '').trim().toLowerCase();
+      if (accessStatus === 'approved') return 'approved';
       return accessStatus === 'pending' ? 'pending' : 'no-access';
     }
 
     function catalogStateLabel(stateName) {
       const labels = {
         own: 'Asset propio',
-        public: 'Publico',
-        pending: 'Acceso solicitado',
-        'no-access': 'Sin acceso',
-        approved: 'Acceso concedido',
+        public: 'Disponible para todo el mundo',
+        pending: 'Solicitud pendiente',
+        'no-access': 'Sin solicitud',
+        approved: 'Disponible (solicitud anterior)',
       };
       return labels[stateName] || 'Catalogo';
     }
@@ -294,10 +294,10 @@ function summarizePolicyTerms(policyObj) {
     function catalogStateDescription(stateName) {
       const descriptions = {
         own: 'Assets publicados por este conector.',
-        'no-access': 'Assets privados de otros conectores que todavia requieren solicitud.',
+        'no-access': 'Assets privados de otros conectores sin solicitud activa de este consumidor.',
         pending: 'Solicitudes enviadas pendientes de aprobacion por el propietario.',
-        approved: 'Assets con acceso concedido; si tienen oferta activa se pueden contratar.',
-        public: 'Assets publicados como publicos por otros conectores.',
+        approved: 'Assets privados con solicitud aprobada anteriormente para este consumidor.',
+        public: 'Assets disponibles para cualquier consumidor sin solicitud previa.',
       };
       return descriptions[stateName] || '';
     }
@@ -318,8 +318,8 @@ function summarizePolicyTerms(policyObj) {
     function canPrepareCatalogContract(row) {
       if (!row) return false;
       if (sameConnectorId(row.connectorId || row.assigner || '', cfg?.connectorName || PROD_CONNECTOR_ID)) return false;
-      if (normalizeAccessLevel(row?.accessLevel || 'public') === 'private') return false;
       const stateName = getCatalogRowState(row);
+      if (normalizeAccessLevel(row?.accessLevel || 'public') === 'private' && stateName !== 'approved') return false;
       if (!(stateName === 'public' || stateName === 'approved')) return false;
       return true;
     }
@@ -356,9 +356,11 @@ function summarizePolicyTerms(policyObj) {
 
       if (normalizeAccessLevel(row.accessLevel || 'public') === 'private') {
         return {
-          canContract: false,
-          reason: 'Este asset es privado. Solo puede gestionarse mediante solicitud de acceso.',
-          nextStep: stateName === 'approved' ? 'Cuando el proveedor publique una oferta DSP valida, podras contratarlo.' : 'Solicita acceso al propietario.',
+          canContract: stateName === 'approved',
+          reason: stateName === 'approved'
+            ? 'Este asset privado tiene una solicitud anterior aprobada para este conector.'
+            : 'Este asset es privado. Solo puede gestionarse mediante solicitud de acceso.',
+          nextStep: stateName === 'approved' ? 'Selecciona el asset y pulsa Realizar contrato.' : 'Solicita acceso al propietario.',
         };
       }
 
@@ -606,6 +608,7 @@ function summarizePolicyTerms(policyObj) {
     const localTransferStorageKey = `eitel.ui.localTransfers.${connectorName}`;
     const hiddenTransferStorageKey = `eitel.ui.hiddenTransfers.${connectorName}`;
     const localAssetBundleStorageKey = `eitel.ui.assetBundles.${connectorName}`;
+    const accessRequesterStorageKey = `eitel.ui.accessRequester.${connectorName}`;
     const arcgisTokenExpiresStorageKey = 'eitel.arcgis.access_token_expires';
     const agreementSourceHints = new Map();
     let arcgisTokenUiTimer = null;
@@ -1384,7 +1387,6 @@ function summarizePolicyTerms(policyObj) {
             body: method === 'GET' || method === 'DELETE' ? undefined : body,
             signal: controller.signal,
           });
-          clearTimeout(timeout);
           let text = await res.text();
 
           // Some deployments return 502 on one connector-prefix variant; try alternates for catalog calls.
@@ -1446,10 +1448,12 @@ function summarizePolicyTerms(policyObj) {
           try { data = JSON.parse(text); } catch {}
           const result = { status: res.status, data, attempt };
           if (res.status >= 500 && attempt < effectiveRetries) {
+            clearTimeout(timeout);
             attempt++;
             await new Promise(resolve => setTimeout(resolve, 250 * attempt));
             continue;
           }
+          clearTimeout(timeout);
           return result;
         } catch (e) {
           clearTimeout(timeout);
@@ -1930,10 +1934,10 @@ function summarizePolicyTerms(policyObj) {
 
       const groups = [
         { key: 'own', title: 'Tus assets', rows: [] },
-        { key: 'no-access', title: 'Sin acceso todavia', rows: [] },
-        { key: 'pending', title: 'Acceso solicitado', rows: [] },
-        { key: 'approved', title: 'Acceso conseguido', rows: [] },
-        { key: 'public', title: 'Publicos', rows: [] },
+        { key: 'no-access', title: 'Sin solicitud', rows: [] },
+        { key: 'pending', title: 'Solicitud pendiente', rows: [] },
+        { key: 'approved', title: 'Disponibles por solicitud anterior', rows: [] },
+        { key: 'public', title: 'Disponibles para todo el mundo', rows: [] },
       ];
       const groupMap = new Map(groups.map(group => [group.key, group]));
       filtered.forEach(item => {
@@ -1954,15 +1958,17 @@ function summarizePolicyTerms(policyObj) {
         const isPrivate = normalizeAccessLevel(row.accessLevel || 'public') === 'private';
         const hasOffer = Boolean(row.offerId);
         const isOwn = stateName === 'own';
-        const canContract = canUseCatalogRow(row);
+        const canContract = canPrepareCatalogContract(row);
         const actionLabel = isOwn
           ? 'Asset propio'
-          : (stateName === 'no-access' ? 'Solicitar acceso' : 'Iniciar contratacion');
-        const actionOnClick = isOwn
-          ? `window.showCatalogAssetStatusByIndex(${idx})`
+          : (canContract
+            ? 'Iniciar contratacion'
+            : (stateName === 'no-access' ? 'Solicitarla' : 'Ver estado'));
+        const actionOnClick = canContract
+          ? `window.useCatalogAssetByIndex(${idx})`
           : (stateName === 'no-access'
             ? `window.openAccessRequestByIndex(${idx})`
-            : `window.useCatalogAssetByIndex(${idx})`);
+            : `window.showCatalogAssetStatusByIndex(${idx})`);
         const stateLabel = htmlEscape(catalogStateLabel(stateName));
         const media = `<div class="asset-card-media${defaultImageClass}"><img src="${htmlEscape(image)}" alt="Imagen del asset ${title}" /><span class="asset-card-badge">${connectorBadge}</span><span class="asset-state-badge">${stateLabel}</span><div class="asset-card-media-overlay"><span class="asset-card-media-title">${title}</span></div></div>`;
         const chips = keywords.length
@@ -2025,7 +2031,7 @@ function summarizePolicyTerms(policyObj) {
       const selectedState = selected ? getCatalogRowState(selected) : '';
       const availability = selected ? getCatalogContractAvailability(selected) : null;
       if (requestBtn) requestBtn.style.display = selected && canPrepareCatalogContract(selected) ? 'inline-flex' : 'none';
-      if (requestAccessBtn) requestAccessBtn.style.display = selected && !sameConnectorId(selected?.connectorId || selected?.assigner || '', cfg?.connectorName || PROD_CONNECTOR_ID) && normalizeAccessLevel(selected?.accessLevel || 'public') === 'private' ? 'inline-flex' : 'none';
+      if (requestAccessBtn) requestAccessBtn.style.display = selected && selectedState === 'no-access' ? 'inline-flex' : 'none';
       if (contractHint) {
         if (!selected) {
           contractHint.textContent = 'Selecciona un asset para preparar la contratación.';
@@ -2068,6 +2074,36 @@ function summarizePolicyTerms(policyObj) {
       return state.catalogRows[idx] || null;
     }
 
+    function getStoredAccessRequester() {
+      let parsed = {};
+      try {
+        const raw = localStorage.getItem(accessRequesterStorageKey);
+        parsed = raw ? JSON.parse(raw) : {};
+      } catch {
+        parsed = {};
+      }
+      const name = String(parsed?.name || authState?.username || '').trim();
+      const email = String(parsed?.email || '').trim();
+      const org = String(parsed?.org || '').trim();
+      return { name, email, org };
+    }
+
+    function saveStoredAccessRequester(payload = {}) {
+      const identity = {
+        name: String(payload.requesterName || payload.name || '').trim(),
+        email: String(payload.requesterEmail || payload.email || '').trim(),
+        org: String(payload.requesterOrg || payload.org || '').trim(),
+      };
+      if (!identity.name && !identity.email && !identity.org) return;
+      try { localStorage.setItem(accessRequesterStorageKey, JSON.stringify(identity)); } catch {}
+    }
+
+    function getCatalogRequesterEmail() {
+      const fromForm = String(document.getElementById('reqRequesterEmail')?.value || '').trim();
+      if (fromForm) return fromForm;
+      return getStoredAccessRequester().email;
+    }
+
     function closeAccessRequestModal() {
       const modal = document.getElementById('accessRequestModal');
       if (modal) modal.classList.remove('open');
@@ -2086,6 +2122,10 @@ function summarizePolicyTerms(policyObj) {
       setVal('reqAssetTitle', row.assetTitle || clean(row.assetId || ''));
       setVal('reqOwnerConnector', row.connectorId || row.assigner || '');
       setVal('reqOwnerEmail', row.ownerEmail || '');
+      const requester = getStoredAccessRequester();
+      setVal('reqRequesterName', requester.name || '');
+      setVal('reqRequesterEmail', requester.email || '');
+      setVal('reqRequesterOrg', requester.org || '');
       setVal('reqPurpose', '');
       setVal('reqDuration', '');
       setVal('reqMessage', '');
@@ -2138,6 +2178,7 @@ function summarizePolicyTerms(policyObj) {
         assetId: selected.assetId || '',
         assetTitle: selected.assetTitle || clean(selected.assetId || ''),
         ownerConnectorId: selected.connectorId || selected.assigner || '',
+        requesterConnectorId: canonicalConnectorPrefix(connectorName || cfg?.connectorName || PROD_CONNECTOR_ID),
         ownerEmail: String(document.getElementById('reqOwnerEmail')?.value || selected.ownerEmail || '').trim(),
         requesterName: String(document.getElementById('reqRequesterName')?.value || '').trim(),
         requesterEmail: String(document.getElementById('reqRequesterEmail')?.value || '').trim(),
@@ -2151,6 +2192,7 @@ function summarizePolicyTerms(policyObj) {
         writeOut({ status: 400, error: 'Completa nombre, email y finalidad para enviar la solicitud.' });
         return;
       }
+      saveStoredAccessRequester(payload);
 
       // POST to the provider's local-assets (cross-connector), not to own local-assets
       const dspAddress = selected.counterPartyAddress || '';
@@ -2181,6 +2223,26 @@ function summarizePolicyTerms(policyObj) {
       }
       writeOut(response);
       if (response.status >= 200 && response.status < 300) {
+        const item = response?.data?.item || {};
+        const requestStatus = String(item.status || response?.data?.status || 'pending').trim().toLowerCase();
+        const idx = state.catalogRows.findIndex(row =>
+          String(row?.assetId || '').trim() === String(selected.assetId || '').trim()
+          && String(row?.connectorId || row?.assigner || '').trim() === String(selected.connectorId || selected.assigner || '').trim()
+        );
+        if (idx >= 0) {
+          const selectedValue = document.getElementById('catalogAssetId')?.value || '';
+          state.catalogRows[idx] = {
+            ...state.catalogRows[idx],
+            accessRequestId: item.requestId || response?.data?.requestId || '',
+            accessRequestStatus: requestStatus,
+            accessRequest: item,
+          };
+          renderCatalogShowcase(state.catalogRows);
+          refreshCatalogAssetOptions();
+          const select = document.getElementById('catalogAssetId');
+          if (select) select.value = selectedValue;
+          syncCatalogSelectionState();
+        }
         closeAccessRequestModal();
         showInfoPopup('Solicitud enviada', {
           assetId: payload.assetId,
@@ -5417,16 +5479,23 @@ function summarizePolicyTerms(policyObj) {
     }
 
     function isCatalogRequestPath(path) {
-      return ['/v3/catalog/request'].includes(String(path || ''));
+      return ['/v3/catalog/request', '/v2/catalog/request', '/v2/catalog', '/v1/catalog/request', '/v1/catalog'].includes(String(path || ''));
     }
 
-    async function callCatalogRequest(body) {
+    async function callCatalogRequest(body, options = {}) {
       const payload = typeof body === 'string' ? body : JSON.stringify(body);
-      const endpoints = ['/v3/catalog/request'];
+      const endpoints = ['/v3/catalog/request', '/v2/catalog/request', '/v2/catalog', '/v1/catalog/request', '/v1/catalog'];
+      const timeoutMs = Number.isFinite(Number(options.timeoutMs)) ? Number(options.timeoutMs) : 15000;
+      const retries = Number.isFinite(Number(options.retries)) ? Number(options.retries) : 0;
       let lastResponse = null;
 
       for (const endpoint of endpoints) {
-        const response = await callApi('POST', endpoint, payload, { timeoutMs: 30000, retries: 0, noAutoBaseFallback: true });
+        const response = await callApi('POST', endpoint, payload, {
+          timeoutMs,
+          retries,
+          silent: Boolean(options.silent),
+          noAutoBaseFallback: options.noAutoBaseFallback !== false,
+        });
         response.catalogEndpoint = endpoint;
         if (![404, 405].includes(Number(response?.status))) return response;
         lastResponse = response;
@@ -5475,19 +5544,20 @@ function summarizePolicyTerms(policyObj) {
       let last = null;
       for (const base of bases) {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
         try {
           const res = await fetch(`${base}${path}`, {
             method,
-            signal: controller.signal,
             headers: {
               'x-api-key': getApiKey(),
               'content-type': 'application/json',
               ...(options.headers || {}),
             },
             body: method === 'GET' || method === 'DELETE' ? undefined : body,
+            credentials: 'include',
+            cache: 'no-store',
+            signal: controller.signal,
           });
-          clearTimeout(timer);
           const text = await res.text();
           let data = text;
           try { data = JSON.parse(text); } catch {}
@@ -5495,28 +5565,42 @@ function summarizePolicyTerms(policyObj) {
           if (res.status >= 200 && res.status < 300) return response;
           last = response;
         } catch (error) {
-          clearTimeout(timer);
           last = { status: 0, error: String(error), managementApiBase: base };
+        } finally {
+          clearTimeout(timeout);
         }
       }
       return last || { status: 0, error: 'No se pudo llamar al Management API del conector.' };
     }
 
-    async function fetchAccessRequestsForProviderAddress(address) {
+    async function fetchAccessRequestsForProviderAddress(address, options = {}) {
       const providerBase = deriveProviderLocalAssetsUrl(address);
       if (!providerBase) return [];
+      const requesterConnectorId = canonicalConnectorPrefix(options.requesterConnectorId || connectorName || cfg?.connectorName || PROD_CONNECTOR_ID);
+      const requesterEmail = String(options.requesterEmail || getCatalogRequesterEmail() || '').trim();
+      if (!requesterConnectorId && !requesterEmail) return [];
+      const timeoutMs = Number.isFinite(Number(options.timeoutMs)) ? Number(options.timeoutMs) : 5000;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
       try {
-        const res = await fetch(`${providerBase}/access-requests`, {
+        const params = new URLSearchParams();
+        if (requesterConnectorId) params.set('requesterConnectorId', requesterConnectorId);
+        if (!requesterConnectorId && requesterEmail) params.set('requesterEmail', requesterEmail);
+        const url = `${providerBase}/access-requests${params.toString() ? `?${params.toString()}` : ''}`;
+        const res = await fetch(url, {
           method: 'GET',
           headers: { 'accept': 'application/json' },
           credentials: 'include',
           cache: 'no-store',
+          signal: controller.signal,
         });
         if (!res.ok) return [];
         const data = await res.json();
         return Array.isArray(data?.items) ? data.items : [];
       } catch {
         return [];
+      } finally {
+        clearTimeout(timeout);
       }
     }
 
@@ -5613,10 +5697,12 @@ function summarizePolicyTerms(policyObj) {
         if (!assetId) return;
         const current = byAsset.get(assetId);
         const status = String(req?.status || '').trim().toLowerCase();
-        const rank = status === 'approved' ? 3 : status === 'pending' ? 2 : status === 'rejected' ? 1 : 0;
+        const rank = status === 'approved' ? 4 : status === 'pending' ? 3 : status === 'rejected' ? 2 : status === 'withdrawn' ? 1 : status === 'revoked' ? 1 : 0;
         const currentStatus = String(current?.status || '').trim().toLowerCase();
-        const currentRank = currentStatus === 'approved' ? 3 : currentStatus === 'pending' ? 2 : currentStatus === 'rejected' ? 1 : 0;
-        if (!current || rank >= currentRank) byAsset.set(assetId, req);
+        const currentRank = currentStatus === 'approved' ? 4 : currentStatus === 'pending' ? 3 : currentStatus === 'rejected' ? 2 : currentStatus === 'withdrawn' ? 1 : currentStatus === 'revoked' ? 1 : 0;
+        const updatedAt = Date.parse(req?.updatedAt || req?.decisionAt || req?.createdAt || '') || 0;
+        const currentUpdatedAt = Date.parse(current?.updatedAt || current?.decisionAt || current?.createdAt || '') || 0;
+        if (!current || updatedAt > currentUpdatedAt || (updatedAt === currentUpdatedAt && rank >= currentRank)) byAsset.set(assetId, req);
       });
 
       return rows.map(row => {
@@ -5649,9 +5735,9 @@ function summarizePolicyTerms(policyObj) {
           offerId: offerRow.offerId || assetRow.offerId || '',
           policyTarget: offerRow.policyTarget || assetRow.policyTarget || '',
           assigner: offerRow.assigner || assetRow.assigner || '',
-          accessLevel: offerRow.accessLevel || assetRow.accessLevel || 'public',
-          ownerEmail: offerRow.ownerEmail || assetRow.ownerEmail || '',
-          ownerName: offerRow.ownerName || assetRow.ownerName || '',
+          accessLevel: assetRow.accessLevel || offerRow.accessLevel || 'public',
+          ownerEmail: assetRow.ownerEmail || offerRow.ownerEmail || '',
+          ownerName: assetRow.ownerName || offerRow.ownerName || '',
           policySummary: offerRow.policySummary || assetRow.policySummary || '',
           policyRaw: offerRow.policyRaw || assetRow.policyRaw || null,
           sourceHintUrl: offerRow.sourceHintUrl || assetRow.sourceHintUrl || '',
@@ -5664,30 +5750,44 @@ function summarizePolicyTerms(policyObj) {
       });
     }
 
-    async function fetchRemoteCatalogOffers(connectorId, address) {
-      const counterPartyId = resolveCounterPartyId(connectorId, address);
-      const response = await callCatalogRequest({
-        '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
-        '@type': 'CatalogRequest',
-        counterPartyId,
-        counterPartyAddress: address,
-        protocol: 'dataspace-protocol-http:2025-1'
-      });
-      const rows = response?.status >= 200 && response?.status < 300
-        ? mapCatalogRowsFromResponse(response?.data || {}, connectorId, address)
-        : [];
-      return { response, rows, address };
+    async function fetchRemoteCatalogOffers(connectorId, address, options = {}) {
+      const candidates = getDspAddressCandidates(address);
+      const timeoutMs = Number.isFinite(Number(options.timeoutMs)) ? Number(options.timeoutMs) : 15000;
+      const retries = Number.isFinite(Number(options.retries)) ? Number(options.retries) : 0;
+      let best = null;
+
+      for (const candidateAddress of candidates) {
+        const counterPartyId = resolveCounterPartyId(connectorId, candidateAddress);
+        const response = await callCatalogRequest({
+          '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
+          '@type': 'CatalogRequest',
+          counterPartyId,
+          counterPartyAddress: candidateAddress,
+          protocol: 'dataspace-protocol-http:2025-1'
+        }, { timeoutMs, retries, silent: Boolean(options.silent) });
+        response.triedCounterPartyAddress = candidateAddress;
+        response.triedCounterPartyAddresses = candidates;
+        const rows = response?.status >= 200 && response?.status < 300
+          ? mapCatalogRowsFromResponse(response?.data || {}, connectorId, candidateAddress)
+          : [];
+        const result = { response, rows, address: candidateAddress };
+        if (response?.status >= 200 && response?.status < 300 && rows.length) return result;
+        if (response?.status >= 200 && response?.status < 300 && !best) best = result;
+        if (!best || Number(response?.status || 0) < Number(best.response?.status || 999)) best = result;
+      }
+
+      return best || { response: { status: 0, error: 'No se pudo consultar el catalogo DSP.', triedCounterPartyAddresses: candidates }, rows: [], address: candidates[0] || address };
     }
 
-    async function fetchRemoteCatalogRowsFromManagement(connectorId, address) {
+    async function fetchRemoteCatalogRowsFromManagement(connectorId, address, options = {}) {
+      const timeoutMs = Number.isFinite(Number(options.timeoutMs)) ? Number(options.timeoutMs) : 10000;
       const [assetsResp, contractsResp, policiesResp] = await Promise.all([
-        callConnectorManagementApi(connectorId, 'POST', '/v3/assets/request', q(), { silent: true }),
-        callConnectorManagementApi(connectorId, 'POST', '/v3/contractdefinitions/request', q(), { silent: true }),
-        callConnectorManagementApi(connectorId, 'POST', '/v3/policydefinitions/request', q(), { silent: true }),
+        callConnectorManagementApi(connectorId, 'POST', '/v3/assets/request', q(), { timeoutMs, silent: true }),
+        callConnectorManagementApi(connectorId, 'POST', '/v3/contractdefinitions/request', q(), { timeoutMs, silent: true }),
+        callConnectorManagementApi(connectorId, 'POST', '/v3/policydefinitions/request', q(), { timeoutMs, silent: true }),
       ]);
 
       const assets = mapPublishedAssetRows(unwrap(assetsResp));
-      const assetsById = new Map(assets.map(asset => [String(asset.id || '').trim(), asset]));
       const contractDefinitions = unwrap(contractsResp);
       const policyDefinitions = unwrap(policiesResp);
       const policyMap = new Map(policyDefinitions.map(policyDef => [String(policyDef?.['@id'] || policyDef?.id || '').trim(), policyDef]));
@@ -5855,12 +5955,14 @@ function summarizePolicyTerms(policyObj) {
       };
     }
 
-    async function fetchCatalogRowsForConnector(connectorId) {
+    async function fetchCatalogRowsForConnector(connectorId, options = {}) {
       const normalizedConnector = normalizeRemoteConnectorId(connectorId);
       const address = buildDspUrl(normalizedConnector);
       const currentCanonical = canonicalConnectorPrefix(cfg?.connectorName || '').toLowerCase();
       const targetCanonical = canonicalConnectorPrefix(normalizedConnector).toLowerCase();
       const isCurrentConnector = currentCanonical && targetCanonical && currentCanonical === targetCanonical;
+      const timeoutMs = Number.isFinite(Number(options.timeoutMs)) ? Number(options.timeoutMs) : 10000;
+      const catalogTimeoutMs = Number.isFinite(Number(options.catalogTimeoutMs)) ? Number(options.catalogTimeoutMs) : timeoutMs;
 
       if (isCurrentConnector) {
         // Use the management API to load the self-connector's catalog including contract/policy data.
@@ -5868,35 +5970,48 @@ function summarizePolicyTerms(policyObj) {
         // that catalog rows carry managementContractDefinitionId + managementPolicyRaw, which lets
         // resolveNegotiableCatalogOffer construct the correct composite offer ID without an extra
         // DSP round-trip (which would just fail again).
-        return await fetchRemoteCatalogRowsFromManagement(normalizedConnector, address);
+        return await fetchRemoteCatalogRowsFromManagement(normalizedConnector, address, { timeoutMs });
       }
 
-      const counterPartyId = resolveCounterPartyId(normalizedConnector, address);
-      // Use a short timeout: DSP consistently fails with 5xx (JSON-LD compaction crash).
-      // We fall back to the management API anyway, so no point waiting 15 s.
-      const response = await callApi('POST', '/v3/catalog/request', JSON.stringify({
-        '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
-        '@type': 'CatalogRequest',
-        counterPartyId,
-        counterPartyAddress: address,
-        protocol: 'dataspace-protocol-http:2025-1'
-      }), { noAutoBaseFallback: true, timeoutMs: 5000, retries: 0, silent: true });
-      response.catalogEndpoint = response?.catalogEndpoint || '/v3/catalog/request';
+      const [managementSettled, offersSettled, requestsSettled] = await Promise.allSettled([
+        fetchRemoteCatalogRowsFromManagement(normalizedConnector, address, { timeoutMs }),
+        fetchRemoteCatalogOffers(normalizedConnector, address, { timeoutMs: catalogTimeoutMs, retries: 0, silent: true }),
+        fetchAccessRequestsForProviderAddress(address, { timeoutMs: Math.min(timeoutMs, 5000) }),
+      ]);
 
-      // Fall back to the provider management API when:
-      //  - DSP returns a server error (5xx, e.g. JSON-LD compaction crash)
-      //  - DSP request timed out / network error (status === 0, AbortError)
-      if (response.status >= 500 || response.status === 0) {
-        return await fetchRemoteCatalogRowsFromManagement(normalizedConnector, address);
-      }
+      const managementResult = managementSettled.status === 'fulfilled'
+        ? managementSettled.value
+        : { response: { status: 0, error: String(managementSettled.reason || 'No se pudo consultar Management API del proveedor') }, rows: [], address };
+      const offersResult = offersSettled.status === 'fulfilled'
+        ? offersSettled.value
+        : { response: { status: 0, error: String(offersSettled.reason || 'No se pudo consultar catalogo DSP') }, rows: [], address };
+      const accessRequests = requestsSettled.status === 'fulfilled' && Array.isArray(requestsSettled.value)
+        ? requestsSettled.value
+        : [];
 
-      const rows = enrichCatalogRowsWithAccessRequests(
-        mapCatalogRowsFromResponse(response?.data || {}, normalizedConnector, address),
-        await fetchAccessRequestsForProviderAddress(address)
-      );
-      response.assetEndpoint = '';
-      response.catalogStatus = response?.status >= 200 && response?.status < 300 ? 'used' : 'error';
-      response.catalogOffers = rows.length;
+      const managementRows = Array.isArray(managementResult?.rows) ? managementResult.rows : [];
+      const offerRows = Array.isArray(offersResult?.rows) ? offersResult.rows : [];
+      let rows = managementRows.length ? mergeCatalogOffersIntoAssetRows(managementRows, offerRows) : offerRows;
+      rows = enrichCatalogRowsWithAccessRequests(rows, accessRequests);
+
+      const managementResponse = managementResult?.response || {};
+      const catalogResponse = offersResult?.response || {};
+      const response = {
+        status: (managementResponse?.status >= 200 && managementResponse?.status < 300) || (catalogResponse?.status >= 200 && catalogResponse?.status < 300)
+          ? 200
+          : (managementResponse?.status || catalogResponse?.status || 0),
+        data: managementResponse?.data || catalogResponse?.data || null,
+        assetEndpoint: managementResponse?.catalogEndpoint || 'provider-management-fallback',
+        assetStatus: managementResponse?.status || 0,
+        assetError: managementResponse?.error || managementResponse?.data?.detail || managementResponse?.data?.error || '',
+        catalogEndpoint: catalogResponse?.catalogEndpoint || '',
+        catalogStatus: catalogResponse?.status || 0,
+        catalogOffers: offerRows.length,
+        catalogError: catalogResponse?.error || catalogResponse?.data?.detail || catalogResponse?.data?.error || '',
+        managementApiBase: managementResponse?.managementApiBase || '',
+        accessRequests: accessRequests.length,
+      };
+      if (offersResult?.address) response.dspAddressUsed = offersResult.address;
       return { response, rows, connectorId: normalizedConnector, address };
     }
 
@@ -5982,6 +6097,7 @@ function summarizePolicyTerms(policyObj) {
     function normalizeRemoteConnectorId(connectorId) {
       const raw = String(connectorId || '').trim();
       if (!raw) return getDefaultRemoteConnector();
+      if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) return raw;
       const lower = raw.toLowerCase();
       if (lower === 'provider' || lower === 'consumer') return getDefaultRemoteConnector();
       return canonicalConnectorPrefix(raw);
@@ -6057,7 +6173,7 @@ function summarizePolicyTerms(policyObj) {
 
     async function loadCatalogs(showOutput = true) {
       const connectorId = (document.getElementById('searchConnectorId').value || getDefaultRemoteConnector()).trim() || getDefaultRemoteConnector();
-      const { response, rows, address } = await fetchCatalogRowsForConnector(connectorId);
+      const { response, rows, address } = await fetchCatalogRowsForConnector(connectorId, { timeoutMs: 10000, catalogTimeoutMs: 10000 });
       document.getElementById('resolvedAddress').value = address;
       document.getElementById('transferAddress').value = address;
       state.catalogRows = rows;
@@ -6074,14 +6190,38 @@ function summarizePolicyTerms(policyObj) {
       const connectors = parseConnectorCandidates({ includeSingle: false });
       const allRows = [];
       const connectorSummaries = [];
+      const renderCurrentRows = () => {
+        const dedupe = new Map();
+        allRows.forEach(row => {
+          const key = `${row.connectorId}::${row.assetId}::${row.offerId}`;
+          if (!dedupe.has(key)) dedupe.set(key, row);
+        });
+        state.catalogRows = [...dedupe.values()];
+        renderCatalogShowcase(state.catalogRows);
+        refreshCatalogAssetOptions();
+        syncCatalogSelectionState();
+      };
 
       try {
+        if (showOutput && document.getElementById('catalogShowcase')) {
+          document.getElementById('catalogShowcase').innerHTML = '<div class="card" style="box-shadow:none"><p class="muted" style="margin:0">Cargando catálogos...</p></div>';
+        }
 
-        const results = await Promise.all(connectors.map(id => fetchCatalogRowsForConnector(id)));
-        results.forEach((result, idx) => {
-          const connectorId = connectors[idx];
+        const tasks = connectors.map(async (connectorId) => {
+          let result;
+          try {
+            result = await fetchCatalogRowsForConnector(connectorId, { timeoutMs: 10000, catalogTimeoutMs: 10000, silent: true });
+          } catch (error) {
+            result = {
+              response: { status: 0, error: String(error || 'No se pudo consultar el conector.') },
+              rows: [],
+              connectorId,
+              address: buildDspUrl(connectorId),
+            };
+          }
           if (result?.response?.status >= 200 && result?.response?.status < 300) {
             allRows.push(...(result.rows || []));
+            renderCurrentRows();
           }
           connectorSummaries.push({
             connectorId,
@@ -6095,18 +6235,19 @@ function summarizePolicyTerms(policyObj) {
             assets: (result.rows || []).length,
             dspUrl: result?.address || ''
           });
+          return result;
         });
+        await Promise.allSettled(tasks);
 
-        const dedupe = new Map();
-        allRows.forEach(row => {
-          const key = `${row.connectorId}::${row.assetId}::${row.offerId}`;
-          if (!dedupe.has(key)) dedupe.set(key, row);
-        });
-        state.catalogRows = [...dedupe.values()];
-
-        renderCatalogShowcase(state.catalogRows);
-        refreshCatalogAssetOptions();
-        syncCatalogSelectionState();
+        renderCurrentRows();
+        if (!state.catalogRows.length) {
+          const localAssetsResp = await callApi('POST', '/v3/assets/request', q(), { silent: true, retries: 0 });
+          const localAssets = unwrap(localAssetsResp);
+          state.catalogRows = mapPublishedAssetsToCatalogVisualRows(localAssets);
+          renderCatalogShowcase(state.catalogRows);
+          refreshCatalogAssetOptions();
+          syncCatalogSelectionState();
+        }
 
         if (showOutput) {
           writeOut({
@@ -6116,8 +6257,8 @@ function summarizePolicyTerms(policyObj) {
             totalAssets: state.catalogRows.length,
           });
         }
+        state.catalogShowcaseLoaded = state.catalogRows.length > 0;
       } finally {
-        state.catalogShowcaseLoaded = true;
         state.catalogAutoRequestInFlight = false;
       }
     }
@@ -6226,13 +6367,13 @@ function summarizePolicyTerms(policyObj) {
       }
 
       const selectedState = getCatalogRowState(selected);
-      if (normalizeAccessLevel(selected.accessLevel || 'public') === 'private') {
+      if (normalizeAccessLevel(selected.accessLevel || 'public') === 'private' && selectedState !== 'approved') {
         openAccessRequestModalForRow(selected);
         if (actionBtn) {
           actionBtn.disabled = false;
           actionBtn.textContent = 'Realizar contrato';
         }
-        writeOut({ status: 403, error: 'Este asset es privado. Solo puede gestionarse mediante solicitud de acceso.' });
+        writeOut({ status: 403, error: 'Este asset es privado. Debes solicitar acceso al propietario.' });
         return;
       }
 
