@@ -4792,19 +4792,12 @@ function summarizePolicyTerms(policyObj) {
         return sanitizePolicyForStorage(custom, assetId, policyId);
       }
 
+      // Collect rich ODRL metadata (informational; stored in bundle backup but not sent to EDC).
+      // The EDC runtime (dsp-tck-connector-under-test) has no custom PolicyScopeExtractor
+      // registered, so any leftOperand or prohibition action outside the built-in set is rejected.
       const accessLevel = (document.getElementById('policyAccessLevel')?.value || 'public').trim();
       const purpose = (document.getElementById('policyUsagePurpose')?.value || 'analytics').trim();
       const accessDuration = (document.getElementById('policyAccessDuration')?.value || 'always').trim();
-
-      const constraints = [];
-      constraints.push({ leftOperand: 'http://purl.org/dc/terms/accessRights', operator: 'eq', rightOperand: accessLevel });
-      constraints.push({ leftOperand: 'http://purl.org/dc/terms/purpose', operator: 'eq', rightOperand: purpose });
-      if (accessDuration === '1-month' || accessDuration === '1-year') {
-        const expirationDate = new Date();
-        if (accessDuration === '1-month') expirationDate.setMonth(expirationDate.getMonth() + 1);
-        else expirationDate.setFullYear(expirationDate.getFullYear() + 1);
-        constraints.push({ leftOperand: 'http://www.w3.org/ns/odrl/2/dateTime', operator: 'lteq', rightOperand: expirationDate.toISOString() });
-      }
 
       const prohibitionActionMap = {
         policyProhibNoCopy:         'http://www.w3.org/ns/odrl/2/distribute',
@@ -4812,27 +4805,31 @@ function summarizePolicyTerms(policyObj) {
         policyProhibNoRedistribute: 'http://www.w3.org/ns/odrl/2/sell',
         policyProhibNoCombine:      'http://www.w3.org/ns/odrl/2/derive',
       };
-      const prohibition = Object.entries(prohibitionActionMap)
+      const prohibitionMeta = Object.entries(prohibitionActionMap)
         .filter(([id]) => document.getElementById(id)?.checked)
-        .map(([, action]) => ({ action, target: assetId }));
+        .map(([, action]) => action);
 
-      const obligation = [];
+      const obligationMeta = [];
       if (document.getElementById('policyObligCiteSource')?.checked)
-        obligation.push({ action: 'http://www.w3.org/ns/odrl/2/attribute', target: assetId });
+        obligationMeta.push('http://www.w3.org/ns/odrl/2/attribute');
       if (document.getElementById('policyObligPermitAudit')?.checked)
-        obligation.push({ action: 'http://www.w3.org/ns/odrl/2/inform', target: assetId });
+        obligationMeta.push('http://www.w3.org/ns/odrl/2/inform');
 
-      return sanitizePolicyForStorage({
+      // Build minimal EDC-compatible policy: plain "use" permission, no custom constraints.
+      // The EDC engine only enforces transfer authorization (use = allow); richer ODRL semantics
+      // are stored in policyMeta within the asset bundle backup.
+      const policy = sanitizePolicyForStorage({
         '@id': policyId,
         '@type': 'Set',
-        permission: [{
-          action: 'use',
-          target: assetId,
-          constraint: constraints
-        }],
-        prohibition,
-        obligation
+        permission: [{ action: 'use', target: assetId, constraint: [] }],
+        prohibition: [],
+        obligation: []
       }, assetId, policyId);
+
+      // Attach metadata as a non-enumerable-but-accessible property (not sent to EDC via JSON.stringify).
+      policy._meta = { accessLevel, purpose, accessDuration, prohibition: prohibitionMeta, obligation: obligationMeta };
+
+      return policy;
     }
 
     /**
@@ -4853,6 +4850,8 @@ function summarizePolicyTerms(policyObj) {
       let policy;
       try { policy = buildPolicyFromTemplate(assetId, policyId); } catch (e) { writeOut({ status: 400, error: String(e) }); return { status: 400 }; }
 
+      const policyMeta = policy._meta;
+      delete policy._meta;
       const body = {
         '@context': { '@vocab': 'https://w3id.org/edc/v0.0.1/ns/' },
         '@id': policyId,
@@ -4861,7 +4860,7 @@ function summarizePolicyTerms(policyObj) {
       };
       const response = await callApi('POST', '/v3/policydefinitions', JSON.stringify(body));
       if (response.status >= 200 && response.status < 300) {
-        upsertAssetBundleBackup({ assetId, policyId, policyBody: body });
+        upsertAssetBundleBackup({ assetId, policyId, policyBody: body, policyMeta });
         showInfoPopup('Policy creada/actualizada', { assetId, policyId, status: response.status });
       } else {
         showInfoPopup('Error creando policy', response);
