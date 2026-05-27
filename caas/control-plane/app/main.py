@@ -268,8 +268,17 @@ def _send_access_request_email(row: dict) -> dict:
     try:
         asset_label = str(row.get('assetTitle') or row.get('assetId') or '')
         subject = f'[EITEL] Nueva solicitud de acceso: {asset_label}'
-        ui_link = str(settings.connector_public_url or '').strip()
-        link_html = f'<p>Gestiona la solicitud en: <a href="{ui_link}">{ui_link}</a></p>' if ui_link else ''
+        _pub = str(settings.connector_public_url or '').strip()
+        assets_base = _pub.rsplit('/', 1)[0] + '/assets' if '/' in _pub else ''
+        footer_html = (
+            f'<hr style="border:none;border-top:1px solid #ddd;margin-top:24px"/>'
+            f'<table border="0" cellpadding="8" cellspacing="0" style="width:100%;margin-top:8px"><tr>'
+            f'<td align="center"><img src="{assets_base}/uc3m.png" alt="UC3M" style="height:44px"/></td>'
+            f'<td align="center"><img src="{assets_base}/financiado.png" alt="Financiado por la UE" style="height:44px"/></td>'
+            f'<td align="center"><img src="{assets_base}/gobierno.png" alt="Gobierno de España" style="height:44px"/></td>'
+            f'<td align="center"><img src="{assets_base}/planrecuperacion.png" alt="Plan de Recuperación" style="height:44px"/></td>'
+            f'</tr></table>'
+        ) if assets_base else ''
         body_html = f"""<html><body style="font-family:sans-serif;color:#222">
 <h2 style="color:#1a5276">Nueva solicitud de acceso a asset privado</h2>
 <table border="0" cellpadding="6" style="border-collapse:collapse;min-width:400px">
@@ -282,8 +291,7 @@ def _send_access_request_email(row: dict) -> dict:
   <tr><td><b>Fecha:</b></td><td>{row.get('createdAt', '')}</td></tr>
   <tr><td><b>ID solicitud:</b></td><td style="font-family:monospace">{row.get('requestId', '')}</td></tr>
 </table>
-{link_html}
-<p style="color:#888;font-size:11px">Mensaje generado automáticamente por el Conector EITEL.</p>
+{footer_html}
 </body></html>"""
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
@@ -320,12 +328,21 @@ def _send_decision_email(row: dict, decision: str) -> dict:
         decision_es = 'aprobada' if is_approved else 'rechazada'
         subject = f'[EITEL] Tu solicitud de acceso ha sido {decision_es}: {asset_label}'
         color = '#1e8449' if is_approved else '#c0392b'
-        ui_link = str(settings.connector_public_url or '').strip()
-        link_html = f'<p>Accede al conector en: <a href="{ui_link}">{ui_link}</a></p>' if ui_link else ''
         reason_row = (
             f'<tr><td><b>Motivo:</b></td><td>{row.get("decisionReason", "") or "-"}</td></tr>'
             if row.get('decisionReason') else ''
         )
+        _pub = str(settings.connector_public_url or '').strip()
+        assets_base = _pub.rsplit('/', 1)[0] + '/assets' if '/' in _pub else ''
+        footer_html = (
+            f'<hr style="border:none;border-top:1px solid #ddd;margin-top:24px"/>'
+            f'<table border="0" cellpadding="8" cellspacing="0" style="width:100%;margin-top:8px"><tr>'
+            f'<td align="center"><img src="{assets_base}/uc3m.png" alt="UC3M" style="height:44px"/></td>'
+            f'<td align="center"><img src="{assets_base}/financiado.png" alt="Financiado por la UE" style="height:44px"/></td>'
+            f'<td align="center"><img src="{assets_base}/gobierno.png" alt="Gobierno de España" style="height:44px"/></td>'
+            f'<td align="center"><img src="{assets_base}/planrecuperacion.png" alt="Plan de Recuperación" style="height:44px"/></td>'
+            f'</tr></table>'
+        ) if assets_base else ''
         body_html = f"""<html><body style="font-family:sans-serif;color:#222">
 <h2 style="color:{color}">Tu solicitud de acceso ha sido <b>{decision_es}</b></h2>
 <table border="0" cellpadding="6" style="border-collapse:collapse;min-width:400px">
@@ -338,8 +355,7 @@ def _send_decision_email(row: dict, decision: str) -> dict:
   <tr><td><b>Fecha de decisión:</b></td><td>{row.get('decisionAt', '')}</td></tr>
   <tr><td><b>ID solicitud:</b></td><td style="font-family:monospace">{row.get('requestId', '')}</td></tr>
 </table>
-{link_html}
-<p style="color:#888;font-size:11px">Mensaje generado automáticamente por el Conector EITEL.</p>
+{footer_html}
 </body></html>"""
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
