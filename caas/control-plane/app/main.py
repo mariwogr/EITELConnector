@@ -307,6 +307,62 @@ def _send_access_request_email(row: dict) -> dict:
         return {'sent': False, 'reason': 'send-failed', 'error': str(exc)}
 
 
+def _send_decision_email(row: dict, decision: str) -> dict:
+    """Send an email to the requester when their access request is approved or rejected."""
+    if not settings.smtp_host or not settings.smtp_from:
+        return {'sent': False, 'reason': 'smtp-not-configured'}
+    to_addr = str(row.get('requesterEmail') or '').strip()
+    if not to_addr:
+        return {'sent': False, 'reason': 'requester-email-missing'}
+    try:
+        asset_label = str(row.get('assetTitle') or row.get('assetId') or '')
+        is_approved = decision == 'approved'
+        decision_es = 'aprobada' if is_approved else 'rechazada'
+        subject = f'[EITEL] Tu solicitud de acceso ha sido {decision_es}: {asset_label}'
+        color = '#1e8449' if is_approved else '#c0392b'
+        ui_link = str(settings.connector_public_url or '').strip()
+        link_html = f'<p>Accede al conector en: <a href="{ui_link}">{ui_link}</a></p>' if ui_link else ''
+        reason_row = (
+            f'<tr><td><b>Motivo:</b></td><td>{row.get("decisionReason", "") or "-"}</td></tr>'
+            if row.get('decisionReason') else ''
+        )
+        body_html = f"""<html><body style="font-family:sans-serif;color:#222">
+<h2 style="color:{color}">Tu solicitud de acceso ha sido <b>{decision_es}</b></h2>
+<table border="0" cellpadding="6" style="border-collapse:collapse;min-width:400px">
+  <tr><td><b>Asset:</b></td><td>{asset_label}</td></tr>
+  <tr><td><b>Solicitante:</b></td><td>{row.get('requesterName', '')}</td></tr>
+  <tr><td><b>Organización:</b></td><td>{row.get('requesterOrg', '') or '-'}</td></tr>
+  <tr><td><b>Finalidad solicitada:</b></td><td>{row.get('purpose', '') or '-'}</td></tr>
+  <tr><td><b>Decisión:</b></td><td><b style="color:{color}">{decision_es.upper()}</b></td></tr>
+  {reason_row}
+  <tr><td><b>Fecha de decisión:</b></td><td>{row.get('decisionAt', '')}</td></tr>
+  <tr><td><b>ID solicitud:</b></td><td style="font-family:monospace">{row.get('requestId', '')}</td></tr>
+</table>
+{link_html}
+<p style="color:#888;font-size:11px">Mensaje generado automáticamente por el Conector EITEL.</p>
+</body></html>"""
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = settings.smtp_from
+        msg['To'] = to_addr
+        msg.attach(MIMEText(body_html, 'html', 'utf-8'))
+        if settings.smtp_use_tls:
+            smtp = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10)
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.ehlo()
+        else:
+            smtp = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=10)
+        if settings.smtp_user and settings.smtp_password:
+            smtp.login(settings.smtp_user, settings.smtp_password)
+        smtp.sendmail(settings.smtp_from, [to_addr], msg.as_string())
+        smtp.quit()
+        return {'sent': True, 'to': to_addr, 'from': settings.smtp_from}
+    except Exception as exc:
+        print(f'[WARN] Decision email notification failed: {exc}')
+        return {'sent': False, 'reason': 'send-failed', 'error': str(exc)}
+
+
 def _load_access_request_records() -> None:
     path = _access_request_index_path()
     try:
@@ -1085,8 +1141,9 @@ async def approve_access_request(request_id: str, request: Request):
     }
     access_request_records[idx] = updated
     _save_access_request_records()
+    email_notification = _send_decision_email(updated, 'approved')
 
-    return {'ok': True, 'requestId': target_request_id, 'status': updated['status'], 'item': updated}
+    return {'ok': True, 'requestId': target_request_id, 'status': updated['status'], 'item': updated, 'emailNotification': email_notification}
 
 
 @app.post('/v1/local-assets/access-requests/{request_id}/reject')
@@ -1118,8 +1175,9 @@ async def reject_access_request(request_id: str, request: Request):
     }
     access_request_records[idx] = updated
     _save_access_request_records()
+    email_notification = _send_decision_email(updated, 'rejected')
 
-    return {'ok': True, 'requestId': target_request_id, 'status': updated['status'], 'item': updated}
+    return {'ok': True, 'requestId': target_request_id, 'status': updated['status'], 'item': updated, 'emailNotification': email_notification}
 
 
 @app.post('/v1/local-assets/access-requests/{request_id}/withdraw')
