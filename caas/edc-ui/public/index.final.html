@@ -282,8 +282,8 @@
       <section class="panel" id="panel-policy">
         <div class="grid">
           <section class="card wide">
-            <h2>Definir política</h2>
-            <p class="muted">Define condiciones de uso con un formulario simple (sin términos técnicos) o pega JSON-LD si lo necesitas.</p>
+            <h2>Definir política de uso</h2>
+            <p class="muted">Define las condiciones de uso del dato según estándares ODRL / DCAT. El formulario genera la política automáticamente.</p>
             <div class="grid">
               <div><label>Asset ID</label><input id="policyAssetPreview" readonly /></div>
               <div><label>Policy ID</label><input id="policyIdMirror" readonly /></div>
@@ -297,77 +297,112 @@
                 </select>
               </div>
               <div>
-                <label>Nivel de acceso</label>
+                <div class="policy-section-label" style="margin-bottom:4px">
+                  <span class="policy-badge badge-access">Política de acceso</span>
+                  <span class="policy-ns">dct:accessRights</span>
+                </div>
                 <select id="policyAccessLevel">
-                  <option value="public">Publico</option>
+                  <option value="public">Público</option>
                   <option value="private">Privado (requiere solicitud)</option>
                   <option value="partners">Solo entidades colaboradoras</option>
                   <option value="internal">Uso interno del proyecto</option>
                 </select>
               </div>
             </div>
+
             <div id="policyFormBlock">
-              <div class="grid">
-                <div>
-                  <label>Finalidad de uso</label>
-                  <select id="policyUsagePurpose">
-                    <option value="analytics">Analitica e indicadores</option>
-                    <option value="operations">Operacion municipal</option>
-                    <option value="reporting">Informes oficiales</option>
-                    <option value="research">Investigacion e innovacion</option>
-                  </select>
+              <div class="policy-section">
+                <div class="policy-section-label">
+                  <span class="policy-badge badge-purpose">Finalidad de uso</span>
+                  <span class="policy-ns">dct:purpose</span>
                 </div>
-                <div>
-                  <label>Ambito geografico</label>
-                  <select id="policyGeography">
-                    <option value="local">Municipio</option>
-                    <option value="regional">Regional</option>
-                    <option value="national">Nacional</option>
-                    <option value="eu">Union Europea</option>
-                  </select>
+                <select id="policyUsagePurpose">
+                  <option value="analytics">Fines analíticos</option>
+                  <option value="analytics-public">Fines analíticos y divulgación</option>
+                  <option value="commercial">Fines comerciales</option>
+                  <option value="research">Investigación e innovación</option>
+                  <option value="local-processing">Procesamiento en entornos locales</option>
+                </select>
+              </div>
+
+              <div class="policy-section">
+                <div class="policy-section-label">
+                  <span class="policy-badge badge-time">Tiempo de acceso</span>
+                  <span class="policy-ns">odrl:dateTime</span>
+                </div>
+                <select id="policyAccessDuration">
+                  <option value="always" selected>Siempre / Indefinido</option>
+                  <option value="1-month">1 mes</option>
+                  <option value="1-year">1 año</option>
+                </select>
+              </div>
+
+              <div class="policy-section">
+                <div class="policy-section-label">
+                  <span class="policy-badge badge-prohib">Prohibiciones</span>
+                  <span class="policy-ns">odrl:prohibition</span>
+                </div>
+                <div class="policy-checks">
+                  <label class="check-row">
+                    <input type="checkbox" id="policyProhibNoCopy"/>
+                    <span>No redistribuir el dato</span>
+                  </label>
+                  <label class="check-row">
+                    <input type="checkbox" id="policyProhibNoIdentify"/>
+                    <span>No identificar a terceros sin autorización expresa del proveedor</span>
+                  </label>
+                  <label class="check-row">
+                    <input type="checkbox" id="policyProhibNoRedistribute"/>
+                    <span>No redistribuir los datos a terceros</span>
+                  </label>
+                  <label class="check-row">
+                    <input type="checkbox" id="policyProhibNoCombine"/>
+                    <span>No combinar los datos con otras fuentes si dicha combinación aumenta el riesgo de reidentificación</span>
+                  </label>
                 </div>
               </div>
-              <div class="grid">
-                <div>
-                  <label>Categoria del dato</label>
-                  <select id="policyDataCategory">
-                    <option value="energy">Energia</option>
-                    <option value="mobility">Movilidad</option>
-                    <option value="environment">Medio ambiente</option>
-                    <option value="other">Otra</option>
-                  </select>
+
+              <div class="policy-section">
+                <div class="policy-section-label">
+                  <span class="policy-badge badge-duty">Obligaciones</span>
+                  <span class="policy-ns">odrl:duty</span>
                 </div>
-                <div>
-                  <label>Uso comercial permitido</label>
-                  <select id="policyCommercialUse">
-                    <option value="no">No</option>
-                    <option value="yes">Si</option>
-                  </select>
+                <div class="policy-checks">
+                  <label class="check-row">
+                    <input type="checkbox" id="policyObligCiteSource"/>
+                    <span>Citar la fuente y respetar la licencia o términos definidos</span>
+                  </label>
+                  <label class="check-row">
+                    <input type="checkbox" id="policyObligPermitAudit"/>
+                    <span>Permitir auditoría del uso cuando el dataset sea restringido o confidencial</span>
+                  </label>
                 </div>
               </div>
-              <label>Fecha de expiracion de la política (opcional)</label>
-              <input id="policyExpiration" type="datetime-local" />
             </div>
+
             <div id="policyJsonBlock" style="display:none">
               <label>Policy JSON-LD</label>
               <textarea id="policyCustomJson" rows="8" placeholder='{"@context":"http://www.w3.org/ns/odrl.jsonld","@type":"http://www.w3.org/ns/odrl/2/Set","permission":[{"action":"use"}]}'></textarea>
             </div>
 
-            <div class="row" style="margin-top:8px">
+            <div class="row" style="margin-top:16px">
               <button class="primary" id="btnCreatePolicy">Crear/Actualizar policy</button>
               <button class="ghost" id="btnListPolicies">Listar policies</button>
               <button class="danger" id="btnDeletePolicy">Borrar policy</button>
-              <button class="ghost" id="btnGoContract">Continuar a Contrato</button>
+              <button class="ghost" id="btnGoContract">Continuar a Contrato →</button>
             </div>
           </section>
           <section class="card wide tutorial">
-            <h3>Mini tutorial</h3>
+            <h3>Política de uso ODRL/DCAT</h3>
             <ol>
-              <li>Selecciona acceso, finalidad, ambito y categoria del dato.</li>
-              <li>Si necesitas una fecha de fin, usa "Fecha de expiracion".</li>
-              <li>En modo JSON-LD, pega la policy final sin ejemplos de prueba.</li>
-              <li>Pulsa "Crear/Actualizar policy" y valida que queda asociada al asset.</li>
+              <li>Elige la <b>política de acceso</b>: público, privado, socios o interno.</li>
+              <li>Selecciona la <b>finalidad</b> principal con la que se usarán los datos.</li>
+              <li>Define el <b>tiempo de acceso</b> o deja "Siempre" para acceso indefinido.</li>
+              <li>Marca las <b>prohibiciones</b> que apliquen (redistribución, reidentificación…).</li>
+              <li>Marca las <b>obligaciones</b> si el consumidor debe citar la fuente o permitir auditoría.</li>
+              <li>Pulsa <b>Crear/Actualizar policy</b> y continúa a Contrato.</li>
             </ol>
+            <p class="muted" style="font-size:12px;margin-top:8px">La política se genera como ODRL Set con permisos, prohibiciones y obligaciones conforme a DCAT-AP y GAIA-X.</p>
           </section>
         </div>
       </section>

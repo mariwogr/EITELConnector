@@ -4794,23 +4794,33 @@ function summarizePolicyTerms(policyObj) {
 
       const accessLevel = (document.getElementById('policyAccessLevel')?.value || 'public').trim();
       const purpose = (document.getElementById('policyUsagePurpose')?.value || 'analytics').trim();
-      const geography = (document.getElementById('policyGeography')?.value || 'local').trim();
-      const dataCategory = (document.getElementById('policyDataCategory')?.value || 'energy').trim();
-      const commercialUse = (document.getElementById('policyCommercialUse')?.value || 'no').trim();
-      const expirationRaw = (document.getElementById('policyExpiration')?.value || '').trim();
-      let expirationIso = '';
-      if (expirationRaw) {
-        const parsedDate = new Date(expirationRaw);
-        if (!Number.isNaN(parsedDate.getTime())) expirationIso = parsedDate.toISOString();
-      }
+      const accessDuration = (document.getElementById('policyAccessDuration')?.value || 'always').trim();
 
       const constraints = [];
       constraints.push({ leftOperand: 'http://purl.org/dc/terms/accessRights', operator: 'eq', rightOperand: accessLevel });
       constraints.push({ leftOperand: 'http://purl.org/dc/terms/purpose', operator: 'eq', rightOperand: purpose });
-      constraints.push({ leftOperand: 'http://purl.org/dc/terms/spatial', operator: 'eq', rightOperand: geography });
-      constraints.push({ leftOperand: 'https://www.w3.org/ns/dcat#theme', operator: 'eq', rightOperand: dataCategory });
-      constraints.push({ leftOperand: 'https://w3id.org/eitel/ns/commercialUse', operator: 'eq', rightOperand: commercialUse });
-      if (expirationIso) constraints.push({ leftOperand: 'http://www.w3.org/ns/odrl/2/dateTime', operator: 'lteq', rightOperand: expirationIso });
+      if (accessDuration === '1-month' || accessDuration === '1-year') {
+        const expirationDate = new Date();
+        if (accessDuration === '1-month') expirationDate.setMonth(expirationDate.getMonth() + 1);
+        else expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+        constraints.push({ leftOperand: 'http://www.w3.org/ns/odrl/2/dateTime', operator: 'lteq', rightOperand: expirationDate.toISOString() });
+      }
+
+      const prohibitionActionMap = {
+        policyProhibNoCopy:         'http://www.w3.org/ns/odrl/2/distribute',
+        policyProhibNoIdentify:     'https://w3id.org/eitel/ns/identifyThirdParties',
+        policyProhibNoRedistribute: 'http://www.w3.org/ns/odrl/2/sell',
+        policyProhibNoCombine:      'http://www.w3.org/ns/odrl/2/derive',
+      };
+      const prohibition = Object.entries(prohibitionActionMap)
+        .filter(([id]) => document.getElementById(id)?.checked)
+        .map(([, action]) => ({ action, target: assetId }));
+
+      const obligation = [];
+      if (document.getElementById('policyObligCiteSource')?.checked)
+        obligation.push({ action: 'http://www.w3.org/ns/odrl/2/attribute', target: assetId });
+      if (document.getElementById('policyObligPermitAudit')?.checked)
+        obligation.push({ action: 'http://www.w3.org/ns/odrl/2/inform', target: assetId });
 
       return sanitizePolicyForStorage({
         '@id': policyId,
@@ -4820,8 +4830,8 @@ function summarizePolicyTerms(policyObj) {
           target: assetId,
           constraint: constraints
         }],
-        prohibition: [],
-        obligation: []
+        prohibition,
+        obligation
       }, assetId, policyId);
     }
 
