@@ -7,6 +7,7 @@ from mimetypes import guess_type
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
+import base64
 import json
 import shutil
 import smtplib
@@ -57,6 +58,41 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Load institutional logos as base64 at startup so emails embed them inline
+def _b64_png(name: str) -> str:
+    try:
+        return base64.b64encode(
+            (Path(__file__).parent / 'email_assets' / name).read_bytes()
+        ).decode()
+    except Exception:
+        return ''
+
+_LOGO_UC3M = _b64_png('uc3m.png')
+_LOGO_FINANCIADO = _b64_png('financiado.png')
+_LOGO_GOBIERNO = _b64_png('gobierno.png')
+_LOGO_PLANREC = _b64_png('planrecuperacion.png')
+
+
+def _email_footer_html() -> str:
+    items = [
+        (_LOGO_UC3M, 'UC3M'),
+        (_LOGO_FINANCIADO, 'Financiado por la UE'),
+        (_LOGO_GOBIERNO, 'Gobierno de España'),
+        (_LOGO_PLANREC, 'Plan de Recuperación'),
+    ]
+    cells = ''.join(
+        f'<td align="center"><img src="data:image/png;base64,{b64}" alt="{alt}" style="height:44px"/></td>'
+        if b64 else f'<td align="center" style="color:#888;font-size:11px">{alt}</td>'
+        for b64, alt in items
+    )
+    return (
+        '<hr style="border:none;border-top:1px solid #ddd;margin-top:24px"/>'
+        f'<table border="0" cellpadding="8" cellspacing="0" style="width:100%;margin-top:8px">'
+        f'<tr>{cells}</tr></table>'
+    )
+
+
 app = FastAPI(title='EITEL Connector CaaS Control Plane', version='0.2.0')
 
 app.add_middleware(
@@ -268,17 +304,7 @@ def _send_access_request_email(row: dict) -> dict:
     try:
         asset_label = str(row.get('assetTitle') or row.get('assetId') or '')
         subject = f'[EITEL] Nueva solicitud de acceso: {asset_label}'
-        _pub = str(settings.connector_public_url or '').strip()
-        assets_base = _pub.rsplit('/', 1)[0] + '/assets' if '/' in _pub else ''
-        footer_html = (
-            f'<hr style="border:none;border-top:1px solid #ddd;margin-top:24px"/>'
-            f'<table border="0" cellpadding="8" cellspacing="0" style="width:100%;margin-top:8px"><tr>'
-            f'<td align="center"><img src="{assets_base}/uc3m.png" alt="UC3M" style="height:44px"/></td>'
-            f'<td align="center"><img src="{assets_base}/financiado.png" alt="Financiado por la UE" style="height:44px"/></td>'
-            f'<td align="center"><img src="{assets_base}/gobierno.png" alt="Gobierno de España" style="height:44px"/></td>'
-            f'<td align="center"><img src="{assets_base}/planrecuperacion.png" alt="Plan de Recuperación" style="height:44px"/></td>'
-            f'</tr></table>'
-        ) if assets_base else ''
+        footer_html = _email_footer_html()
         body_html = f"""<html><body style="font-family:sans-serif;color:#222">
 <h2 style="color:#1a5276">Nueva solicitud de acceso a asset privado</h2>
 <table border="0" cellpadding="6" style="border-collapse:collapse;min-width:400px">
@@ -332,17 +358,7 @@ def _send_decision_email(row: dict, decision: str) -> dict:
             f'<tr><td><b>Motivo:</b></td><td>{row.get("decisionReason", "") or "-"}</td></tr>'
             if row.get('decisionReason') else ''
         )
-        _pub = str(settings.connector_public_url or '').strip()
-        assets_base = _pub.rsplit('/', 1)[0] + '/assets' if '/' in _pub else ''
-        footer_html = (
-            f'<hr style="border:none;border-top:1px solid #ddd;margin-top:24px"/>'
-            f'<table border="0" cellpadding="8" cellspacing="0" style="width:100%;margin-top:8px"><tr>'
-            f'<td align="center"><img src="{assets_base}/uc3m.png" alt="UC3M" style="height:44px"/></td>'
-            f'<td align="center"><img src="{assets_base}/financiado.png" alt="Financiado por la UE" style="height:44px"/></td>'
-            f'<td align="center"><img src="{assets_base}/gobierno.png" alt="Gobierno de España" style="height:44px"/></td>'
-            f'<td align="center"><img src="{assets_base}/planrecuperacion.png" alt="Plan de Recuperación" style="height:44px"/></td>'
-            f'</tr></table>'
-        ) if assets_base else ''
+        footer_html = _email_footer_html()
         body_html = f"""<html><body style="font-family:sans-serif;color:#222">
 <h2 style="color:{color}">Tu solicitud de acceso ha sido <b>{decision_es}</b></h2>
 <table border="0" cellpadding="6" style="border-collapse:collapse;min-width:400px">
