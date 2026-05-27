@@ -4857,7 +4857,7 @@ function summarizePolicyTerms(policyObj) {
         '@context': { '@vocab': 'https://w3id.org/edc/v0.0.1/ns/' },
         '@id': policyId,
         '@type': 'PolicyDefinition',
-        policy: sanitizePolicyForStorage(policy, assetId, policyId)
+        policy: Object.assign({ '@context': 'http://www.w3.org/ns/odrl.jsonld' }, policy)
       };
       const response = await callApi('POST', '/v3/policydefinitions', JSON.stringify(body));
       if (response.status >= 200 && response.status < 300) {
