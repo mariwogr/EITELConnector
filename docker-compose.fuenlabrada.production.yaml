@@ -109,13 +109,12 @@ services:
       CAAS_LOCAL_ASSETS_INTERNAL_BASE_URL: http://conectorfuenlabrada-local-assets:8081/v1/local-assets/files
       CAAS_LOCAL_ASSETS_PUBLIC_BASE_URL: https://gis.eiteldata.eu/conectorFuenlabrada/local-assets/files
       CAAS_CONNECTOR_PUBLIC_URL: https://gis.eiteldata.eu/conectorFuenlabrada/edc-ui
-      # SMTP: descomentar para activar notificaciones por email al owner cuando llega una solicitud
-      # CAAS_SMTP_HOST: smtp.example.com
-      # CAAS_SMTP_PORT: "587"
-      # CAAS_SMTP_USER: user@example.com
-      # CAAS_SMTP_PASSWORD: changeme
-      # CAAS_SMTP_FROM: conector-fuenlabrada@eiteldata.eu
-      # CAAS_SMTP_USE_TLS: "true"
+      CAAS_SMTP_HOST: ${CAAS_SMTP_HOST:-}
+      CAAS_SMTP_PORT: ${CAAS_SMTP_PORT:-587}
+      CAAS_SMTP_USER: ${CAAS_SMTP_USER:-}
+      CAAS_SMTP_PASSWORD: ${CAAS_SMTP_PASSWORD:-}
+      CAAS_SMTP_FROM: ${CAAS_SMTP_FROM:-EITEL Connector <no-reply@eiteldata.eu>}
+      CAAS_SMTP_USE_TLS: ${CAAS_SMTP_USE_TLS:-true}
     volumes:
       - conectorfuenlabrada_local_assets_data:/app/data/local-assets
     healthcheck:
