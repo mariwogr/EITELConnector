@@ -1,0 +1,23 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/did/v1"
+  ],
+  "id": "did:web:eiteldata.uc3m.es",
+  "verificationMethod": [
+    {
+      "@context": "https://w3c-ccg.github.io/lds-jws2020/contexts/v1/",
+      "id": "did:web:eiteldata.uc3m.es",
+      "type": "JsonWebKey2020",
+      "publicKeyJwk": {
+        "kty": "RSA",
+        "n": "34cKtm1Ehk6PtRh5m0lIAb1F20-Bt_69oyTYm04YDqpuQeeZfc8jnM-TPXj6IB8_1F4prJQL73bO7xSR_ir8ifgsTOq-1Bx9kD4ZCjb_AHoAcRxzYfqhJTUpaSgITzQGI4VbTznrbkY8BNoLpyCuunP1Rm6AMUlCPvsQ42k68kB3Xzs6VnucgmRXe4UcUQ8c-PJvhg1HhBN5Vdk1iQXv4ATCHCAE2swaAS-uuxygFwcL2e53HzoqG0R01u021l23Jm9PmPTY6h76BmgzQ3GgZuM2Jc7mjJmx0TCSFpkhE7bMdPWn70_ONYzhTvviCVWP-AL8y_r6FhYXqj4hX46ygw",
+        "e": "AQAB",
+        "alg": "PS256",
+        "x5u": "https://eiteldata.uc3m.es/.well-known/x5u.pem"
+      }
+    }
+  ],
+  "assertionMethod": [
+    "did:web:eiteldata.uc3m.es#X509-JWK2020"
+  ]
+}

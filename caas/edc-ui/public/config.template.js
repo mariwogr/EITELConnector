@@ -20,5 +20,6 @@ window.EITEL_UI_CONFIG = {
   arcgisClientId: "${NEXT_PUBLIC_ARCGIS_CLIENT_ID}",
   arcgisRedirectUri: "${NEXT_PUBLIC_ARCGIS_REDIRECT_URI}",
   arcgisRequiredOrgId: "${NEXT_PUBLIC_ARCGIS_REQUIRED_ORG_ID}",
-  arcgisRequiredGroupId: "${NEXT_PUBLIC_ARCGIS_REQUIRED_GROUP_ID}"
+  arcgisRequiredGroupId: "${NEXT_PUBLIC_ARCGIS_REQUIRED_GROUP_ID}",
+  gaiaXComplianceUrl: "${NEXT_PUBLIC_GAIAX_COMPLIANCE_URL}"
 };

@@ -2025,6 +2025,8 @@ function summarizePolicyTerms(policyObj) {
         const isOwn = stateName === 'own';
         const canContract = canPrepareCatalogContract(row);
         const assetIdForAction = JSON.stringify(String(row.assetId || ''));
+        const connectorIdForAction = JSON.stringify(String(row.connectorId || row.assigner || ''));
+        const gaiaxOnClick = `window.openGaiaXModal(${connectorIdForAction})`;
         const actionLabel = isOwn
           ? 'Modificar'
           : (canContract
@@ -2048,7 +2050,7 @@ function summarizePolicyTerms(policyObj) {
             ${media}
             <div class="asset-card-body">
               <div class="asset-card-title">${title}</div>
-              <div class="asset-card-meta">${connector}</div>
+              <div class="asset-card-meta"><button class="gaiax-id-btn" onclick="${htmlEscape(gaiaxOnClick)}">${connector} <span class="gaiax-pill">GAIA-X</span></button></div>
               <details>
                 <summary>Detalles</summary>
                 <div class="asset-card-desc">${desc}</div>
@@ -7645,4 +7647,112 @@ function summarizePolicyTerms(policyObj) {
         writeOut({ error: String(e) });
       }
     }
+
+    // ── GAIA-X Identity Modal ─────────────────────────────────────────────────
+
+    function getGaiaXWellKnownUrl(connectorId) {
+      const dspUrl = resolveConfiguredDspUrl(connectorId);
+      if (!dspUrl) return '';
+      const baseUrl = dspUrl.replace(/\/api\/.*$/, '');
+      return baseUrl ? baseUrl + '/.well-known/' : '';
+    }
+
+    let _gaiaxCredential = null;
+
+    async function openGaiaXModal(connectorId) {
+      const modal = document.getElementById('gaiaxModal');
+      const titleEl = document.getElementById('gaiaxModalTitle');
+      const didEl = document.getElementById('gaiaxModalDid');
+      const bodyEl = document.getElementById('gaiaxModalBody');
+      const resultEl = document.getElementById('gaiaxVerifyResult');
+      if (!modal) return;
+
+      _gaiaxCredential = null;
+      titleEl.textContent = `Identidad GAIA-X \u2014 ${prettyConnectorLabel(connectorId)}`;
+      didEl.textContent = 'Cargando\u2026';
+      bodyEl.innerHTML = '<p class="muted" style="padding:8px 0">Obteniendo credenciales\u2026</p>';
+      resultEl.style.display = 'none';
+      modal.classList.add('open');
+
+      const wellKnownUrl = getGaiaXWellKnownUrl(connectorId);
+      if (!wellKnownUrl) {
+        didEl.textContent = '\u2014';
+        bodyEl.innerHTML = '<p style="color:var(--danger);padding:8px 0">\u26a0 No se encontr\u00f3 URL de well-known para este conector. Comprueba connectorDirectory en config.js.</p>';
+        return;
+      }
+
+      const [didResult, vcResult] = await Promise.allSettled([
+        fetch(wellKnownUrl + 'did.json').then(r => r.ok ? r.json() : Promise.reject(r.status)),
+        fetch(wellKnownUrl + 'participant.json').then(r => r.ok ? r.json() : Promise.reject(r.status)),
+      ]);
+
+      const didDoc = didResult.status === 'fulfilled' ? didResult.value : null;
+      const participantVc = vcResult.status === 'fulfilled' ? vcResult.value : null;
+      _gaiaxCredential = participantVc || didDoc;
+
+      didEl.textContent = didDoc?.id || '\u2014';
+
+      let html = '';
+      html += '<div class="gaiax-section">';
+      html += `<div class="gaiax-section-label">DID Document <span class="gaiax-url">${htmlEscape(wellKnownUrl + 'did.json')}</span></div>`;
+      html += didDoc
+        ? `<pre class="gaiax-pre">${htmlEscape(JSON.stringify(didDoc, null, 2))}</pre>`
+        : `<p class="gaiax-placeholder">\u26a0 No encontrado (${htmlEscape(String(didResult.reason ?? 'error'))})</p>`;
+      html += '</div>';
+      html += '<div class="gaiax-section">';
+      html += `<div class="gaiax-section-label">Credencial del Participante <span class="gaiax-url">${htmlEscape(wellKnownUrl + 'participant.json')}</span></div>`;
+      html += participantVc
+        ? `<pre class="gaiax-pre">${htmlEscape(JSON.stringify(participantVc, null, 2))}</pre>`
+        : `<p class="gaiax-placeholder">\u26a0 No encontrado (${htmlEscape(String(vcResult.reason ?? 'error'))})</p>`;
+      html += '</div>';
+
+      bodyEl.innerHTML = html;
+    }
+
+    async function verifyGaiaXCredential() {
+      const resultEl = document.getElementById('gaiaxVerifyResult');
+      if (!resultEl) return;
+
+      const complianceUrl = String(window.EITEL_UI_CONFIG?.gaiaXComplianceUrl || '').trim();
+      if (!complianceUrl) {
+        resultEl.className = 'gaiax-verify-warn';
+        resultEl.textContent = '\u26a0 gaiaXComplianceUrl no configurado en config.js';
+        resultEl.style.display = 'inline';
+        return;
+      }
+      if (!_gaiaxCredential) {
+        resultEl.className = 'gaiax-verify-warn';
+        resultEl.textContent = '\u26a0 Sin credencial disponible para verificar';
+        resultEl.style.display = 'inline';
+        return;
+      }
+
+      resultEl.className = '';
+      resultEl.textContent = 'Verificando\u2026';
+      resultEl.style.display = 'inline';
+
+      try {
+        const resp = await fetch(complianceUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(_gaiaxCredential),
+        });
+        const text = await resp.text();
+        let parsed;
+        try { parsed = JSON.parse(text); } catch { parsed = text; }
+        if (resp.ok) {
+          resultEl.className = 'gaiax-verify-ok';
+          resultEl.textContent = '\u2705 ' + resp.status + ': ' + (typeof parsed === 'string' ? parsed : JSON.stringify(parsed));
+        } else {
+          resultEl.className = 'gaiax-verify-err';
+          resultEl.textContent = '\u2717 Error ' + resp.status + ': ' + (typeof parsed === 'string' ? parsed : JSON.stringify(parsed));
+        }
+      } catch (err) {
+        resultEl.className = 'gaiax-verify-err';
+        resultEl.textContent = '\u2717 Error de red: ' + String(err);
+      }
+    }
+
+    window.openGaiaXModal = openGaiaXModal;
+    window.verifyGaiaXCredential = verifyGaiaXCredential;
 

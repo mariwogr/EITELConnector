@@ -199,6 +199,13 @@
       };
       infoModal.onclick = (e) => { if (e.target === infoModal) closeInfoPopup(); };
 
+      const gaiaxModal = document.getElementById('gaiaxModal');
+      if (gaiaxModal) {
+        document.getElementById('btnCloseGaiax').onclick = () => gaiaxModal.classList.remove('open');
+        document.getElementById('btnVerifyGaiax').onclick = () => { if (typeof verifyGaiaXCredential === 'function') verifyGaiaXCredential(); };
+        gaiaxModal.onclick = (e) => { if (e.target === gaiaxModal) gaiaxModal.classList.remove('open'); };
+      }
+
       const autoApply = () => {
         settings.language = document.getElementById('setLanguage').value;
         settings.theme = document.getElementById('setTheme').value;
