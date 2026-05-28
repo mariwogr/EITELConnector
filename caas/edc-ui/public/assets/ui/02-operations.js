@@ -4856,7 +4856,14 @@ function summarizePolicyTerms(policyObj) {
         '@context': { '@vocab': 'https://w3id.org/edc/v0.0.1/ns/' },
         '@id': policyId,
         '@type': 'PolicyDefinition',
-        policy: Object.assign({ '@context': 'http://www.w3.org/ns/odrl.jsonld' }, policy)
+        policy: Object.assign({ '@context': 'http://www.w3.org/ns/odrl.jsonld' }, policy),
+        privateProperties: {
+          'eitel:accessLevel':    policyMeta?.accessLevel    || '',
+          'eitel:purpose':        policyMeta?.purpose        || '',
+          'eitel:accessDuration': policyMeta?.accessDuration || 'always',
+          'eitel:prohibition':    JSON.stringify(policyMeta?.prohibition  || []),
+          'eitel:obligation':     JSON.stringify(policyMeta?.obligation   || []),
+        }
       };
       const response = await callApi('POST', '/v3/policydefinitions', JSON.stringify(body));
       if (response.status >= 200 && response.status < 300) {
