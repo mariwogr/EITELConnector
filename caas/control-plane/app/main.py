@@ -949,10 +949,14 @@ def _public_asset_bundle_metadata(row: dict) -> dict:
         props = {}
     policy_body = row.get('policyBody') if isinstance(row.get('policyBody'), dict) else {}
     policy = policy_body.get('policy') or policy_body.get('edc:policy') or {}
+    private_props = policy_body.get('privateProperties') if isinstance(policy_body.get('privateProperties'), dict) else {}
+    policy_meta = row.get('policyMeta') if isinstance(row.get('policyMeta'), dict) else {}
     contract_body = row.get('contractBody') if isinstance(row.get('contractBody'), dict) else {}
-    
+
     # Combine visibility from multiple sources: if any is private, result is private
     visibility = _combine_visibility(
+        policy_meta.get('accessLevel', ''),
+        private_props.get('eitel:accessLevel', ''),
         row.get('visibility'),
         props.get('eitel:visibility'),
         props.get('dct:accessRights'),

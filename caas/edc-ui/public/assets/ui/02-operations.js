@@ -2505,7 +2505,10 @@ function summarizePolicyTerms(policyObj) {
     function resolvePublicationAccessLevel(row = {}, bundle = null) {
       const assetProps = bundle?.assetBody?.properties || bundle?.assetBody?.['edc:properties'] || {};
       const policy = bundle?.policyBody?.policy || bundle?.policyBody?.['edc:policy'] || null;
+      const privateProps = bundle?.policyBody?.privateProperties || {};
       return combineAccessLevels(
+        bundle?.policyMeta?.accessLevel,
+        privateProps?.['eitel:accessLevel'],
         policy?.['dct:accessRights'],
         extractAccessLevelFromPolicy(policy),
         assetProps?.['eitel:visibility'],
