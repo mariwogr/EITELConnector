@@ -1003,7 +1003,9 @@ async def upsert_asset_bundle(request: Request):
     }
     idx = next((i for i, item in enumerate(asset_bundle_records) if str(item.get('assetId') or '') == asset_id), -1)
     if idx >= 0:
-        asset_bundle_records[idx] = row
+        merged = dict(asset_bundle_records[idx])
+        merged.update(row)
+        asset_bundle_records[idx] = merged
     else:
         asset_bundle_records.append(row)
         if len(asset_bundle_records) > MAX_ASSET_BUNDLE_RECORDS:

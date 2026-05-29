@@ -7662,10 +7662,10 @@ function summarizePolicyTerms(policyObj) {
 
     function getGaiaXComplianceUrl(connectorId) {
       const id = String(connectorId || '').toLowerCase();
-      const isFuenla = id.includes('fuenlabrada') || id.includes('fuenla');
-      const prefix = isFuenla ? 'conectorFuenlabrada' : 'conectoruc3m';
-      const filename = isFuenla ? 'vp-FUENLAcompliance.json' : 'vp-UC3Mcompliance.json';
-      return `${window.location.origin}/${prefix}/.well-known/${filename}`;
+      if (id.includes('fuenlabrada') || id.includes('fuenla')) {
+        return 'https://eiteldata.uc3m.es/.well-known/vp-FUENLAcompliance.json';
+      }
+      return 'https://eiteldata.uc3m.es/.well-known/vp-UC3Mcompliance.json';
     }
 
     async function openGaiaXModal(connectorId) {
