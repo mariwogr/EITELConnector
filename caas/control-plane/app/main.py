@@ -12,8 +12,9 @@ import json
 import shutil
 import smtplib
 
+import urllib.request
 import yaml
-from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -977,6 +978,23 @@ def _public_asset_bundle_metadata(row: dict) -> dict:
         'contractDefId': str(row.get('contractDefId') or contract_body.get('@id') or '').strip(),
         'updatedAt': str(row.get('updatedAt') or '').strip(),
     }
+
+
+@app.get('/v1/local-assets/gaiax-credential')
+def get_gaiax_credential(connector_id: str = Query('')):
+    """Server-side proxy for GAIA-X VP credentials to avoid browser CORS restrictions."""
+    cid = connector_id.lower()
+    if 'fuenlabrada' in cid or 'fuenla' in cid:
+        url = 'https://eiteldata.uc3m.es/.well-known/vp-FUENLAcompliance.json'
+    else:
+        url = 'https://eiteldata.uc3m.es/.well-known/vp-UC3Mcompliance.json'
+    try:
+        req = urllib.request.Request(url, headers={'Accept': 'application/json', 'User-Agent': 'EITEL-Connector/1.0'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+        return data
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f'Error fetching GAIA-X credential: {exc}')
 
 
 @app.get('/v1/local-assets/asset-bundles/public')

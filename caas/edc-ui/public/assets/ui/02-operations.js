@@ -7688,9 +7688,13 @@ function summarizePolicyTerms(policyObj) {
       const credUrl = getGaiaXComplianceUrl(connectorId);
       let vpData = null;
       try {
-        const res = await fetch(credUrl);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        vpData = await res.json();
+        // Proxy through the control-plane to avoid CORS (eiteldata.uc3m.es → gis.eiteldata.eu)
+        const proxyResp = await callLocalAssetsApi('GET', `/gaiax-credential?connector_id=${encodeURIComponent(connectorId)}`);
+        if (proxyResp.status >= 200 && proxyResp.status < 300 && proxyResp.data && typeof proxyResp.data === 'object') {
+          vpData = proxyResp.data;
+        } else {
+          throw new Error(`HTTP ${proxyResp.status}`);
+        }
       } catch (err) {
         if (didEl) didEl.textContent = '\u2014';
         if (bodyEl) bodyEl.innerHTML = `<p style="color:var(--danger);padding:8px 0">\u26a0 Error al cargar credencial: ${htmlEscape(String(err))}</p>`;
