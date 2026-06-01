@@ -2359,6 +2359,10 @@ function summarizePolicyTerms(policyObj) {
             ? 'background:#d4edda;color:#155724;padding:2px 7px;border-radius:4px;font-size:12px'
             : 'background:#f8d7da;color:#721c24;padding:2px 7px;border-radius:4px;font-size:12px';
         const date = req.createdAt ? new Date(req.createdAt).toLocaleDateString('es-ES') : '-';
+        const gaiaxConnId = JSON.stringify(String(req.requesterConnectorId || ''));
+        const gaiaxBtn = req.requesterConnectorId
+          ? `<button class="gaiax-id-btn" style="font-size:11px;padding:1px 6px;margin-top:3px" onclick="window.openGaiaXModal(${htmlEscape(gaiaxConnId)})">GAIA-X <span class="gaiax-pill" style="font-size:10px">✓</span></button>`
+          : '';
         const actions = status === 'pending'
           ? `<button class="primary" style="font-size:12px;padding:3px 10px" onclick="window.approveAccessRequest('${htmlEscape(req.requestId)}')">Aprobar</button>
              <button class="ghost" style="font-size:12px;padding:3px 10px;margin-left:4px" onclick="window.rejectAccessRequest('${htmlEscape(req.requestId)}')">Rechazar</button>
@@ -2375,7 +2379,7 @@ function summarizePolicyTerms(policyObj) {
           : htmlEscape(purposeFull);
         return `<tr>
           <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${htmlEscape(req.assetId || '')}">${htmlEscape(req.assetTitle || req.assetId || '-')}</td>
-          <td>${htmlEscape(req.requesterName || '-')}<br><span class="muted" style="font-size:11px">${htmlEscape(req.requesterEmail || '')}</span></td>
+          <td>${htmlEscape(req.requesterName || '-')}<br><span class="muted" style="font-size:11px">${htmlEscape(req.requesterEmail || '')}</span>${gaiaxBtn ? '<br>' + gaiaxBtn : ''}</td>
           <td>${htmlEscape(req.requesterOrg || '-')}</td>
           <td style="max-width:220px">${purposeCell}</td>
           <td style="white-space:nowrap">${date}</td>
