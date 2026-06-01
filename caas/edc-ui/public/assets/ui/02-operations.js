@@ -7730,10 +7730,10 @@ function summarizePolicyTerms(policyObj) {
           badgeEl.textContent = '\u26a0 No se encontr\u00f3 conector:id en la credencial';
         } else if (isCompliant) {
           badgeEl.className = 'gaiax-verify-ok';
-          badgeEl.textContent = '\u2705 Participante GAIA-X Compliant \u2014 conector:id coincide con la URL del conector';
+          badgeEl.textContent = '\u2705 Participante GAIA-X Compliant';
         } else {
           badgeEl.className = 'gaiax-verify-err';
-          badgeEl.textContent = '\u2717 NO COMPLIANT \u2014 conector:id (' + connectorIds.join(', ') + ') no coincide con ' + (dspUrl || '(URL no configurada)');
+          badgeEl.textContent = '\u2717 NO COMPLIANT';
         }
       }
 
