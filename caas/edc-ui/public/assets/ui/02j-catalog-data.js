@@ -1,8 +1,12 @@
-﻿// ============================================================
-// Catalog row mapping + DSP URL resolution
-// Lines 5550-6463 of the original 02-operations.js
-// ============================================================
-
+﻿    function mapCatalogRowsFromResponse(root, connectorId, address) {
+      const datasets = root?.['dcat:dataset'] || root?.dataset || [];
+      const list = Array.isArray(datasets) ? datasets : [datasets];
+      const rows = list.flatMap(d => {
+        const policiesRaw = d?.['odrl:hasPolicy'] || d?.hasPolicy || [];
+        const policies = Array.isArray(policiesRaw) ? policiesRaw : [policiesRaw];
+        const datasetId = d?.['@id'] || d?.id || '';
+        const sourceHintUrl = pickBestSourceUrl(collectUrlCandidatesFromObject(d));
+        const meta = extractDatasetMetadata(d);
 
         return policies.map(pol => {
           const permsRaw = pol?.['odrl:permission'] || pol?.permission || [];

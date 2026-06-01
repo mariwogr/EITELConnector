@@ -1,8 +1,10 @@
-﻿// ============================================================
-// UI panels: i18n, settings, catalog showcase, access request modal
-// Lines 1615-2452 of the original 02-operations.js
-// ============================================================
-
+﻿    /**
+     * Applies i18n translation overrides from configuration.
+     * Merges config language pack into main i18n dictionary.
+     * 
+     * @example
+     * applyI18n(); // Applies any cfg.languagePack overrides
+     */
     function applyI18n() {
       document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
       document.getElementById('brandTitle').textContent = settings.language === 'en' ? 'EITEL Connector' : 'Conector EITEL';

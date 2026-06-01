@@ -1,9 +1,4 @@
-﻿// ============================================================
-// Module state variables + transfer storage
-// Lines 671-953 of the original 02-operations.js
-// ============================================================
-
-    let transferStartInFlight = false;
+﻿    let transferStartInFlight = false;
     const _remoteLocalDownloadInFlightByContract = new Set();
     const localTransferStorageKey = `eitel.ui.localTransfers.${connectorName}`;
     const hiddenTransferStorageKey = `eitel.ui.hiddenTransfers.${connectorName}`;
@@ -276,13 +271,3 @@
       return `/${fallback}/`;
     }
 
-    /**
-     * Gets the base URL for local assets API from configuration.
-     * Constructs URL using current window origin and connector prefix.
-     * 
-     * @returns {string} Base URL for local assets API
-     * 
-     * @example
-     * const baseUrl = getLocalAssetsApiBaseUrl();
-     * // Returns: 'http://localhost:3000/conectoruc3m/local-assets'
-     */

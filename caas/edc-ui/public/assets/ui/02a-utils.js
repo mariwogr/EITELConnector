@@ -1,9 +1,4 @@
-﻿// ============================================================
-// Policy utilities + common utilities
-// Lines 1-670 of the original 02-operations.js
-// ============================================================
-
-/**
+﻿/**
  * Summarizes policy terms from an ODRL policy object.
  * Extracts constraints from permissions and formats them as a readable string.
  * 

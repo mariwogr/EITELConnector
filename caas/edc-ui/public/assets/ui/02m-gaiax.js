@@ -1,9 +1,4 @@
-﻿// ============================================================
-// GAIA-X identity modal
-// Lines 7670-7756 of the original 02-operations.js
-// ============================================================
-
-    function getGaiaXComplianceUrl(connectorId) {
+﻿    function getGaiaXComplianceUrl(connectorId) {
       const id = String(connectorId || '').toLowerCase();
       if (id.includes('fuenlabrada') || id.includes('fuenla')) {
         return 'https://eiteldata.uc3m.es/.well-known/vp-FUENLAcompliance.json';

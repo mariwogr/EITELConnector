@@ -1,9 +1,4 @@
-﻿// ============================================================
-// Contract negotiation + agreement listing
-// Lines 6464-7013 of the original 02-operations.js
-// ============================================================
-
-    function resolveCounterPartyId(connectorId, address) {
+﻿    function resolveCounterPartyId(connectorId, address) {
       const raw = String(connectorId || '').trim();
       if (raw && !raw.startsWith('http://') && !raw.startsWith('https://') && !raw.startsWith('/')) return raw;
       try {

@@ -1,9 +1,4 @@
-﻿// ============================================================
-// Data transfer operations
-// Lines 7014-7669 of the original 02-operations.js
-// ============================================================
-
-    async function startTransfer() {
+﻿    async function startTransfer() {
       if (transferStartInFlight) {
         writeOut({ status: 409, error: 'Ya hay una transferencia iniciándose. Espera unos segundos.' });
         return;

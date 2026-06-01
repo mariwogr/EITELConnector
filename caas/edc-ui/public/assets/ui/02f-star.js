@@ -1,7 +1,34 @@
-﻿// ============================================================
-// Star federated mode + auth helpers
-// Lines 2795-3539 of the original 02-operations.js
-// ============================================================
+﻿    const starTrustEnabled = ['1', 'true', 'yes', 'on'].includes(String(cfg.starMode || (String(connectorName || '').toLowerCase().includes('star') ? 'true' : '')).toLowerCase());
+    const starTrustConfig = {
+      enabled: starTrustEnabled,
+      coordinatorName: String(cfg.starCoordinatorName || 'UC3M Coordinador EITEL').trim(),
+      coordinatorUrl: String(cfg.starCoordinatorUrl || '').trim(),
+      coordinatorStatusUrl: String(cfg.starCoordinatorStatusUrl || '').trim(),
+      didMethod: String(cfg.starDidMethod || 'did:key').trim(),
+      participantDid: String(cfg.starParticipantDid || '').trim(),
+      vcPresent: ['1', 'true', 'yes', 'on'].includes(String(cfg.starVcPresent || '').toLowerCase()),
+      vcIssuer: String(cfg.starVcIssuer || 'UC3M').trim(),
+    };
+    const starTrustState = {
+      handshakeState: 'idle',
+      handshakeDetail: '',
+      transferState: 'idle',
+      transferDetail: '',
+      lastCounterParty: '',
+      lastAssetId: '',
+      lastAgreementId: '',
+      lastTransferId: '',
+      timeline: [],
+    };
+    const starTrustRemote = {
+      loading: false,
+      lastLoadedAt: 0,
+      snapshot: null,
+      participants: {},
+      participantErrors: {},
+      error: '',
+      lastSuccessSignature: '',
+    };
 
     function escapeStarHtml(value) {
       return String(value || '')

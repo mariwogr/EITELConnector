@@ -1,9 +1,4 @@
-﻿// ============================================================
-// ArcGIS metadata upload envelope + auth form
-// Lines 4036-4798 of the original 02-operations.js
-// ============================================================
-
-    function buildArcgisMetadataEnvelope({
+﻿    function buildArcgisMetadataEnvelope({
       manualTitle,
       manualTags,
       manualDescription,

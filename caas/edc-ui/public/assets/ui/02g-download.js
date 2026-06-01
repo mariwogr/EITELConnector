@@ -1,9 +1,4 @@
-﻿// ============================================================
-// Download helpers + connector URL utilities
-// Lines 3540-4035 of the original 02-operations.js
-// ============================================================
-
-    function guessFileExtension(contentType, fallback = 'json') {
+﻿    function guessFileExtension(contentType, fallback = 'json') {
       const lower = String(contentType || '').toLowerCase();
       if (lower.includes('application/json')) return 'json';
       if (lower.includes('geo+json')) return 'geojson';

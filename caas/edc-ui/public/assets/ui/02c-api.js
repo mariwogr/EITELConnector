@@ -1,8 +1,13 @@
-﻿// ============================================================
-// API layer: callApi + callLocalAssetsApi + ArcGIS token
-// Lines 954-1614 of the original 02-operations.js
-// ============================================================
-
+﻿    /**
+     * Gets the base URL for local assets API from configuration.
+     * Constructs URL using current window origin and connector prefix.
+     * 
+     * @returns {string} Base URL for local assets API
+     * 
+     * @example
+     * const baseUrl = getLocalAssetsApiBaseUrl();
+     * // Returns: 'http://localhost:3000/conectoruc3m/local-assets'
+     */
     function getLocalAssetsApiBaseUrl() {
       const prefix = getUiPrefixPath().replace(/\/+$/, '');
       return `${window.location.origin}${prefix}/local-assets`;
@@ -657,10 +662,3 @@
       return failure;
     }
 
-    /**
-     * Applies i18n translation overrides from configuration.
-     * Merges config language pack into main i18n dictionary.
-     * 
-     * @example
-     * applyI18n(); // Applies any cfg.languagePack overrides
-     */

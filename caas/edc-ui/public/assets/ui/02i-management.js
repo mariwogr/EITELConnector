@@ -1,9 +1,4 @@
-﻿// ============================================================
-// Management API: asset/policy/contract CRUD
-// Lines 4799-5549 of the original 02-operations.js
-// ============================================================
-
-    function parseJsonSafe(text, fallback = null) {
+﻿    function parseJsonSafe(text, fallback = null) {
       try { return JSON.parse(text); } catch { return fallback; }
     }
 
@@ -745,12 +740,3 @@
       await refreshOverview();
     }
 
-    function mapCatalogRowsFromResponse(root, connectorId, address) {
-      const datasets = root?.['dcat:dataset'] || root?.dataset || [];
-      const list = Array.isArray(datasets) ? datasets : [datasets];
-      const rows = list.flatMap(d => {
-        const policiesRaw = d?.['odrl:hasPolicy'] || d?.hasPolicy || [];
-        const policies = Array.isArray(policiesRaw) ? policiesRaw : [policiesRaw];
-        const datasetId = d?.['@id'] || d?.id || '';
-        const sourceHintUrl = pickBestSourceUrl(collectUrlCandidatesFromObject(d));
-        const meta = extractDatasetMetadata(d);
