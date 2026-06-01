@@ -7709,41 +7709,40 @@ function summarizePolicyTerms(policyObj) {
         ? subject['conector:id']
         : (subject['conector:id'] ? [subject['conector:id']] : []);
 
-      // Extract the compliance VC (issued by compliance.lab.gaia-x.eu)
-      const complianceVc = vcs.find(vc => String(vc?.issuer || '').includes('compliance.lab.gaia-x.eu'));
-
       if (didEl) didEl.textContent = legalName;
 
-      // Auto-verify: does the current page URL start with one of the declared connector URLs?
-      const currentUrl = window.location.href;
-      const isCompliant = connectorIds.length > 0 && connectorIds.some(u => currentUrl.startsWith(String(u)));
+      // Compare conector:id against the connector's configured DSP URL (base prefix)
+      const dspUrl = resolveConfiguredDspUrl(connectorId);
+      const isCompliant = connectorIds.length > 0 && dspUrl &&
+        connectorIds.some(u => {
+          const base = String(u).replace(/\/+$/, '');
+          return dspUrl.startsWith(base);
+        });
 
       if (badgeEl) {
         badgeEl.style.display = 'block';
-        if (isCompliant) {
-          badgeEl.className = 'gaiax-verify-ok';
-          badgeEl.textContent = '\u2705 GAIA-X Compliant Verificado';
-        } else if (connectorIds.length > 0) {
-          badgeEl.className = 'gaiax-verify-warn';
-          badgeEl.textContent = '\u2139\ufe0f Conectores declarados: ' + connectorIds.join(', ');
-        } else {
+        if (connectorIds.length === 0) {
           badgeEl.className = 'gaiax-verify-warn';
           badgeEl.textContent = '\u26a0 No se encontr\u00f3 conector:id en la credencial';
+        } else if (isCompliant) {
+          badgeEl.className = 'gaiax-verify-ok';
+          badgeEl.textContent = '\u2705 Participante GAIA-X Compliant \u2014 conector:id coincide con la URL del conector';
+        } else {
+          badgeEl.className = 'gaiax-verify-err';
+          badgeEl.textContent = '\u2717 NO COMPLIANT \u2014 conector:id (' + connectorIds.join(', ') + ') no coincide con ' + (dspUrl || '(URL no configurada)');
         }
       }
 
-      // Show compliance VC as raw JSON
-      let html = '';
-      if (complianceVc) {
-        html += '<div class="gaiax-section">';
-        html += `<div class="gaiax-section-label">Credencial de Cumplimiento GAIA-X <span class="gaiax-url">${htmlEscape(credUrl)}</span></div>`;
-        html += `<pre class="gaiax-pre">${htmlEscape(JSON.stringify(complianceVc, null, 2))}</pre>`;
+      // Show full VP JSON scrollable
+      if (bodyEl) {
+        let html = '<div class="gaiax-section">';
+        html += `<div class="gaiax-section-label">Verifiable Presentation <span class="gaiax-url">${htmlEscape(credUrl)}</span></div>`;
+        html += `<pre class="gaiax-pre">${htmlEscape(JSON.stringify(vpData, null, 2))}</pre>`;
         html += '</div>';
-      } else {
-        html = `<p class="gaiax-placeholder">\u26a0 No se encontr\u00f3 credencial de cumplimiento en la respuesta.</p>`;
+        bodyEl.innerHTML = html;
       }
-      if (bodyEl) bodyEl.innerHTML = html;
     }
 
     window.openGaiaXModal = openGaiaXModal;
+
 
