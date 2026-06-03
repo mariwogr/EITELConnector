@@ -330,6 +330,18 @@
         contentType = String(localUploadInfo.contentType || 'application/octet-stream').trim();
       }
 
+      if (sourceMode === 'arcgis-feature-layer') {
+        const arcgisLayerUrl = (document.getElementById('assetArcgisUrl')?.value || '').trim();
+        const arcgisExportFmt = (document.getElementById('assetArcgisExportFormat')?.value || 'geojson').trim();
+        if (!arcgisLayerUrl) {
+          writeOut({ status: 400, error: 'Introduce la URL del FeatureLayer ArcGIS.' });
+          return { status: 400 };
+        }
+        baseUrl = arcgisLayerUrl.replace(/\/+$/, '').replace(/\/query\??.*$/i, '');
+        path = `/query?where=1=1&outFields=*&f=${encodeURIComponent(arcgisExportFmt)}`;
+        contentType = arcgisExportFmt === 'csv' ? 'text/csv' : (arcgisExportFmt === 'kml' ? 'application/vnd.google-earth.kml+xml' : 'application/json');
+      }
+
       const normalizedUrlParts = normalizeHttpDataUrlParts(baseUrl, path);
       baseUrl = normalizedUrlParts.baseUrl;
       path = normalizedUrlParts.path;
@@ -338,7 +350,12 @@
         headers = {
           token: authToken
         };
-        path = buildArcgisPathWithToken(path, authToken);
+        if (sourceMode === 'arcgis-feature-layer') {
+          // preserve the f= format param already set in path; only add token
+          path = setQueryParams(path, { token: authToken });
+        } else {
+          path = buildArcgisPathWithToken(path, authToken);
+        }
       } else {
         headers = buildAuthHeaders(headers);
       }
@@ -390,7 +407,8 @@
           'eitel:authClientId': document.getElementById('pubAuthClientId')?.value.trim() || '',
           'eitel:authClientSecret': document.getElementById('pubAuthClientSecret')?.value.trim() || '',
           'eitel:authToken': authType === 'arcgis-login' ? '' : (document.getElementById('pubAuthToken')?.value.trim() || ''),
-          'eitel:authTokenSource': authType === 'arcgis-login' ? 'arcgis-login' : ''
+          'eitel:authTokenSource': authType === 'arcgis-login' ? 'arcgis-login' : '',
+          'eitel:arcgisExportFormat': sourceMode === 'arcgis-feature-layer' ? (document.getElementById('assetArcgisExportFormat')?.value || 'geojson') : ''
         },
         dataAddress: {
           '@type': 'DataAddress',

@@ -756,9 +756,12 @@
       const baseUrlWrap = document.getElementById('assetRemoteBaseUrlWrap');
       const pathWrap = document.getElementById('assetRemotePathWrap');
       const localFileWrap = document.getElementById('assetLocalFileWrap');
-      if (baseUrlWrap) baseUrlWrap.style.display = mode === 'local-file' ? 'none' : '';
-      if (pathWrap) pathWrap.style.display = mode === 'local-file' ? 'none' : '';
+      const arcgisLayerWrap = document.getElementById('assetArcgisWrap');
+      const hideRemoteUrl = mode === 'local-file' || mode === 'arcgis-feature-layer';
+      if (baseUrlWrap) baseUrlWrap.style.display = hideRemoteUrl ? 'none' : '';
+      if (pathWrap) pathWrap.style.display = hideRemoteUrl ? 'none' : '';
       if (localFileWrap) localFileWrap.style.display = mode === 'local-file' ? '' : 'none';
+      if (arcgisLayerWrap) arcgisLayerWrap.style.display = mode === 'arcgis-feature-layer' ? '' : 'none';
     }
 
     function syncTransferModeUi() {

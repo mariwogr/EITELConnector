@@ -30,6 +30,14 @@
       const transferMode = document.getElementById('transferMode');
       if (!arcgisEnabled && transferMode?.value === 'arcgis-upload') transferMode.value = 'push';
 
+      const arcgisSourceOption = document.querySelector('#assetSourceMode option[value="arcgis-feature-layer"]');
+      if (arcgisSourceOption) arcgisSourceOption.hidden = !arcgisEnabled;
+      const assetSourceModeEl = document.getElementById('assetSourceMode');
+      if (!arcgisEnabled && assetSourceModeEl?.value === 'arcgis-feature-layer') {
+        assetSourceModeEl.value = 'remote-url';
+        if (typeof syncAssetSourceModeUi === 'function') syncAssetSourceModeUi();
+      }
+
       const authGate = document.getElementById('authGate');
       if (authGate && !arcgisEnabled) authGate.classList.remove('open');
     }

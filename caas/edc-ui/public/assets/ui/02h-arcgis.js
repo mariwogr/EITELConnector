@@ -87,6 +87,28 @@
         return { status: 400, error: 'El asset seleccionado no usa un origen HttpData válido.' };
       }
 
+      if (sourceMode === 'arcgis-feature-layer') {
+        const exportFormat = String(props['eitel:arcgisExportFormat'] || 'geojson').trim();
+        const token = authType === 'arcgis-login' ? (await resolveArcgisTokenForPublish()) : '';
+        if (authType === 'arcgis-login' && !token) {
+          return { status: 401, error: 'No se pudo obtener token ArcGIS para exportar el FeatureLayer.' };
+        }
+        const qs = new URLSearchParams({ where: '1=1', outFields: '*', f: exportFormat });
+        if (token) qs.set('token', token);
+        const exportUrl = `${baseUrl.replace(/\/+$/, '')}/query?${qs.toString()}`;
+        try {
+          const response = await fetch(exportUrl, { method: 'GET', credentials: 'include' });
+          if (!response.ok) return { status: response.status, error: 'No se pudo exportar el FeatureLayer ArcGIS.' };
+          const blob = await response.blob();
+          const contentType = response.headers.get('content-type') || blob.type || 'application/json';
+          const extMap = { geojson: '.geojson', csv: '.csv', kml: '.kml', json: '.json' };
+          const filename = `${(assetId || 'export').replace(/[^a-zA-Z0-9_-]/g, '_')}${extMap[exportFormat] || '.json'}`;
+          return { status: 200, blob, filename, contentType, sourceUrl: exportUrl };
+        } catch (error) {
+          return { status: 500, error: `Error exportando FeatureLayer ArcGIS: ${String(error)}` };
+        }
+      }
+
       if (authType === 'arcgis-login') {
         const authToken = await resolveArcgisTokenForPublish();
         if (!authToken) return { status: 401, error: 'No se pudo obtener token ArcGIS para leer el asset.' };
