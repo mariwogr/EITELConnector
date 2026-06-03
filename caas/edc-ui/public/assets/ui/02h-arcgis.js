@@ -62,13 +62,45 @@
         }
         try {
           const hintedRes = await fetch(hintedUrl, { method: 'GET', credentials: 'include' });
-          if (!hintedRes.ok) return { status: hintedRes.status, error: 'No se pudo descargar el asset remoto para subir a ArcGIS.' };
-          const hintedBlob = await hintedRes.blob();
+          const hintedContentType = hintedRes.headers.get('content-type') || 'application/octet-stream';
+          if (!hintedRes.ok) {
+            const detail = await hintedRes.text();
+            return { status: hintedRes.status, error: 'No se pudo descargar el asset remoto para subir a ArcGIS.', detail: detail.slice(0, 1000) };
+          }
+          let hintedBlob;
+          if (String(hintedContentType || '').toLowerCase().includes('text/html')) {
+            const text = await hintedRes.text();
+            return {
+              status: 502,
+              error: 'La URL alternativa devolvió HTML/error en vez de un dato para subir a ArcGIS.',
+              contentType: hintedContentType,
+              preview: text.slice(0, 500),
+              sourceUrl: hintedUrl,
+              badPayload: true,
+            };
+          }
+          if (/json|text\//i.test(hintedContentType)) {
+            const text = await hintedRes.text();
+            const badPayload = looksLikeSourceErrorPayload(text, hintedContentType);
+            if (badPayload) {
+              return {
+                status: 502,
+                error: 'La URL alternativa devolvió error/login en vez de un dato para subir a ArcGIS.',
+                contentType: hintedContentType,
+                preview: text.slice(0, 500),
+                sourceUrl: hintedUrl,
+                badPayload: true,
+              };
+            }
+            hintedBlob = new Blob([text], { type: hintedContentType });
+          } else {
+            hintedBlob = await hintedRes.blob();
+          }
           return {
             status: 200,
             blob: hintedBlob,
-            filename: inferDownloadFilename(assetId, hintedUrl, hintedRes.headers.get('content-type') || hintedBlob.type, hintedRes.headers.get('content-disposition') || ''),
-            contentType: hintedRes.headers.get('content-type') || hintedBlob.type || 'application/octet-stream',
+            filename: inferDownloadFilename(assetId, hintedUrl, hintedContentType || hintedBlob.type, hintedRes.headers.get('content-disposition') || ''),
+            contentType: hintedContentType || hintedBlob.type || 'application/octet-stream',
             sourceUrl: hintedUrl,
           };
         } catch (error) {
@@ -93,16 +125,26 @@
         if (authType === 'arcgis-login' && !token) {
           return { status: 401, error: 'No se pudo obtener token ArcGIS para exportar el FeatureLayer.' };
         }
-        const tokenPart = token ? `&token=${encodeURIComponent(token)}` : '';
         const layerBaseUrl = normalizeArcgisFeatureLayerBaseUrl(baseUrl);
-        const exportUrl = `${layerBaseUrl.replace(/\/+$/, '')}/query?where=1=1&outFields=*&f=${encodeURIComponent(exportFormat)}${tokenPart}`;
+        const exportUrl = `${layerBaseUrl.replace(/\/+$/, '')}${buildArcgisFeatureLayerQueryPath(exportFormat, token)}`;
         try {
           const response = await fetch(exportUrl, { method: 'GET', credentials: 'include' });
           if (!response.ok) return { status: response.status, error: 'No se pudo exportar el FeatureLayer ArcGIS.' };
-          const blob = await response.blob();
-          const contentType = response.headers.get('content-type') || blob.type || 'application/json';
-          const extMap = { geojson: '.geojson', csv: '.csv', kml: '.kml', json: '.json' };
-          const filename = `${(assetId || 'export').replace(/[^a-zA-Z0-9_-]/g, '_')}${extMap[exportFormat] || '.json'}`;
+          const text = await response.text();
+          const responseContentType = response.headers.get('content-type') || '';
+          const badPayload = looksLikeSourceErrorPayload(text, responseContentType);
+          if (badPayload) {
+            return {
+              status: 502,
+              error: 'ArcGIS devolvió HTML/error en vez del formato de exportación solicitado.',
+              contentType: responseContentType,
+              preview: text.slice(0, 500),
+              sourceUrl: exportUrl,
+            };
+          }
+          const contentType = getArcgisExportContentType(exportFormat);
+          const blob = new Blob([text], { type: contentType });
+          const filename = inferArcgisExportFilename(assetId, exportFormat);
           return { status: 200, blob, filename, contentType, sourceUrl: exportUrl };
         } catch (error) {
           return { status: 500, error: `Error exportando FeatureLayer ArcGIS: ${String(error)}` };
@@ -205,8 +247,38 @@
                 sourceUrl: fileUrl,
               };
             }
-            const blob = await fileResp.blob();
-            const contentType = fileResp.headers.get('content-type') || blob.type || 'application/octet-stream';
+            const contentType = fileResp.headers.get('content-type') || 'application/octet-stream';
+            let blob;
+            if (String(contentType || '').toLowerCase().includes('text/html')) {
+              const text = await fileResp.text();
+              return {
+                status: 502,
+                error: 'El sink local recibió HTML/error en vez de un dato para subir a ArcGIS.',
+                sourceUrl: fileUrl,
+                contentType,
+                preview: text.slice(0, 500),
+                transferId,
+                badPayload: true,
+              };
+            }
+            if (/json|text\//i.test(contentType)) {
+              const text = await fileResp.text();
+              const badPayload = looksLikeSourceErrorPayload(text, contentType);
+              if (badPayload) {
+                return {
+                  status: 502,
+                  error: 'El sink local recibió error/login en vez de un dato para subir a ArcGIS.',
+                  sourceUrl: fileUrl,
+                  contentType,
+                  preview: text.slice(0, 500),
+                  transferId,
+                  badPayload: true,
+                };
+              }
+              blob = new Blob([text], { type: contentType });
+            } else {
+              blob = await fileResp.blob();
+            }
             const filename = record.filename || inferDownloadFilename(assetId, fileUrl, contentType, fileResp.headers.get('content-disposition') || '');
             return { status: 200, blob, filename, contentType, sourceUrl: fileUrl, transferId };
           } catch (error) {

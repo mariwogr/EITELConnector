@@ -735,6 +735,33 @@
       return baseUrl;
     }
 
+    function getArcgisExportExtension(exportFormat) {
+      const fmt = String(exportFormat || '').trim().toLowerCase();
+      if (fmt === 'csv') return 'csv';
+      if (fmt === 'kml') return 'kml';
+      if (fmt === 'json') return 'json';
+      return 'geojson';
+    }
+
+    function getArcgisExportContentType(exportFormat) {
+      const fmt = String(exportFormat || '').trim().toLowerCase();
+      if (fmt === 'csv') return 'text/csv';
+      if (fmt === 'kml') return 'application/vnd.google-earth.kml+xml';
+      if (fmt === 'json') return 'application/json';
+      return 'application/geo+json';
+    }
+
+    function inferArcgisExportFilename(assetId, exportFormat) {
+      const safeAssetId = String(assetId || 'arcgis-export').trim().replace(/[^a-z0-9._-]+/gi, '_').replace(/^_+|_+$/g, '') || 'arcgis-export';
+      return `${safeAssetId}.${getArcgisExportExtension(exportFormat)}`;
+    }
+
+    function buildArcgisFeatureLayerQueryPath(exportFormat, token = '') {
+      const fmt = String(exportFormat || 'geojson').trim() || 'geojson';
+      const tokenPart = token ? `&token=${encodeURIComponent(token)}` : '';
+      return `/query?where=1=1&outFields=*&f=${encodeURIComponent(fmt)}${tokenPart}`;
+    }
+
     function normalizeHttpDataUrlParts(rawBaseUrl, rawPath) {
       let baseUrl = String(rawBaseUrl || '').trim();
       let path = String(rawPath || '').trim();

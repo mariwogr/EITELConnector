@@ -338,8 +338,8 @@
           return { status: 400 };
         }
         baseUrl = normalizeArcgisFeatureLayerBaseUrl(arcgisLayerUrl);
-        path = `/query?where=1=1&outFields=*&f=${encodeURIComponent(arcgisExportFmt)}`;
-        contentType = arcgisExportFmt === 'csv' ? 'text/csv' : (arcgisExportFmt === 'kml' ? 'application/vnd.google-earth.kml+xml' : 'application/json');
+        path = buildArcgisFeatureLayerQueryPath(arcgisExportFmt);
+        contentType = getArcgisExportContentType(arcgisExportFmt);
       }
 
       const normalizedUrlParts = normalizeHttpDataUrlParts(baseUrl, path);
@@ -353,7 +353,7 @@
         if (sourceMode === 'arcgis-feature-layer') {
           // Do NOT use setQueryParams here — URLSearchParams.toString() encodes '='
           // in values (e.g. where=1=1 → where=1%3D1), which ArcGIS rejects.
-          path = `${path}&token=${encodeURIComponent(authToken)}`;
+          path = buildArcgisFeatureLayerQueryPath(document.getElementById('assetArcgisExportFormat')?.value || 'geojson', authToken);
         } else {
           path = buildArcgisPathWithToken(path, authToken);
         }

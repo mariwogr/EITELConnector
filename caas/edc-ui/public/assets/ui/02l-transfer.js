@@ -118,11 +118,18 @@
               { timeoutMs: 5000, silent: true }
             ).catch(() => null);
             if (providerAssetResp?.status >= 200 && providerAssetResp?.status < 300) {
-              const derivedUrl = pickBestSourceUrl(collectUrlCandidatesFromObject(providerAssetResp.data));
-              if (derivedUrl) {
-                const providerHintResp = await downloadFromSourceHint(contractId, agreementAssetId, derivedUrl);
-                if (providerHintResp?.status >= 200 && providerHintResp?.status < 300) {
-                  downloadResp = providerHintResp;
+              const providerAsset = providerAssetResp.data || {};
+              const providerProps = providerAsset.properties || providerAsset['edc:properties'] || {};
+              if (String(providerProps['eitel:sourceMode'] || '').trim() === 'arcgis-feature-layer') {
+                const providerArcgisResp = await downloadArcgisFeatureLayerAsset(contractId, agreementAssetId, providerAsset);
+                downloadResp = providerArcgisResp;
+              } else {
+                const derivedUrl = pickBestSourceUrl(collectUrlCandidatesFromObject(providerAsset));
+                if (derivedUrl) {
+                  const providerHintResp = await downloadFromSourceHint(contractId, agreementAssetId, derivedUrl);
+                  if (providerHintResp?.status >= 200 && providerHintResp?.status < 300) {
+                    downloadResp = providerHintResp;
+                  }
                 }
               }
             }

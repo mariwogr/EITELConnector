@@ -29,6 +29,86 @@
       return `${safeAssetId}.${guessFileExtension(contentType)}`;
     }
 
+    async function downloadArcgisFeatureLayerAsset(contractId, assetId, asset) {
+      const props = asset?.properties || asset?.['edc:properties'] || {};
+      const dataAddress = asset?.dataAddress || asset?.['edc:dataAddress'] || {};
+      const baseUrl = normalizeArcgisFeatureLayerBaseUrl(dataAddress.baseUrl || dataAddress['edc:baseUrl'] || '');
+      const authType = String(props['eitel:authType'] || '').trim();
+      const exportFormat = String(props['eitel:arcgisExportFormat'] || 'geojson').trim() || 'geojson';
+      if (!baseUrl) {
+        return { status: 400, error: 'El FeatureLayer ArcGIS no tiene baseUrl válido.', contractId, assetId };
+      }
+
+      let token = '';
+      if (authType === 'arcgis-login') {
+        token = await resolveArcgisTokenForPublish();
+        if (!token) {
+          return { status: 401, error: 'No se pudo obtener un token ArcGIS válido para la descarga local.', contractId, assetId };
+        }
+      }
+
+      const sourceUrl = `${baseUrl.replace(/\/+$/, '')}${buildArcgisFeatureLayerQueryPath(exportFormat, token)}`;
+      try {
+        const response = await fetch(sourceUrl, { method: 'GET', credentials: 'include' });
+        const responseContentType = response.headers.get('content-type') || '';
+        const text = await response.text();
+        if (!response.ok) {
+          return {
+            status: response.status,
+            error: 'La exportación ArcGIS devolvió error HTTP.',
+            contractId,
+            assetId,
+            sourceUrl,
+            contentType: responseContentType,
+            detail: text.slice(0, 1000),
+          };
+        }
+        const badPayload = typeof looksLikeSourceErrorPayload === 'function'
+          ? looksLikeSourceErrorPayload(text, responseContentType)
+          : String(responseContentType || '').toLowerCase().includes('text/html');
+        if (badPayload) {
+          return {
+            status: 502,
+            error: 'ArcGIS devolvió HTML/error en vez del formato de exportación solicitado.',
+            contractId,
+            assetId,
+            sourceUrl,
+            contentType: responseContentType,
+            preview: text.slice(0, 500),
+            badPayload: true,
+          };
+        }
+
+        const contentType = getArcgisExportContentType(exportFormat);
+        const blob = new Blob([text], { type: contentType });
+        const filename = inferArcgisExportFilename(assetId, exportFormat);
+        const objectUrl = URL.createObjectURL(blob);
+        triggerBrowserDownload(objectUrl, filename);
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
+
+        return {
+          status: 200,
+          downloaded: true,
+          contractId,
+          assetId,
+          sourceUrl,
+          filename,
+          contentType,
+          bytes: blob.size,
+          via: 'arcgis-feature-layer',
+        };
+      } catch (error) {
+        return {
+          status: 500,
+          error: 'No se pudo exportar el FeatureLayer ArcGIS en el navegador.',
+          contractId,
+          assetId,
+          sourceUrl,
+          detail: String(error),
+        };
+      }
+    }
+
     /**
      * Downloads asset from remote source to local storage via EDC transfer.
      * Initiates transfer process and stores downloaded file in download-sink service.
@@ -57,13 +137,17 @@
       const props = asset.properties || {};
       const dataAddress = asset.dataAddress || asset['edc:dataAddress'] || {};
       const sourceMode = String(props['eitel:sourceMode'] || '').trim();
-      const baseUrl = String(dataAddress.baseUrl || '').trim();
+      let baseUrl = String(dataAddress.baseUrl || '').trim();
       let path = String(dataAddress.path || '').trim();
       let headers = { ...(dataAddress.headers || {}) };
       const authType = String(props['eitel:authType'] || '').trim();
 
       if (!baseUrl || String(dataAddress.type || '').trim() !== 'HttpData') {
         return { status: 400, error: 'El asset seleccionado no usa un origen HttpData descargable.', contractId, assetId, dataAddress };
+      }
+
+      if (sourceMode === 'arcgis-feature-layer') {
+        return downloadArcgisFeatureLayerAsset(contractId, assetId, asset);
       }
 
       if (authType === 'arcgis-login') {
@@ -360,7 +444,41 @@
             detail: String(detail || '').slice(0, 1000),
           };
         }
-        const blob = await response.blob();
+        let blob;
+        if (String(contentType || '').toLowerCase().includes('text/html')) {
+          const text = await response.text();
+          return {
+            status: 502,
+            error: 'La URL alternativa devolvió HTML/error en vez de un dato descargable.',
+            contractId,
+            assetId,
+            sourceUrl: url,
+            contentType,
+            preview: text.slice(0, 500),
+            badPayload: true,
+          };
+        }
+        if (/json|text\//i.test(contentType)) {
+          const text = await response.text();
+          const badPayload = typeof looksLikeSourceErrorPayload === 'function'
+            ? looksLikeSourceErrorPayload(text, contentType)
+            : false;
+          if (badPayload) {
+            return {
+              status: 502,
+              error: 'La URL alternativa devolvió error/login en vez de un dato descargable.',
+              contractId,
+              assetId,
+              sourceUrl: url,
+              contentType,
+              preview: text.slice(0, 500),
+              badPayload: true,
+            };
+          }
+          blob = new Blob([text], { type: contentType });
+        } else {
+          blob = await response.blob();
+        }
         const filename = inferDownloadFilename(assetId, url, contentType, response.headers.get('content-disposition') || '');
         const objectUrl = URL.createObjectURL(blob);
         triggerBrowserDownload(objectUrl, filename);
