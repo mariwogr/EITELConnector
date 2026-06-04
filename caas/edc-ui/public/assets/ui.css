@@ -658,6 +658,33 @@
       border-left: 3px solid var(--primary);
       background: color-mix(in srgb, var(--primary-soft) 55%, var(--surface));
     }
+    .pub-details {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface-2);
+      overflow: hidden;
+    }
+    .pub-details > summary {
+      cursor: pointer;
+      padding: 8px 11px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      user-select: none;
+    }
+    .pub-details[open] > summary { border-bottom: 1px solid var(--line); }
+    .pub-pre {
+      margin: 0;
+      padding: 10px 11px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 38vh;
+      overflow: auto;
+      color: var(--text);
+    }
     @media (max-width: 560px) {
       .pub-grid { grid-template-columns: 1fr; }
     }

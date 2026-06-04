@@ -193,7 +193,26 @@ function openSettings() { settingsModal.classList.add('open'); }
         };
       }
       document.getElementById('btnDeleteAsset').onclick = async () => {
-        writeOut(await deleteAssetAndCleanupBackup());
+        const assetId = String(document.getElementById('assetIdPreview')?.value || '').trim();
+        const response = await deleteAssetAndCleanupBackup();
+        writeOut(response);
+        if (response.status >= 200 && response.status < 300) {
+          showInfoPopup('Asset eliminado', { assetId, status: response.status }, { html: renderResultCard({
+            title: 'Asset eliminado',
+            subtitle: assetId,
+            tone: 'ok',
+            status: response.status,
+            hint: 'Se eliminó el asset y su copia de backup local.'
+          }) });
+        } else if (!assetId) {
+          showInfoPopup('Asset ID requerido', { status: 400 }, { html: renderResultCard({
+            title: 'Falta el Asset ID',
+            tone: 'warn',
+            hint: 'Selecciona o introduce un Asset ID antes de borrar.'
+          }) });
+        } else {
+          showInfoPopup('Error eliminando asset', response);
+        }
         if (typeof loadPublishedAssets === 'function') await loadPublishedAssets(false);
       };
       document.getElementById('btnExplorerSend').onclick = async () => writeOut(await callApi(document.getElementById('explMethod').value, document.getElementById('explPath').value.trim(), document.getElementById('explBody').value));

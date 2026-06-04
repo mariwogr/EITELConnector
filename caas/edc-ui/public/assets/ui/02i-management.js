@@ -130,8 +130,27 @@
      */
     async function deletePolicy() {
       const policyId = (document.getElementById('policyIdPreview')?.value || document.getElementById('policyIdMirror')?.value || '').trim();
-      if (!policyId) { writeOut({ status: 400, error: 'Policy ID requerido.' }); return; }
-      writeOut(await callApi('DELETE', `/v3/policydefinitions/${encodeURIComponent(policyId)}`));
+      if (!policyId) {
+        writeOut({ status: 400, error: 'Policy ID requerido.' });
+        showInfoPopup('Policy ID requerido', { status: 400 }, { html: renderResultCard({
+          title: 'Falta el Policy ID',
+          tone: 'warn',
+          hint: 'Selecciona o introduce un Policy ID antes de borrar.'
+        }) });
+        return;
+      }
+      const response = await callApi('DELETE', `/v3/policydefinitions/${encodeURIComponent(policyId)}`);
+      writeOut(response);
+      if (response.status >= 200 && response.status < 300) {
+        showInfoPopup('Policy eliminada', { policyId, status: response.status }, { html: renderResultCard({
+          title: 'Policy eliminada',
+          subtitle: policyId,
+          tone: 'ok',
+          status: response.status,
+        }) });
+      } else {
+        showInfoPopup('Error eliminando policy', response);
+      }
     }
 
     /**
@@ -276,8 +295,27 @@
      */
     async function deleteContractDefinition() {
       const id = (document.getElementById('contractDefIdPreview')?.value || document.getElementById('contractDefIdMirror')?.value || '').trim();
-      if (!id) { writeOut({ status: 400, error: 'ContractDefinition ID requerido.' }); return; }
-      writeOut(await callApi('DELETE', `/v3/contractdefinitions/${encodeURIComponent(id)}`));
+      if (!id) {
+        writeOut({ status: 400, error: 'ContractDefinition ID requerido.' });
+        showInfoPopup('ContractDefinition ID requerido', { status: 400 }, { html: renderResultCard({
+          title: 'Falta el ContractDefinition ID',
+          tone: 'warn',
+          hint: 'Selecciona o introduce un ContractDefinition ID antes de borrar.'
+        }) });
+        return;
+      }
+      const response = await callApi('DELETE', `/v3/contractdefinitions/${encodeURIComponent(id)}`);
+      writeOut(response);
+      if (response.status >= 200 && response.status < 300) {
+        showInfoPopup('ContractDefinition eliminada', { contractDefId: id, status: response.status }, { html: renderResultCard({
+          title: 'ContractDefinition eliminada',
+          subtitle: id,
+          tone: 'ok',
+          status: response.status,
+        }) });
+      } else {
+        showInfoPopup('Error eliminando ContractDefinition', response);
+      }
     }
 
     async function purgeConnectorArtifacts() {

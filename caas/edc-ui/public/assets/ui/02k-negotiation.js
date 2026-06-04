@@ -394,9 +394,15 @@
       if (r.status < 200 || r.status >= 300) {
         const detail = typeof r.data === 'string' ? r.data : JSON.stringify(r.data || {}, null, 2);
         showInfoPopup(
-          'Aviso',
-          `No se pudo iniciar el contrato.\nEstado HTTP: ${r.status}.\nDetalle: ${detail}`,
-          { plainText: true }
+          'No se pudo iniciar el contrato',
+          { status: r.status, data: r.data },
+          { html: renderResultCard({
+            title: 'No se pudo iniciar el contrato',
+            tone: 'danger',
+            status: r.status,
+            details: [{ label: 'Respuesta del proveedor', json: detail }],
+            hint: 'Revisa la respuesta del proveedor y vuelve a intentarlo.'
+          }) }
         );
         if (actionBtn) {
           actionBtn.disabled = false;
@@ -443,8 +449,20 @@
           starTrustState.handshakeDetail = `Handshake preparado con ${providerId || selected.assigner || 'provider'} para el asset ${clean(assetId || selected.assetId || '-')}. Agreement ${clean(agreementId || '-')}.`;
           pushStarTrustEvent('Contrato disponible', starTrustState.handshakeDetail, 'ok');
         }
-        showInfoPopup('Aviso', `Contrato concretado correctamente.\nAgreement ID: ${agreementId}\nNegotiation ID: ${negotiationId}\nAsset: ${assetId}\nProvider: ${providerId}\nConsumer: ${consumerId}`, {
-          plainText: true,
+        showInfoPopup('Contrato concretado', { agreementId, negotiationId, assetId, providerId, consumerId }, {
+          html: renderResultCard({
+            title: 'Contrato concretado correctamente',
+            subtitle: agreementId,
+            tone: 'ok',
+            fields: [
+              { label: 'Agreement', value: agreementId },
+              { label: 'Negociación', value: negotiationId },
+              { label: 'Asset', value: assetId },
+              { label: 'Provider', value: providerId },
+              { label: 'Consumer', value: consumerId },
+            ],
+            hint: 'Ya puedes iniciar una transferencia con este acuerdo.'
+          }),
           actionLabel: 'Ir al contrato',
           onAction: () => window.useAgreement(agreementId)
         });
