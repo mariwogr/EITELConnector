@@ -62,11 +62,14 @@
       height: 100dvh;
       min-height: 100dvh;
       display: grid;
-      grid-template-columns: 250px 1fr 410px;
+      /* Console size is drag-resizable; JS overrides these vars inline on .app */
+      --console-w: 410px;
+      --console-h: 300px;
+      grid-template-columns: 250px 1fr var(--console-w);
     }
     .app.console-bottom {
       grid-template-columns: 250px 1fr;
-      grid-template-rows: 1fr 300px;
+      grid-template-rows: 1fr var(--console-h);
     }
     .app.console-bottom .console { grid-column: 2; grid-row: 2; border-left: 0; border-top: 1px solid var(--line); }
     .app.console-hidden { grid-template-columns: 250px 1fr 0; }
@@ -321,6 +324,54 @@
     }
     .console-handle button:hover { color: var(--primary); }
 
+    /* Drag-to-resize strip on the console's inner edge */
+    .console-resizer {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+      cursor: col-resize;
+      z-index: 25;
+      background: transparent;
+      transition: background .12s ease;
+      touch-action: none;
+    }
+    .console-resizer::before {
+      content: "";
+      position: absolute;
+      left: 1px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 2px;
+      height: 34px;
+      border-radius: 2px;
+      background: var(--console-line);
+    }
+    .console-resizer:hover,
+    .console-resizer.dragging {
+      background: color-mix(in srgb, var(--primary) 28%, transparent);
+    }
+    .console-resizer:hover::before,
+    .console-resizer.dragging::before { background: var(--primary); }
+    .app.console-bottom .console-resizer {
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: auto;
+      width: auto;
+      height: 6px;
+      cursor: row-resize;
+    }
+    .app.console-bottom .console-resizer::before {
+      left: 50%;
+      top: 1px;
+      transform: translateX(-50%);
+      width: 34px;
+      height: 2px;
+    }
+    .app.console-hidden .console-resizer { display: none; }
+
     .console-show {
       position: fixed;
       right: 10px;
@@ -419,10 +470,8 @@
     /* hard override: bottom console must stay visible as horizontal panel */
     .app.console-bottom {
       grid-template-columns: 250px 1fr !important;
-      grid-template-rows: 1fr 300px !important;
+      grid-template-rows: 1fr var(--console-h) !important;
     }
-    .app.console-expanded.console-bottom { grid-template-rows: 1fr 46vh !important; }
-    .app.console-expanded:not(.console-bottom) { grid-template-columns: 250px 1fr 560px !important; }
     .app.console-bottom .console {
       display: flex !important;
       grid-column: 2 !important;
@@ -1382,6 +1431,7 @@
       .main { padding-bottom: 44vh; }
       .console { position: fixed; inset: auto 0 0 0; height: min(42vh, 360px); z-index: 50; border-left: 0; border-top: 1px solid var(--line); }
       .app.console-hidden .console { display: none; }
+      .console-resizer { display: none; } /* fixed-position console on small screens is not grid-resizable */
       .console-handle { left: auto; right: 10px; top: -42px; flex-direction: row; }
       .console-handle button { width: 34px; height: 22px; border-right: 1px solid var(--line); border-radius: 10px 10px 0 0; }
       .alert-stack {

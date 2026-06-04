@@ -446,11 +446,81 @@
         </div>`;
     }
 
+    // Console resize bounds (px). The minimum keeps the console usable.
+    const CONSOLE_MIN_W = 280;
+    const CONSOLE_MIN_H = 140;
+
+    // Max size leaves room for the 250px sidebar + main content (width) and the top bar (height).
+    function consoleMaxWidth() { return Math.max(CONSOLE_MIN_W, window.innerWidth - 250 - 320); }
+    function consoleMaxHeight() { return Math.max(CONSOLE_MIN_H, window.innerHeight - 220); }
+
+    /**
+     * Applies the persisted console width/height (clamped) as CSS variables on .app.
+     * Width drives the right-docked console; height drives the bottom-docked console.
+     *
+     * @example
+     * applyConsoleSize(); // Re-applies settings.consoleWidth / consoleHeight
+     */
+    function applyConsoleSize() {
+      const w = Math.min(Math.max(Number(settings.consoleWidth) || 410, CONSOLE_MIN_W), consoleMaxWidth());
+      const h = Math.min(Math.max(Number(settings.consoleHeight) || 300, CONSOLE_MIN_H), consoleMaxHeight());
+      app.style.setProperty('--console-w', `${w}px`);
+      app.style.setProperty('--console-h', `${h}px`);
+    }
+
+    /**
+     * Wires the drag handle that resizes the console by dragging its inner border.
+     * Right dock => horizontal resize (width); bottom dock => vertical resize (height).
+     * The size is clamped to [min, max] and persisted on release.
+     *
+     * @example
+     * initConsoleResizer(); // Call once during bootstrap
+     */
+    function initConsoleResizer() {
+      const resizer = document.getElementById('consoleResizer');
+      if (!resizer) return;
+      let dragging = false;
+
+      const onMove = (e) => {
+        if (!dragging) return;
+        if (settings.consolePos === 'bottom') {
+          const h = window.innerHeight - e.clientY;
+          settings.consoleHeight = Math.min(Math.max(h, CONSOLE_MIN_H), consoleMaxHeight());
+        } else {
+          const w = window.innerWidth - e.clientX;
+          settings.consoleWidth = Math.min(Math.max(w, CONSOLE_MIN_W), consoleMaxWidth());
+        }
+        applyConsoleSize();
+      };
+
+      const stop = () => {
+        if (!dragging) return;
+        dragging = false;
+        resizer.classList.remove('dragging');
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', stop);
+        persistSettings();
+      };
+
+      resizer.addEventListener('pointerdown', (e) => {
+        if (app.classList.contains('console-hidden')) return; // nothing to resize while hidden
+        dragging = true;
+        resizer.classList.add('dragging');
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = settings.consolePos === 'bottom' ? 'row-resize' : 'col-resize';
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', stop);
+        e.preventDefault();
+      });
+    }
+
     /**
      * Applies UI configuration and initialization settings.
      * Sets up theme, language, layout preferences from stored configuration.
      * Called on page load to restore user preferences.
-     * 
+     *
      * @example
      * applySettings(); // Restores saved UI configuration
      */
@@ -459,6 +529,7 @@
       app.classList.toggle('console-bottom', settings.consolePos === 'bottom');
       app.classList.toggle('console-expanded', settings.consoleExpanded);
       out.style.fontSize = `${settings.consoleFont}px`;
+      applyConsoleSize();
 
       document.getElementById('consoleState').textContent = `${settings.consolePos}${settings.consoleExpanded ? ' + expanded' : ''}`;
       document.getElementById('setLanguage').value = settings.language;

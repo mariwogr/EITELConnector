@@ -258,12 +258,20 @@ function openSettings() { settingsModal.classList.add('open'); }
       };
       document.getElementById('btnConsoleExpand').onclick = () => {
         settings.consoleExpanded = !settings.consoleExpanded;
+        // Expand/collapse snaps the console to preset sizes; drag gives custom sizes.
+        if (settings.consolePos === 'bottom') {
+          settings.consoleHeight = settings.consoleExpanded ? 460 : 300;
+        } else {
+          settings.consoleWidth = settings.consoleExpanded ? 560 : 410;
+        }
         applySettings();
+        persistSettings();
       };
       document.getElementById('btnConsoleShow').onclick = () => {
         app.classList.remove('console-hidden');
         updateConsoleButtons(false);
       };
+      initConsoleResizer();
     }
 
     window.useAgreement = (id) => {
