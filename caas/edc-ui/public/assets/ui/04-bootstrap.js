@@ -226,7 +226,6 @@ function openSettings() { settingsModal.classList.add('open'); }
         settings.apiKeyOverride = (document.getElementById('setApiKey')?.value || '').trim();
         settings.apiTimeoutMs = Math.max(1000, Number(document.getElementById('setApiTimeout')?.value || 15000));
         settings.apiRetries = Math.max(0, Math.min(5, Number(document.getElementById('setApiRetries')?.value || 1)));
-        if (settings.consolePos === 'bottom') app.classList.remove('console-hidden');
         applySettings();
       };
       ['setLanguage', 'setTheme', 'setConsolePos'].forEach(id => document.getElementById(id).addEventListener('change', autoApply));

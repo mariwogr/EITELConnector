@@ -464,6 +464,7 @@
       grid-column: 1 / -1;
       min-width: 0;
       border: 1px solid var(--line);
+      border-left-width: 6px;
       border-radius: 14px;
       padding: 12px;
       background: color-mix(in srgb, var(--surface) 92%, var(--surface-2));
@@ -477,14 +478,12 @@
       justify-content: space-between;
       gap: 12px;
       margin: 0 0 2px;
-      border-left: 6px solid var(--primary);
-      padding-left: 10px;
     }
-    .catalog-group-own { border-left-color: #6b7a90; }
-    .catalog-group-no-access { border-left-color: #d96b6b; }
-    .catalog-group-pending { border-left-color: #d9a441; }
-    .catalog-group-approved { border-left-color: #2f9f69; }
-    .catalog-group-public { border-left-color: #22a06b; }
+    .catalog-group-own { border-color: color-mix(in srgb, #6b7a90 58%, var(--line)); }
+    .catalog-group-no-access { border-color: color-mix(in srgb, #d96b6b 58%, var(--line)); }
+    .catalog-group-pending { border-color: color-mix(in srgb, #d9a441 58%, var(--line)); }
+    .catalog-group-approved { border-color: color-mix(in srgb, #2f9f69 58%, var(--line)); }
+    .catalog-group-public { border-color: color-mix(in srgb, #22a06b 58%, var(--line)); }
     .catalog-group-head h3 {
       margin: 0;
       font-size: 16px;

@@ -8,10 +8,10 @@
   <meta http-equiv="Expires" content="0" />
   <title>Conector EITEL</title>
   <link rel="icon" type="image/png" href="assets/eitel-logo.png" />
-    <link rel="stylesheet" href="assets/ui.css?v=20260519l" />
+    <link rel="stylesheet" href="assets/ui.css?v=20260604a" />
 </head>
 <body data-theme="light">
-  <div class="app" id="app">
+  <div class="app console-hidden" id="app">
     <aside class="sidebar">
       <div class="brand">
         <img src="assets/eitel-logo-brand.png" alt="EITEL" />
@@ -58,7 +58,7 @@
           </div>
           <span class="chip" id="badge"></span>
           <button class="ghost" id="btnArcgisLogout" style="display:none">Salir</button>
-          <button class="ghost" id="btnOpenSettings">?? Ajustes</button>
+          <button class="ghost" id="btnOpenSettings">Ajustes</button>
         </div>
       </div>
 
@@ -405,7 +405,7 @@
               <button class="primary" id="btnCreatePolicy">Crear/Actualizar policy</button>
               <button class="ghost" id="btnListPolicies">Listar policies</button>
               <button class="danger" id="btnDeletePolicy">Borrar policy</button>
-              <button class="ghost" id="btnGoContract">Continuar a Contrato ?</button>
+              <button class="ghost" id="btnGoContract">Continuar a Contrato</button>
             </div>
           </section>
           <section class="card wide tutorial">
@@ -645,7 +645,7 @@
             <div class="row" style="margin-top:8px">
               <button class="primary" id="btnStartTransfer" data-i18n="transfer.start">Iniciar transferencia</button>
               <button class="ghost" id="btnListTransfers" data-i18n="transfer.list">Listar transferencias</button>
-              <button class="ghost" onclick="window.checkDataplanes()">?? Dataplanes</button>
+              <button class="ghost" onclick="window.checkDataplanes()">Dataplanes</button>
             </div>
             <table>
               <thead><tr><th data-i18n="table.transfer">Transferencia</th><th data-i18n="table.state">Estado</th><th data-i18n="table.contract">Contrato</th><th style="min-width:200px"></th></tr></thead>
@@ -659,7 +659,7 @@
               <li>En `Modo de salida`, elige `Enviar a URL destino` o `Descargar en local`.</li>
               <li>Si eliges `Enviar a URL destino`, completa `Destination URL` del receptor en produccion.</li>
               <li>Si eliges `Descargar en local`, el navegador descargará el recurso directamente y lo guardará según tu configuración, normalmente en Descargas.</li>
-              <li>Si la transferencia remota se queda en <strong>STARTED</strong>, pulsa ?? Dataplanes para verificar que hay un motor activo.</li>
+              <li>Si la transferencia remota se queda en <strong>STARTED</strong>, pulsa Dataplanes para verificar que hay un motor activo.</li>
               <li>Si sigue atascada, pulsa <strong>Terminar</strong> en la fila y republica el asset con el token renovado antes de reintentar.</li>
             </ol>
           </section>
@@ -754,8 +754,8 @@
 
     <aside class="console" id="consolePane">
       <div class="console-handle">
-        <button id="btnConsoleToggle" title="Ocultar / mostrar">?</button>
-        <button id="btnConsoleExpand" title="Expandir / normal">?</button>
+        <button id="btnConsoleToggle" title="Ocultar / mostrar">&gt;</button>
+        <button id="btnConsoleExpand" title="Expandir / normal">+</button>
       </div>
       <div class="console-head">
         <strong id="consoleTitle">Consola</strong>
@@ -764,7 +764,7 @@
       <pre id="out"></pre>
     </aside>
   </div>
-  <button class="ghost console-show" id="btnConsoleShow">? Consola</button>
+  <button class="ghost console-show" id="btnConsoleShow">&lt; Consola</button>
   <div id="alertStack" class="alert-stack" aria-live="polite" aria-atomic="true"></div>
 
   <div class="auth-gate" id="authGate">
@@ -876,7 +876,7 @@
   <script src="assets/ui/02a-utils.js?v=20260603d"></script>
   <script src="assets/ui/02b-state.js?v=20260603d"></script>
   <script src="assets/ui/02c-api.js?v=20260603d"></script>
-  <script src="assets/ui/02d-ui.js?v=20260603d"></script>
+  <script src="assets/ui/02d-ui.js?v=20260604a"></script>
   <script src="assets/ui/02e-catalog-ui.js?v=20260603d"></script>
   <script src="assets/ui/02f-star.js?v=20260603d"></script>
   <script src="assets/ui/02g-download.js?v=20260603d"></script>
@@ -887,7 +887,7 @@
   <script src="assets/ui/02l-transfer.js?v=20260603d"></script>
   <script src="assets/ui/02m-gaiax.js?v=20260603d"></script>
   <script src="assets/ui/03-secrets.js?v=20260519d"></script>
-  <script src="assets/ui/04-bootstrap.js?v=20260529b"></script>
+  <script src="assets/ui/04-bootstrap.js?v=20260604a"></script>
   <script>
     (function () {
       function cfg() {

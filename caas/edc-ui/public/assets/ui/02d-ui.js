@@ -158,9 +158,9 @@
       const toggle = document.getElementById('btnConsoleToggle');
       const expand = document.getElementById('btnConsoleExpand');
       const show = document.getElementById('btnConsoleShow');
-      toggle.textContent = settings.consolePos === 'bottom' ? '⮟' : '⮞';
-      expand.textContent = settings.consoleExpanded ? '⤡' : '⤢';
-      show.textContent = settings.consolePos === 'bottom' ? '⮝ Consola' : '⮜ Consola';
+      toggle.textContent = settings.consolePos === 'bottom' ? 'v' : '>';
+      expand.textContent = settings.consoleExpanded ? '-' : '+';
+      show.textContent = settings.consolePos === 'bottom' ? '^ Consola' : '< Consola';
       show.style.display = hidden ? 'inline-flex' : 'none';
     }
 
@@ -413,7 +413,6 @@
         const defaultImageClass = isDefaultAssetImage(image) ? ' is-default' : '';
         const keywords = Array.isArray(row.assetKeywords) ? row.assetKeywords.slice(0, 8) : [];
         const delayMs = Math.min(idx * 55, 550);
-        const isPrivate = isRestrictedAccessLevel(row.accessLevel || 'public');
         const hasOffer = Boolean(row.offerId);
         const isOwn = stateName === 'own';
         const canContract = canPrepareCatalogContract(row);
@@ -432,8 +431,7 @@
           : (stateName === 'no-access'
             ? `window.openAccessRequestByIndex(${idx})`
             : `window.showCatalogAssetStatusByIndex(${idx})`);
-        const stateLabel = htmlEscape(catalogStateLabel(stateName));
-        const media = `<div class="asset-card-media${defaultImageClass}"><img src="${htmlEscape(image)}" alt="Imagen del asset ${title}" /><span class="asset-card-badge">${connectorBadge}</span><span class="asset-state-badge">${stateLabel}</span><div class="asset-card-media-overlay"><span class="asset-card-media-title">${title}</span></div></div>`;
+        const media = `<div class="asset-card-media${defaultImageClass}"><img src="${htmlEscape(image)}" alt="Imagen del asset ${title}" /><span class="asset-card-badge">${connectorBadge}</span><div class="asset-card-media-overlay"><span class="asset-card-media-title">${title}</span></div></div>`;
         const chips = keywords.length
           ? `<div class="asset-card-keywords">${keywords.map(k => `<span class="asset-chip">${htmlEscape(k)}</span>`).join('')}</div>`
           : '<div class="asset-card-meta">Sin keywords</div>';
@@ -447,8 +445,6 @@
               <details>
                 <summary>Detalles</summary>
                 <div class="asset-card-desc">${desc}</div>
-                <div class="asset-card-meta">Estado: ${stateLabel}</div>
-                <div class="asset-card-meta">Visibilidad: ${isPrivate ? 'privado' : 'publico'}</div>
                 ${chips}
               </details>
               <div class="row">
@@ -462,8 +458,8 @@
       wrap.innerHTML = groups
         .filter(group => group.rows.length)
         .map(group => `
-          <section class="catalog-group">
-            <div class="catalog-group-head catalog-group-${htmlEscape(group.key)}">
+          <section class="catalog-group catalog-group-${htmlEscape(group.key)}">
+            <div class="catalog-group-head">
               <h3>${htmlEscape(group.title)}</h3>
               <span class="muted">${group.rows.length} assets</span>
             </div>
