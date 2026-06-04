@@ -389,6 +389,64 @@
     }
 
     /**
+     * Maps an access-level code to its Spanish label (matches the policy selector).
+     *
+     * @param {string} level - public | private | partners | internal.
+     * @returns {string} Human-readable label.
+     */
+    function policyAccessLevelLabel(level) {
+      switch (String(level || '')) {
+        case 'public': return 'Público';
+        case 'private': return 'Privado (requiere solicitud)';
+        case 'partners': return 'Solo entidades colaboradoras';
+        case 'internal': return 'Uso interno del proyecto';
+        default: return level ? String(level) : '';
+      }
+    }
+
+    /**
+     * Builds a friendly HTML card for a created/updated policy response,
+     * used as the body of the info popup instead of raw JSON.
+     *
+     * @param {Object} info - { policyId, assetId, status, accessLevel }.
+     * @returns {string} HTML markup for showInfoPopup({ html }).
+     */
+    function renderPolicyCreatedCard(info) {
+      const data = info || {};
+      const status = Number(data.status) || 0;
+      // 204 (No Content) is returned by the PUT update path; 200/201 by the create path.
+      const updated = status === 204;
+      const policyId = String(data.policyId || '—');
+      const assetId = String(data.assetId || '');
+      const accessLevel = String(data.accessLevel || data.visibility || '').trim();
+
+      const field = (label, value) => `
+        <div class="pub-field">
+          <span class="pub-field-label">${htmlEscape(label)}</span>
+          <span class="pub-field-value">${value && String(value).trim() ? htmlEscape(value) : '<span class="pub-empty">—</span>'}</span>
+        </div>`;
+
+      const fields = [field('Asset', assetId)];
+      if (accessLevel) fields.push(field('Visibilidad', policyAccessLevelLabel(accessLevel)));
+
+      return `
+        <div class="pub-result">
+          <div class="pub-hero">
+            <div class="pub-hero-icon">✓</div>
+            <div class="pub-hero-text">
+              <div class="pub-hero-title">Política de uso ${updated ? 'actualizada' : 'creada'} correctamente</div>
+              <div class="pub-hero-id">${htmlEscape(policyId)}</div>
+            </div>
+            ${status ? `<span class="pub-status-badge">HTTP ${status}</span>` : ''}
+          </div>
+          <div class="pub-grid">
+            ${fields.join('')}
+          </div>
+          <p class="pub-hint">La política quedó asociada al asset. Continúa a Contrato para exponer la oferta en el catálogo.</p>
+        </div>`;
+    }
+
+    /**
      * Applies UI configuration and initialization settings.
      * Sets up theme, language, layout preferences from stored configuration.
      * Called on page load to restore user preferences.
