@@ -93,7 +93,8 @@
       }
       if (response.status >= 200 && response.status < 300) {
         upsertAssetBundleBackup({ assetId, policyId, policyBody: body, policyMeta });
-        showInfoPopup('Policy creada/actualizada', { assetId, policyId, status: response.status });
+        const policyInfo = { assetId, policyId, status: response.status, accessLevel: policyMeta?.accessLevel || '' };
+        showInfoPopup('Policy creada/actualizada', policyInfo, { html: renderPolicyCreatedCard(policyInfo) });
       } else {
         showInfoPopup('Error creando policy', response);
       }
