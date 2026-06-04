@@ -606,6 +606,97 @@
       .pub-grid { grid-template-columns: 1fr; }
     }
 
+    /* ContractDefinitions results panel ("Listar ContractDefinitions") */
+    .cdef-result { margin-top: 14px; }
+    .cdef-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .cdef-count { font-size: 13px; font-weight: 600; color: var(--text); }
+    .cdef-status {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ok);
+      border: 1px solid color-mix(in srgb, var(--ok) 45%, var(--line));
+      border-radius: 999px;
+      padding: 2px 9px;
+      background: var(--surface);
+    }
+    .cdef-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 12px;
+    }
+    .cdef-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: var(--surface-2);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, .06);
+      min-width: 0;
+    }
+    .cdef-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .cdef-card-id {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--primary);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      overflow-wrap: anywhere;
+      min-width: 0;
+    }
+    .cdef-card-badge {
+      flex: 0 0 auto;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 8px;
+      background: var(--surface);
+    }
+    .cdef-rows { display: flex; flex-direction: column; gap: 6px; }
+    .cdef-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+      padding-bottom: 6px;
+      border-bottom: 1px dashed var(--line);
+    }
+    .cdef-row:last-child { border-bottom: 0; padding-bottom: 0; }
+    .cdef-key { color: var(--muted); flex: 0 0 auto; }
+    .cdef-val {
+      color: var(--text);
+      text-align: right;
+      overflow-wrap: anywhere;
+      min-width: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .cdef-muted { color: var(--muted); }
+    .cdef-empty {
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      color: var(--muted);
+      font-size: 13px;
+      background: var(--surface-2);
+    }
+    .cdef-empty.cdef-error {
+      border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
+      color: var(--danger);
+      background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+    }
+
     .asset-showcase {
       margin-top: 12px;
       display: grid;

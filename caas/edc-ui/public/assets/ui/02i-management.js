@@ -174,18 +174,83 @@
     }
 
     /**
+     * Extracts the asset id targeted by a ContractDefinition assetsSelector.
+     * Prefers the EDC `id` criterion; falls back to the first operandRight.
+     *
+     * @param {Array} assetsSelector - Array of ODRL Criterion objects.
+     * @returns {string} The asset id, or '' when not resolvable.
+     */
+    function extractContractDefAssetId(assetsSelector) {
+      if (!Array.isArray(assetsSelector)) return '';
+      const idCriterion = assetsSelector.find((c) => {
+        const left = String(c?.operandLeft || '');
+        return left === 'id' || left.endsWith('/id') || left.endsWith('#id');
+      });
+      const chosen = idCriterion || assetsSelector[0];
+      return String(chosen?.operandRight || '');
+    }
+
+    /**
+     * Builds a friendly HTML summary of a ContractDefinitions list response.
+     * Handles empty and error states.
+     *
+     * @param {Object} resp - API response ({ status, data: [...] }).
+     * @returns {string} HTML markup for the results panel.
+     */
+    function buildContractDefinitionsHtml(resp) {
+      const status = Number(resp?.status) || 0;
+      if (status && (status < 200 || status >= 300)) {
+        const detail = htmlEscape(String(resp?.data?.detail || resp?.data?.error || resp?.error || `HTTP ${status}`));
+        return `<div class="cdef-empty cdef-error">No se pudieron cargar las ContractDefinitions (HTTP ${status}). ${detail}</div>`;
+      }
+      const list = unwrap(resp);
+      if (!list.length) {
+        return '<div class="cdef-empty">No hay ContractDefinitions publicadas en este conector.</div>';
+      }
+      const head = `<div class="cdef-head"><span class="cdef-count">${list.length} ContractDefinition${list.length === 1 ? '' : 's'}</span>${status ? `<span class="cdef-status">HTTP ${status}</span>` : ''}</div>`;
+      const row = (key, value) => `<div class="cdef-row"><span class="cdef-key">${htmlEscape(key)}</span><span class="cdef-val">${value ? htmlEscape(value) : '<span class="cdef-muted">—</span>'}</span></div>`;
+      const cards = list.map((item) => {
+        const id = String(item?.['@id'] || item?.id || '—');
+        const assetId = extractContractDefAssetId(item?.assetsSelector);
+        const accessPolicy = String(item?.accessPolicyId || '');
+        const contractPolicy = String(item?.contractPolicyId || '');
+        const policyRows = accessPolicy && accessPolicy === contractPolicy
+          ? row('Policy', accessPolicy)
+          : row('Access policy', accessPolicy) + row('Contract policy', contractPolicy);
+        return `
+          <div class="cdef-card">
+            <div class="cdef-card-head">
+              <span class="cdef-card-id">${htmlEscape(id)}</span>
+              <span class="cdef-card-badge">ContractDefinition</span>
+            </div>
+            <div class="cdef-rows">
+              ${row('Asset', assetId)}
+              ${policyRows}
+            </div>
+          </div>`;
+      }).join('');
+      return head + `<div class="cdef-grid">${cards}</div>`;
+    }
+
+    /**
      * Retrieves all contract definitions from the connector.
-     * Fetches contract list from Management API and displays in UI.
-     * 
+     * Writes the raw response to the console and renders a formatted
+     * summary panel below the action buttons.
+     *
      * @async
      * @returns {Promise<Object>} API response with contract list
-     * 
+     *
      * @example
      * await listContractDefinitions(); // Reload and display contracts
      */
     async function listContractDefinitions() {
       const r = await callApi('POST', '/v3/contractdefinitions/request', q());
       writeOut(r);
+      const box = document.getElementById('contractDefsResult');
+      if (box) {
+        box.innerHTML = buildContractDefinitionsHtml(r);
+        box.style.display = 'block';
+      }
       return r;
     }
 
