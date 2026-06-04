@@ -446,6 +446,48 @@
         </div>`;
     }
 
+    /**
+     * Generic result card for info popups, reusing the .pub-* styles.
+     * Use it instead of dumping raw JSON for simple confirmation/info popups.
+     *
+     * @param {Object} opts
+     * @param {string} opts.title - Hero title.
+     * @param {string} [opts.subtitle] - Monospace identifier under the title.
+     * @param {('ok'|'info'|'warn'|'danger')} [opts.tone='ok'] - Visual tone.
+     * @param {number} [opts.status] - HTTP status badge (omitted when falsy).
+     * @param {Array<{label:string,value:*}>} [opts.fields] - Key/value rows.
+     * @param {string} [opts.hint] - Footer note.
+     * @returns {string} HTML markup for showInfoPopup({ html }).
+     */
+    function renderResultCard(opts) {
+      const o = opts || {};
+      const tone = ['ok', 'info', 'warn', 'danger'].includes(o.tone) ? o.tone : 'ok';
+      const icon = { ok: '✓', info: 'ℹ', warn: '!', danger: '✕' }[tone];
+      const status = Number(o.status) || 0;
+      const fields = (Array.isArray(o.fields) ? o.fields : []).filter(f => f && f.label);
+      const fieldHtml = (label, value) => `
+        <div class="pub-field">
+          <span class="pub-field-label">${htmlEscape(label)}</span>
+          <span class="pub-field-value">${value !== undefined && value !== null && String(value).trim() ? htmlEscape(value) : '<span class="pub-empty">—</span>'}</span>
+        </div>`;
+      const grid = fields.length ? `<div class="pub-grid">${fields.map(f => fieldHtml(f.label, f.value)).join('')}</div>` : '';
+      const subtitle = o.subtitle ? `<div class="pub-hero-id">${htmlEscape(o.subtitle)}</div>` : '';
+      const hint = o.hint ? `<p class="pub-hint">${htmlEscape(o.hint)}</p>` : '';
+      return `
+        <div class="pub-result">
+          <div class="pub-hero pub-hero-${tone}">
+            <div class="pub-hero-icon">${icon}</div>
+            <div class="pub-hero-text">
+              <div class="pub-hero-title">${htmlEscape(o.title || '')}</div>
+              ${subtitle}
+            </div>
+            ${status ? `<span class="pub-status-badge">HTTP ${status}</span>` : ''}
+          </div>
+          ${grid}
+          ${hint}
+        </div>`;
+    }
+
     // Console resize bounds (px). The minimum keeps the console usable.
     const CONSOLE_MIN_W = 280;
     const CONSOLE_MIN_H = 140;

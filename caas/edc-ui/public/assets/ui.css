@@ -537,6 +537,13 @@
       color: #fff;
       background: var(--ok);
     }
+    /* Tone modifiers for the generic result card (default .pub-hero is ok/green) */
+    .pub-hero-info { border-color: color-mix(in srgb, var(--primary) 35%, var(--line)); background: color-mix(in srgb, var(--primary) 10%, var(--surface)); }
+    .pub-hero-info .pub-hero-icon { background: var(--primary); }
+    .pub-hero-warn { border-color: color-mix(in srgb, var(--warn) 40%, var(--line)); background: color-mix(in srgb, var(--warn) 12%, var(--surface)); }
+    .pub-hero-warn .pub-hero-icon { background: var(--warn); }
+    .pub-hero-danger { border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); }
+    .pub-hero-danger .pub-hero-icon { background: var(--danger); }
     .pub-hero-text { flex: 1 1 auto; min-width: 0; }
     .pub-hero-title { font-weight: 600; font-size: 15px; color: var(--text); }
     .pub-hero-id {
