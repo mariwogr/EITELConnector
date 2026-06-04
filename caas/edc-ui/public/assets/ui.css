@@ -452,6 +452,160 @@
       font-size: 13px;
     }
 
+    /* Rich (non-JSON) info popup body: drop the monospace/pre look */
+    .info-pre.info-rich {
+      white-space: normal;
+      word-break: normal;
+      overflow-wrap: anywhere;
+      font-family: inherit;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      max-height: 62vh;
+    }
+    #infoModal .info-pre.info-rich { background: transparent; border: 0; }
+
+    /* Pretty "Asset publicado" result card */
+    .pub-result { display: flex; flex-direction: column; gap: 14px; }
+    .pub-hero {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--line));
+      background: color-mix(in srgb, var(--ok) 12%, var(--surface));
+    }
+    .pub-hero-icon {
+      flex: 0 0 auto;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      background: var(--ok);
+    }
+    .pub-hero-text { flex: 1 1 auto; min-width: 0; }
+    .pub-hero-title { font-weight: 600; font-size: 15px; color: var(--text); }
+    .pub-hero-id {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      word-break: break-all;
+      margin-top: 2px;
+    }
+    .pub-status-badge {
+      flex: 0 0 auto;
+      align-self: flex-start;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ok);
+      border: 1px solid color-mix(in srgb, var(--ok) 45%, var(--line));
+      border-radius: 999px;
+      padding: 3px 10px;
+      background: var(--surface);
+    }
+    .pub-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .pub-field {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px 11px;
+      background: var(--surface-2);
+      min-width: 0;
+    }
+    .pub-field-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--muted);
+    }
+    .pub-field-value { font-size: 13px; color: var(--text); overflow-wrap: anywhere; }
+    .pub-empty { color: var(--muted); }
+    .pub-section {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: var(--surface);
+    }
+    .pub-section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: 9px;
+    }
+    .pub-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pub-chip {
+      font-size: 12px;
+      color: var(--primary);
+      border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--line));
+      background: var(--primary-soft);
+      border-radius: 999px;
+      padding: 3px 10px;
+    }
+    .pub-file { display: flex; align-items: center; gap: 11px; }
+    .pub-file-icon {
+      flex: 0 0 auto;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+      background: var(--primary-soft);
+      border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--line));
+    }
+    .pub-file-info { min-width: 0; }
+    .pub-file-name { font-size: 14px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+    .pub-file-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .pub-url-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .pub-url-input {
+      flex: 1 1 220px;
+      min-width: 0;
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 7px 9px;
+      background: var(--surface-2);
+      color: var(--text);
+    }
+    .pub-url-btn {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      font-size: 13px;
+      padding: 7px 14px;
+      border-radius: 9px;
+      cursor: pointer;
+    }
+    .pub-note { font-size: 12px; color: var(--muted); margin: 10px 0 0; }
+    .pub-hint {
+      font-size: 13px;
+      color: var(--text);
+      margin: 0;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border-left: 3px solid var(--primary);
+      background: color-mix(in srgb, var(--primary-soft) 55%, var(--surface));
+    }
+    @media (max-width: 560px) {
+      .pub-grid { grid-template-columns: 1fr; }
+    }
+
     .asset-showcase {
       margin-top: 12px;
       display: grid;
