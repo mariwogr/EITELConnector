@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Preview · Popup "Asset publicado"</title>
+  <link rel="stylesheet" href="assets/ui.css?v=20260604a" />
+  <style>
+    /* Preview-only chrome (not part of the app) */
+    body { padding: 24px; }
+    .preview-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+    .preview-bar h1 { font-size: 16px; margin: 0 12px 0 0; }
+    .preview-note { color: var(--muted); font-size: 12px; margin: 0 0 18px; }
+    .preview-modal { position: static; display: block; background: transparent; padding: 0; margin-bottom: 26px; }
+    .preview-modal .modal-card { margin: 0 auto; box-shadow: 0 10px 24px rgba(0,0,0,.10); }
+  </style>
+</head>
+<body data-theme="light">
+  <div class="preview-bar">
+    <h1>Preview · Popup "Asset publicado"</h1>
+    <button class="ghost" id="btnTheme">Cambiar a oscuro</button>
+  </div>
+  <p class="preview-note">Vista previa estática del nuevo popup. Usa el render real (<code>renderAssetPublishedCard</code>) y el CSS real (<code>ui.css</code>). No necesita backend.</p>
+
+  <!-- Example 1: local sovereign file (the exact case from the issue) -->
+  <div class="modal open preview-modal" id="infoModal">
+    <div class="modal-card">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h2 id="infoTitle" style="margin:0">Asset publicado</h2>
+        <button class="ghost">Cerrar</button>
+      </div>
+      <pre class="info-pre info-rich" id="infoBodyLocal">{}</pre>
+    </div>
+  </div>
+
+  <!-- Example 2: remote HTTP source with auth -->
+  <div class="modal open preview-modal" id="infoModal">
+    <div class="modal-card">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h2 style="margin:0">Asset publicado</h2>
+        <button class="ghost">Cerrar</button>
+      </div>
+      <pre class="info-pre info-rich" id="infoBodyRemote">{}</pre>
+    </div>
+  </div>
+
+  <script src="assets/ui/02a-utils.js?v=20260604a"></script>
+  <script src="assets/ui/02d-ui.js?v=20260604a"></script>
+  <script>
+    const localSample = {
+      status: 200,
+      assetId: 'asset-forticlient-installer',
+      name: 'FortiClient Installer',
+      description: 'Instalador oficial del cliente VPN para puestos corporativos.',
+      keywords: ['vpn', 'seguridad', 'forticlient', 'windows'],
+      sourceMode: 'local-file',
+      baseUrl: 'http://conectorfuenlabrada-local-assets:8081/v1/local-assets/files',
+      path: '/b0bd4924dbdd43fea7ffdf5237e58e1a/FortiClientInstaller.exe',
+      authType: 'none',
+      localUpload: {
+        fileId: 'b0bd4924dbdd43fea7ffdf5237e58e1a',
+        filename: 'FortiClientInstaller.exe',
+        contentType: 'application/x-msdownload',
+        bytes: 5157048,
+        publicUrl: 'https://gis.eiteldata.eu/conectorFuenlabrada/local-assets/files/b0bd4924dbdd43fea7ffdf5237e58e1a/FortiClientInstaller.exe'
+      },
+      hint: 'El asset se ha creado/actualizado correctamente en Management API.'
+    };
+    const remoteSample = {
+      status: 200,
+      assetId: 'asset-parcelas-catastro',
+      name: 'Parcelas catastro 2026',
+      description: '',
+      keywords: ['catastro', 'gis'],
+      sourceMode: 'remote-url',
+      baseUrl: 'https://services.arcgis.com/abc123/arcgis/rest/services/Parcelas/FeatureServer',
+      path: '/0/query?where=1=1&f=geojson',
+      authType: 'arcgis-login',
+      localUpload: null,
+      hint: 'El asset se ha creado/actualizado correctamente en Management API.'
+    };
+    document.getElementById('infoBodyLocal').innerHTML = renderAssetPublishedCard(localSample);
+    document.getElementById('infoBodyRemote').innerHTML = renderAssetPublishedCard(remoteSample);
+
+    const btn = document.getElementById('btnTheme');
+    btn.addEventListener('click', () => {
+      const dark = document.body.dataset.theme === 'dark';
+      document.body.dataset.theme = dark ? 'light' : 'dark';
+      btn.textContent = dark ? 'Cambiar a oscuro' : 'Cambiar a claro';
+    });
+  </script>
+</body>
+</html>

@@ -441,7 +441,7 @@
           sourceMode,
           assetBody: body,
         });
-        showInfoPopup('Asset publicado', {
+        const publishedInfo = {
           status: publishResp.status,
           assetId: id,
           name: assetName,
@@ -454,7 +454,8 @@
           authType,
           localUpload: localUploadInfo,
           hint: 'El asset se ha creado/actualizado correctamente en Management API.'
-        });
+        };
+        showInfoPopup('Asset publicado', publishedInfo, { html: renderAssetPublishedCard(publishedInfo) });
         if (starTrustConfig.enabled) {
           pushStarTrustEvent(
             'Asset preparado en nodo Star',

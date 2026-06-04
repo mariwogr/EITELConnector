@@ -179,10 +179,16 @@
      */
     function showInfoPopup(title, payload, options = {}) {
       document.getElementById('infoTitle').textContent = title || 'Detalle';
-      if (options && options.plainText) {
-        document.getElementById('infoBody').textContent = typeof payload === 'string' ? payload : String(payload ?? '');
+      const infoBody = document.getElementById('infoBody');
+      if (options && typeof options.html === 'string') {
+        infoBody.classList.add('info-rich');
+        infoBody.innerHTML = options.html;
+      } else if (options && options.plainText) {
+        infoBody.classList.remove('info-rich');
+        infoBody.textContent = typeof payload === 'string' ? payload : String(payload ?? '');
       } else {
-        document.getElementById('infoBody').textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+        infoBody.classList.remove('info-rich');
+        infoBody.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
       }
       const actionBtn = document.getElementById('btnInfoAction');
       if (options && options.actionLabel && typeof options.onAction === 'function') {
@@ -207,6 +213,179 @@
       infoActionHandler = null;
       const actionBtn = document.getElementById('btnInfoAction');
       actionBtn.style.display = 'none';
+    }
+
+    /**
+     * Formats a byte count into a human-readable size (e.g. 5157048 -> "4.9 MB").
+     *
+     * @param {number|string} bytes - Raw byte count.
+     * @returns {string} Human-readable size, or '' when unavailable.
+     */
+    function formatAssetBytes(bytes) {
+      const n = Number(bytes);
+      if (!Number.isFinite(n) || n <= 0) return '';
+      const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+      let value = n;
+      let unit = 0;
+      while (value >= 1024 && unit < units.length - 1) {
+        value /= 1024;
+        unit += 1;
+      }
+      const rounded = unit === 0 || value >= 100 ? Math.round(value) : Math.round(value * 10) / 10;
+      return `${rounded} ${units[unit]}`;
+    }
+
+    function assetSourceModeLabel(mode) {
+      switch (String(mode || '')) {
+        case 'local-file': return 'Archivo local soberano';
+        case 'remote-url': return 'Origen remoto (HTTP)';
+        default: return mode ? String(mode) : 'Origen remoto (HTTP)';
+      }
+    }
+
+    function assetAuthTypeLabel(type) {
+      switch (String(type || 'none')) {
+        case 'none': return 'Sin autenticación';
+        case 'arcgis-login': return 'Token ArcGIS';
+        case 'oauth2': return 'OAuth2';
+        case 'apikey': return 'API token';
+        default: return String(type || 'Sin autenticación');
+      }
+    }
+
+    /**
+     * Copies a value to the clipboard from an info-popup button and shows quick feedback.
+     * Exposed on window so inline onclick handlers inside the popup can call it.
+     *
+     * @param {string} text - Value to copy.
+     * @param {HTMLElement} [btn] - Button that triggered the copy, used for feedback.
+     */
+    window.copyAssetPublishValue = async function copyAssetPublishValue(text, btn) {
+      const value = String(text || '');
+      if (!value) return;
+      let ok = false;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(value);
+          ok = true;
+        }
+      } catch { ok = false; }
+      if (!ok) {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = value;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+        } catch { ok = false; }
+      }
+      if (btn) {
+        const original = btn.dataset.label || btn.textContent;
+        btn.dataset.label = original;
+        btn.textContent = ok ? 'Copiado' : 'Error';
+        setTimeout(() => { btn.textContent = btn.dataset.label || original; }, 1400);
+      }
+    };
+
+    /**
+     * Builds a friendly HTML card describing a freshly published/updated asset.
+     * Used as the body of the info popup instead of raw JSON.
+     *
+     * @param {Object} info - Asset publish result (status, assetId, name, sourceMode, localUpload, ...).
+     * @returns {string} HTML markup for showInfoPopup({ html }).
+     */
+    function renderAssetPublishedCard(info) {
+      const data = info || {};
+      const status = Number(data.status) || 0;
+      const assetId = htmlEscape(String(data.assetId || '—'));
+      const name = String(data.name || '').trim();
+      const description = String(data.description || '').trim();
+      const keywords = Array.isArray(data.keywords)
+        ? data.keywords.map(k => String(k || '').trim()).filter(Boolean)
+        : [];
+      const sourceMode = String(data.sourceMode || '');
+      const upload = data.localUpload || null;
+      const isLocal = sourceMode === 'local-file';
+
+      const field = (label, value) => `
+        <div class="pub-field">
+          <span class="pub-field-label">${htmlEscape(label)}</span>
+          <span class="pub-field-value">${value && String(value).trim() ? htmlEscape(value) : '<span class="pub-empty">—</span>'}</span>
+        </div>`;
+
+      const keywordsBlock = keywords.length
+        ? `<div class="pub-section">
+             <div class="pub-section-title">Keywords</div>
+             <div class="pub-chips">${keywords.map(k => `<span class="pub-chip">${htmlEscape(k)}</span>`).join('')}</div>
+           </div>`
+        : '';
+
+      let sourceBlock = '';
+      if (isLocal && upload) {
+        const filename = String(upload.filename || '').trim() || 'archivo';
+        const size = formatAssetBytes(upload.bytes);
+        const ctype = String(upload.contentType || '').trim();
+        const publicUrl = String(upload.publicUrl || '').trim();
+        const metaParts = [size, ctype].filter(Boolean).join(' · ');
+        const urlRow = publicUrl
+          ? `<div class="pub-url-row">
+               <input class="pub-url-input" value="${htmlEscape(publicUrl)}" readonly />
+               <button type="button" class="ghost pub-url-btn" data-label="Copiar" onclick="window.copyAssetPublishValue(this.previousElementSibling.value, this)">Copiar</button>
+               <a class="ghost pub-url-btn" href="${htmlEscape(publicUrl)}" target="_blank" rel="noopener">Abrir</a>
+             </div>`
+          : '<p class="pub-note">Asset privado: el archivo se sirve de forma soberana, sin URL pública.</p>';
+        sourceBlock = `
+          <div class="pub-section">
+            <div class="pub-section-title">Archivo soberano</div>
+            <div class="pub-file">
+              <div class="pub-file-icon">📄</div>
+              <div class="pub-file-info">
+                <div class="pub-file-name">${htmlEscape(filename)}</div>
+                ${metaParts ? `<div class="pub-file-meta">${htmlEscape(metaParts)}</div>` : ''}
+              </div>
+            </div>
+            ${urlRow}
+          </div>`;
+      } else {
+        const baseUrl = String(data.baseUrl || '').trim();
+        const path = String(data.path || '').trim();
+        const fullUrl = (baseUrl + path) || baseUrl || path;
+        sourceBlock = fullUrl
+          ? `<div class="pub-section">
+               <div class="pub-section-title">Origen remoto</div>
+               <div class="pub-url-row">
+                 <input class="pub-url-input" value="${htmlEscape(fullUrl)}" readonly />
+                 <button type="button" class="ghost pub-url-btn" data-label="Copiar" onclick="window.copyAssetPublishValue(this.previousElementSibling.value, this)">Copiar</button>
+               </div>
+             </div>`
+          : '';
+      }
+
+      const hint = String(data.hint || '').trim();
+
+      return `
+        <div class="pub-result">
+          <div class="pub-hero">
+            <div class="pub-hero-icon">✓</div>
+            <div class="pub-hero-text">
+              <div class="pub-hero-title">Asset publicado correctamente</div>
+              <div class="pub-hero-id">${assetId}</div>
+            </div>
+            ${status ? `<span class="pub-status-badge">HTTP ${status}</span>` : ''}
+          </div>
+          <div class="pub-grid">
+            ${field('Nombre', name)}
+            ${field('Descripción', description)}
+            ${field('Origen', assetSourceModeLabel(sourceMode))}
+            ${field('Autenticación', assetAuthTypeLabel(data.authType))}
+          </div>
+          ${keywordsBlock}
+          ${sourceBlock}
+          ${hint ? `<p class="pub-hint">${htmlEscape(hint)}</p>` : ''}
+        </div>`;
     }
 
     /**
