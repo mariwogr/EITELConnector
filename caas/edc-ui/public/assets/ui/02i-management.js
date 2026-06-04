@@ -62,8 +62,8 @@
      * await createOrUpdatePolicy(); // Creates policy from UI input
      */
     async function createOrUpdatePolicy() {
-      const policyId = document.getElementById('policyIdPreview')?.value;
-      const assetId = document.getElementById('assetIdPreview')?.value;
+      const policyId = (document.getElementById('policyIdPreview')?.value || document.getElementById('policyIdMirror')?.value || '').trim();
+      const assetId = (document.getElementById('assetIdPreview')?.value || document.getElementById('policyAssetPreview')?.value || '').trim();
       if (!policyId || !assetId) { writeOut({ status: 400, error: 'Falta policyId o assetId.' }); return { status: 400 }; }
       let policy;
       try { policy = buildPolicyFromTemplate(assetId, policyId); } catch (e) { writeOut({ status: 400, error: String(e) }); return { status: 400 }; }
@@ -83,7 +83,10 @@
           'eitel:obligation':     JSON.stringify(policyMeta?.obligation   || []),
         }
       };
-      const response = await callApi('POST', '/v3/policydefinitions', JSON.stringify(body));
+      let response = await callApi('POST', '/v3/policydefinitions', JSON.stringify(body));
+      if (response.status === 409) {
+        response = await callApi('PUT', `/v3/policydefinitions/${encodeURIComponent(policyId)}`, JSON.stringify(body));
+      }
       if (response.status >= 200 && response.status < 300) {
         upsertAssetBundleBackup({ assetId, policyId, policyBody: body, policyMeta });
         showInfoPopup('Policy creada/actualizada', { assetId, policyId, status: response.status });
@@ -121,7 +124,7 @@
      * await deletePolicy(); // Delete selected policy from UI
      */
     async function deletePolicy() {
-      const policyId = document.getElementById('policyIdPreview')?.value;
+      const policyId = (document.getElementById('policyIdPreview')?.value || document.getElementById('policyIdMirror')?.value || '').trim();
       if (!policyId) { writeOut({ status: 400, error: 'Policy ID requerido.' }); return; }
       writeOut(await callApi('DELETE', `/v3/policydefinitions/${encodeURIComponent(policyId)}`));
     }
@@ -138,9 +141,9 @@
      * await createContractDefinition(); // Create contract from UI selections
      */
     async function createContractDefinition() {
-      const contractDefId = document.getElementById('contractDefIdPreview')?.value;
-      const assetId = document.getElementById('assetIdPreview')?.value;
-      const policyId = document.getElementById('policyIdPreview')?.value;
+      const contractDefId = (document.getElementById('contractDefIdPreview')?.value || document.getElementById('contractDefIdMirror')?.value || '').trim();
+      const assetId = (document.getElementById('assetIdPreview')?.value || document.getElementById('contractAssetPreview')?.value || '').trim();
+      const policyId = (document.getElementById('policyIdPreview')?.value || document.getElementById('contractAccessPolicyId')?.value || document.getElementById('contractContractPolicyId')?.value || '').trim();
       if (!contractDefId || !assetId || !policyId) {
         writeOut({ status: 400, error: 'Faltan IDs de contractDef, asset o policy.' });
         return { status: 400 };
@@ -153,7 +156,10 @@
         contractPolicyId: policyId,
         assetsSelector: [{ '@type': 'Criterion', operandLeft: 'https://w3id.org/edc/v0.0.1/ns/id', operator: '=', operandRight: assetId }]
       };
-      const response = await callApi('POST', '/v3/contractdefinitions', JSON.stringify(body));
+      let response = await callApi('POST', '/v3/contractdefinitions', JSON.stringify(body));
+      if (response.status === 409) {
+        response = await callApi('PUT', `/v3/contractdefinitions/${encodeURIComponent(contractDefId)}`, JSON.stringify(body));
+      }
       if (response.status >= 200 && response.status < 300) {
         upsertAssetBundleBackup({ assetId, contractDefId, contractBody: body, policyId });
         showInfoPopup('Contract Definition creada/actualizada', { assetId, contractDefId, policyId, status: response.status });
@@ -191,7 +197,7 @@
      * await deleteContractDefinition(); // Delete selected contract
      */
     async function deleteContractDefinition() {
-      const id = document.getElementById('contractDefIdPreview')?.value;
+      const id = (document.getElementById('contractDefIdPreview')?.value || document.getElementById('contractDefIdMirror')?.value || '').trim();
       if (!id) { writeOut({ status: 400, error: 'ContractDefinition ID requerido.' }); return; }
       writeOut(await callApi('DELETE', `/v3/contractdefinitions/${encodeURIComponent(id)}`));
     }
@@ -591,6 +597,7 @@
       const keyGuess = String(id || '').replace(/^asset-/, '');
       const setVal = (elId, value) => { const el = document.getElementById(elId); if (el) el.value = value; };
       setVal('assetKey', keyGuess);
+      if (typeof updateAssetPreview === 'function') updateAssetPreview();
       setVal('assetName', firstNonEmpty([props?.name, props?.title, clean(id)]));
       setVal('assetDescription', firstNonEmpty([props?.description, props?.['eitel:description'], '']));
       setVal('assetKeywords', parseKeywordList(props?.keywords || '').join(', '));
@@ -613,22 +620,51 @@
       }
       setVal('assetBaseUrl', dataAddress?.baseUrl || '');
       setVal('assetPath', dataAddress?.path || '');
-      if (typeof updateAssetPreview === 'function') updateAssetPreview();
       activateView('asset');
       showInfoPopup('Asset cargado para edición', { assetId: id, note: 'Revisa y pulsa Crear/Actualizar asset para guardar cambios.' });
+    }
+
+    async function resolvePublishedPolicyForEdit(assetId, bundle = null) {
+      const bundledPolicyId = String(bundle?.policyId || bundle?.policyBody?.['@id'] || '').trim();
+      const bundledPolicy = bundle?.policyBody?.policy || bundle?.policyBody?.['edc:policy'] || null;
+      if (bundledPolicyId && bundledPolicy) return { policyId: bundledPolicyId, policy: bundledPolicy };
+
+      const policiesResp = await callApi('POST', '/v3/policydefinitions/request', q(), { silent: true, retries: 0 });
+      const policies = unwrap(policiesResp);
+      const policyId = bundledPolicyId || inferPublishedPolicyId(assetId, policies);
+      const policyDefinition = policies.find(policy => getPolicyDefinitionId(policy) === policyId);
+      const policy = policyDefinition?.policy || policyDefinition?.['edc:policy'] || null;
+      return { policyId, policy, policyDefinition };
+    }
+
+    async function resolvePublishedContractForEdit(assetId, bundle = null) {
+      const bundledContractDefId = String(bundle?.contractDefId || bundle?.contractBody?.['@id'] || '').trim();
+      const bundledPolicyId = String(bundle?.policyId || bundle?.policyBody?.['@id'] || '').trim();
+      const contractDefsResp = await callApi('POST', '/v3/contractdefinitions/request', q(), { silent: true, retries: 0 });
+      const contractDefinitions = unwrap(contractDefsResp);
+      const contractDefId = bundledContractDefId || inferPublishedContractDefId(assetId, contractDefinitions);
+      const contractDefinition = contractDefinitions.find(contract => String(contract?.['@id'] || contract?.id || contract?.['edc:id'] || '').trim() === contractDefId) || bundle?.contractBody || null;
+      const policyId = bundledPolicyId || String(
+        contractDefinition?.accessPolicyId ||
+        contractDefinition?.contractPolicyId ||
+        contractDefinition?.['edc:accessPolicyId'] ||
+        contractDefinition?.['edc:contractPolicyId'] ||
+        ''
+      ).trim();
+      return { contractDefId, policyId, contractDefinition };
     }
 
     async function editPublishedPolicy(assetId) {
       const id = String(assetId || '').trim();
       if (!id) return;
       const bundle = await getPublicationBundleByAssetId(id);
-      const policyId = String(bundle?.policyId || bundle?.policyBody?.['@id'] || '').trim();
-      const policy = bundle?.policyBody?.policy || bundle?.policyBody?.['edc:policy'] || null;
+      const { policyId, policy } = await resolvePublishedPolicyForEdit(id, bundle);
       if (!policyId || !policy) {
         showInfoPopup('Policy no encontrada', { assetId: id, message: 'No hay policy asociada guardada para esta publicación.' });
         return;
       }
       const setVal = (elId, value) => { const el = document.getElementById(elId); if (el) el.value = value; };
+      setVal('assetIdPreview', id);
       setVal('policyIdPreview', policyId);
       setVal('policyIdMirror', policyId);
       setVal('policyAssetPreview', id);
@@ -646,13 +682,14 @@
       const id = String(assetId || '').trim();
       if (!id) return;
       const bundle = await getPublicationBundleByAssetId(id);
-      const contractDefId = String(bundle?.contractDefId || bundle?.contractBody?.['@id'] || '').trim();
-      const policyId = String(bundle?.policyId || bundle?.policyBody?.['@id'] || '').trim();
+      const { contractDefId, policyId } = await resolvePublishedContractForEdit(id, bundle);
       if (!contractDefId) {
         showInfoPopup('ContractDefinition no encontrada', { assetId: id, message: 'No hay ContractDefinition asociada guardada para esta publicación.' });
         return;
       }
       const setVal = (elId, value) => { const el = document.getElementById(elId); if (el) el.value = value; };
+      setVal('assetIdPreview', id);
+      setVal('policyIdPreview', policyId);
       setVal('contractDefIdPreview', contractDefId);
       setVal('contractDefIdMirror', contractDefId);
       setVal('contractAssetPreview', id);

@@ -1998,11 +1998,11 @@ function summarizePolicyTerms(policyObj) {
       }
 
       const groups = [
-        { key: 'own', title: 'Tus assets', rows: [] },
-        { key: 'no-access', title: 'Privado', rows: [] },
-        { key: 'pending', title: 'Solicitud pendiente', rows: [] },
-        { key: 'approved', title: 'Disponibles por solicitud anterior', rows: [] },
         { key: 'public', title: 'Públicos', rows: [] },
+        { key: 'approved', title: 'Disponibles por solicitud anterior', rows: [] },
+        { key: 'pending', title: 'Solicitud pendiente', rows: [] },
+        { key: 'no-access', title: 'Privado', rows: [] },
+        { key: 'own', title: 'Tus assets', rows: [] },
       ];
       const groupMap = new Map(groups.map(group => [group.key, group]));
       filtered.forEach(item => {

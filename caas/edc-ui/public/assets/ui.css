@@ -482,7 +482,7 @@
     .catalog-group-own { border-color: color-mix(in srgb, #6b7a90 58%, var(--line)); }
     .catalog-group-no-access { border-color: color-mix(in srgb, #d96b6b 58%, var(--line)); }
     .catalog-group-pending { border-color: color-mix(in srgb, #d9a441 58%, var(--line)); }
-    .catalog-group-approved { border-color: color-mix(in srgb, #2f9f69 58%, var(--line)); }
+    .catalog-group-approved { border-color: color-mix(in srgb, #2f78d6 58%, var(--line)); }
     .catalog-group-public { border-color: color-mix(in srgb, #22a06b 58%, var(--line)); }
     .catalog-group-head h3 {
       margin: 0;
@@ -514,10 +514,13 @@
       animation-delay: var(--delay, 0ms);
       transition: transform .18s ease, box-shadow .18s ease;
     }
-    .asset-card.catalog-state-public,
-    .asset-card.catalog-state-approved {
+    .asset-card.catalog-state-public {
       border-color: color-mix(in srgb, #22a06b 48%, var(--line));
       background: linear-gradient(180deg, #f0fbf5 0%, var(--surface) 42%);
+    }
+    .asset-card.catalog-state-approved {
+      border-color: color-mix(in srgb, #2f78d6 48%, var(--line));
+      background: linear-gradient(180deg, #eef6ff 0%, var(--surface) 42%);
     }
     .asset-card.catalog-state-no-access {
       border-color: color-mix(in srgb, #d96b6b 45%, var(--line));

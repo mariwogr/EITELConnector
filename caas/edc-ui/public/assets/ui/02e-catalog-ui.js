@@ -85,6 +85,54 @@
       });
     }
 
+    function getPolicyDefinitionId(policyDefinition) {
+      return String(policyDefinition?.['@id'] || policyDefinition?.id || policyDefinition?.['edc:id'] || '').trim();
+    }
+
+    function getPolicyDefinitionAssetId(policyDefinition) {
+      const policy = policyDefinition?.policy || policyDefinition?.['edc:policy'] || policyDefinition || {};
+      const permissions = policy?.permission || policy?.['odrl:permission'] || [];
+      const firstPermission = Array.isArray(permissions) ? permissions[0] : permissions;
+      return String(
+        firstPermission?.target ||
+        firstPermission?.['odrl:target'] ||
+        policy?.target ||
+        policy?.['odrl:target'] ||
+        ''
+      ).trim();
+    }
+
+    function inferPublishedPolicyId(assetId, policies = []) {
+      const id = String(assetId || '').trim();
+      if (!id) return '';
+      const byTarget = (Array.isArray(policies) ? policies : []).find(policy => getPolicyDefinitionAssetId(policy) === id);
+      if (byTarget) return getPolicyDefinitionId(byTarget);
+      const suffix = id.replace(/^asset-/, '');
+      const conventional = `policy-${suffix}`;
+      const byConvention = (Array.isArray(policies) ? policies : []).find(policy => getPolicyDefinitionId(policy) === conventional);
+      return byConvention ? conventional : '';
+    }
+
+    function inferPublishedContractDefId(assetId, contractDefinitions = []) {
+      const id = String(assetId || '').trim();
+      if (!id) return '';
+      const byAsset = (Array.isArray(contractDefinitions) ? contractDefinitions : []).find(contract => getContractDefinitionAssetId(contract) === id);
+      if (byAsset) return String(byAsset?.['@id'] || byAsset?.id || byAsset?.['edc:id'] || '').trim();
+      const suffix = id.replace(/^asset-/, '');
+      const conventional = `contractdef-${suffix}`;
+      const byConvention = (Array.isArray(contractDefinitions) ? contractDefinitions : []).find(contract => String(contract?.['@id'] || contract?.id || contract?.['edc:id'] || '').trim() === conventional);
+      return byConvention ? conventional : '';
+    }
+
+    function enrichPublishedAssetsWithRuntimeArtifacts(rows = [], policies = [], contractDefinitions = []) {
+      return (Array.isArray(rows) ? rows : []).map((row) => {
+        const assetId = String(row?.id || '').trim();
+        const policyId = String(row?.policyId || '').trim() || inferPublishedPolicyId(assetId, policies);
+        const contractDefId = String(row?.contractDefId || '').trim() || inferPublishedContractDefId(assetId, contractDefinitions);
+        return { ...row, policyId, contractDefId };
+      });
+    }
+
     async function getPublicationBundleByAssetId(assetId) {
       const target = String(assetId || '').trim();
       if (!target) return null;
@@ -199,13 +247,21 @@
      * const assets = await loadPublishedAssets(true);
      */
     async function loadPublishedAssets(showOutput = false) {
-      const r = await callApi('POST', '/v3/assets/request', q());
+      const [r, policiesResp, contractsResp] = await Promise.all([
+        callApi('POST', '/v3/assets/request', q()),
+        callApi('POST', '/v3/policydefinitions/request', q(), { silent: true, retries: 0 }),
+        callApi('POST', '/v3/contractdefinitions/request', q(), { silent: true, retries: 0 }),
+      ]);
       const bundleRows = await getMergedAssetBundleBackups();
-      const allRows = enrichPublishedAssetsWithBundles(mapPublishedAssetRows(unwrap(r)), bundleRows);
+      const allRows = enrichPublishedAssetsWithRuntimeArtifacts(
+        enrichPublishedAssetsWithBundles(mapPublishedAssetRows(unwrap(r)), bundleRows),
+        unwrap(policiesResp),
+        unwrap(contractsResp)
+      );
       const ownRows = allRows.filter(row => String(row.managedBy || '').trim().toLowerCase() === String(connectorName || '').trim().toLowerCase());
       const rowsToRender = ownRows.length ? ownRows : allRows;
       renderPublishedAssets(rowsToRender);
-      if (showOutput) writeOut({ ...r, totalPublishedAssets: allRows.length, connectorOwnedAssets: ownRows.length, rendered: rowsToRender.length, bundles: bundleRows.length });
+      if (showOutput) writeOut({ ...r, totalPublishedAssets: allRows.length, connectorOwnedAssets: ownRows.length, rendered: rowsToRender.length, bundles: bundleRows.length, policies: unwrap(policiesResp).length, contractDefinitions: unwrap(contractsResp).length });
       return r;
     }
 
