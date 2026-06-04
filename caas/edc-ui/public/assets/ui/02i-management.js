@@ -4,16 +4,20 @@
 
     function buildPolicyFromTemplate(assetId, policyId) {
       const mode = document.getElementById('policyMode')?.value || 'form';
+      // Visibility/access level applies in both modes: the selector stays available in JSON-LD mode.
+      const accessLevel = (document.getElementById('policyAccessLevel')?.value || 'public').trim();
       if (mode === 'jsonld') {
         const custom = parseJsonSafe(document.getElementById('policyCustomJson')?.value || '', null);
         if (!custom) throw new Error('Policy JSON-LD inválido');
-        return sanitizePolicyForStorage(custom, assetId, policyId);
+        const policy = sanitizePolicyForStorage(custom, assetId, policyId);
+        // Preserve the chosen availability even when the ODRL body is authored as raw JSON-LD.
+        policy._meta = { accessLevel };
+        return policy;
       }
 
       // Collect rich ODRL metadata (informational; stored in bundle backup but not sent to EDC).
       // The EDC runtime (dsp-tck-connector-under-test) has no custom PolicyScopeExtractor
       // registered, so any leftOperand or prohibition action outside the built-in set is rejected.
-      const accessLevel = (document.getElementById('policyAccessLevel')?.value || 'public').trim();
       const purpose = (document.getElementById('policyUsagePurpose')?.value || 'analytics').trim();
       const accessDuration = (document.getElementById('policyAccessDuration')?.value || 'always').trim();
 
