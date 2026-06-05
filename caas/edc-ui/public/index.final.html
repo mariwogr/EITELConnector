@@ -8,11 +8,11 @@
   <meta http-equiv="Expires" content="0" />
   <title>Conector EITEL</title>
   <link rel="icon" type="image/png" href="assets/eitel-logo.png" />
-    <link rel="stylesheet" href="assets/ui.css?v=20260605e" />
+    <link rel="stylesheet" href="assets/ui.css?v=20260605f" />
 </head>
 <body data-theme="light">
   <div class="app console-hidden" id="app">
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <div class="brand">
         <img src="assets/eitel-logo-brand.png" alt="EITEL" />
         <div>
@@ -47,8 +47,13 @@
       </div>
     </aside>
 
+    <div class="nav-backdrop" id="navBackdrop"></div>
+
     <main class="main">
       <div class="top">
+        <button class="nav-toggle" id="btnNavToggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="sidebar">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
         <h1 id="title">Conector EITEL</h1>
         <div class="top-right">
           <div class="token-widget" id="arcgisTokenWidget" style="display:none">
@@ -890,7 +895,7 @@
   <script src="assets/ui/02l-transfer.js?v=20260603d"></script>
   <script src="assets/ui/02m-gaiax.js?v=20260603d"></script>
   <script src="assets/ui/03-secrets.js?v=20260519d"></script>
-  <script src="assets/ui/04-bootstrap.js?v=20260604h"></script>
+  <script src="assets/ui/04-bootstrap.js?v=20260605f"></script>
   <script>
     (function () {
       function cfg() {

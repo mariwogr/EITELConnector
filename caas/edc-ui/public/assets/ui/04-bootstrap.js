@@ -43,7 +43,21 @@ function openSettings() { settingsModal.classList.add('open'); }
     }
 
     function bindEvents() {
-      document.querySelectorAll('.nav button[data-view]').forEach(btn => btn.onclick = () => activateView(btn.dataset.view));
+      // Mobile hamburger: toggle the sidebar nav as a drawer.
+      const navToggle = document.getElementById('btnNavToggle');
+      const navBackdrop = document.getElementById('navBackdrop');
+      const closeNav = () => {
+        app.classList.remove('nav-open');
+        if (navToggle) navToggle.setAttribute('aria-expanded', 'false');
+      };
+      if (navToggle) navToggle.onclick = () => {
+        const open = app.classList.toggle('nav-open');
+        navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      };
+      if (navBackdrop) navBackdrop.onclick = closeNav;
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNav(); });
+
+      document.querySelectorAll('.nav button[data-view]').forEach(btn => btn.onclick = () => { activateView(btn.dataset.view); closeNav(); });
 
       document.getElementById('assetKey').oninput = updateAssetPreview;
       if (document.getElementById('assetSourceMode')) document.getElementById('assetSourceMode').addEventListener('change', syncAssetSourceModeUi);
