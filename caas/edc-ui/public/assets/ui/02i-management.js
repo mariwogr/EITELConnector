@@ -123,6 +123,13 @@
       '1-month': '1 mes',
       '1-year': '1 año',
     };
+    // Short labels for the compact access badge (full label shown on hover).
+    const POLICY_ACCESS_SHORT = {
+      public: 'Público',
+      private: 'Privado',
+      partners: 'Colaboradoras',
+      internal: 'Interno',
+    };
     const POLICY_CONSTRAINT_LABELS = {
       'http://www.w3.org/ns/odrl/2/distribute': 'No redistribuir',
       'https://w3id.org/eitel/ns/identifyThirdParties': 'No identificar a terceros',
@@ -192,7 +199,7 @@
           <div class="cdef-card">
             <div class="cdef-card-head">
               <span class="cdef-card-id">${htmlEscape(id)}</span>
-              <span class="pol-access-badge ${htmlEscape(accessLevel)}">${htmlEscape(accessLabel(accessLevel))}</span>
+              <span class="pol-access-badge ${htmlEscape(accessLevel)}" title="${htmlEscape(accessLabel(accessLevel))}">${htmlEscape(POLICY_ACCESS_SHORT[accessLevel] || accessLabel(accessLevel))}</span>
             </div>
             <div class="cdef-rows">
               ${row('Finalidad', POLICY_PURPOSE_LABELS[purpose] || purpose)}
@@ -445,7 +452,6 @@
           <div class="cdef-card">
             <div class="cdef-card-head">
               <span class="cdef-card-id">${htmlEscape(id)}</span>
-              <span class="cdef-card-badge">ContractDefinition</span>
             </div>
             <div class="cdef-rows">
               ${row('Asset', assetId)}
