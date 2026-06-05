@@ -226,6 +226,15 @@
     }
 
     /**
+     * Refreshes the "Mis publicaciones" grid and the dashboard after an artifact
+     * is deleted, so an asset that lost its policy/contract shows it immediately.
+     */
+    async function refreshPublicationViews() {
+      if (typeof loadPublishedAssets === 'function') await loadPublishedAssets(false);
+      if (typeof refreshOverview === 'function') await refreshOverview();
+    }
+
+    /**
      * Confirms, then deletes a policy from the "Listar policies" panel and
      * refreshes the list. Invoked from the per-card "Borrar policy" button.
      *
@@ -250,6 +259,7 @@
             writeOut(response);
             if (response.status >= 200 && response.status < 300) {
               await listPolicies();
+              await refreshPublicationViews();
               showInfoPopup('Policy eliminada', { policyId: id, status: response.status }, { html: renderResultCard({
                 title: 'Policy eliminada', subtitle: id, tone: 'ok', status: response.status
               }) });
@@ -288,6 +298,7 @@
             writeOut(response);
             if (response.status >= 200 && response.status < 300) {
               await listContractDefinitions();
+              await refreshPublicationViews();
               showInfoPopup('ContractDefinition eliminada', { contractDefId: id, status: response.status }, { html: renderResultCard({
                 title: 'ContractDefinition eliminada', subtitle: id, tone: 'ok', status: response.status
               }) });
@@ -326,6 +337,7 @@
       const response = await callApi('DELETE', `/v3/policydefinitions/${encodeURIComponent(policyId)}`);
       writeOut(response);
       if (response.status >= 200 && response.status < 300) {
+        await refreshPublicationViews();
         showInfoPopup('Policy eliminada', { policyId, status: response.status }, { html: renderResultCard({
           title: 'Policy eliminada',
           subtitle: policyId,
@@ -494,6 +506,7 @@
       const response = await callApi('DELETE', `/v3/contractdefinitions/${encodeURIComponent(id)}`);
       writeOut(response);
       if (response.status >= 200 && response.status < 300) {
+        await refreshPublicationViews();
         showInfoPopup('ContractDefinition eliminada', { contractDefId: id, status: response.status }, { html: renderResultCard({
           title: 'ContractDefinition eliminada',
           subtitle: id,
