@@ -294,6 +294,41 @@ def _save_transfer_event_records() -> None:
     path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding='utf-8')
 
 
+def _send_html_email(to_addr: str, subject: str, body_html: str, warn_label: str) -> dict:
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From'] = settings.smtp_from
+    msg['To'] = to_addr
+    msg.attach(MIMEText(body_html, 'html', 'utf-8'))
+
+    smtp = None
+    try:
+        if settings.smtp_use_tls:
+            smtp = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10)
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.ehlo()
+        elif int(settings.smtp_port or 0) == 465:
+            smtp = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=10)
+            smtp.ehlo()
+        else:
+            smtp = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10)
+            smtp.ehlo()
+        if settings.smtp_user and settings.smtp_password:
+            smtp.login(settings.smtp_user, settings.smtp_password)
+        smtp.sendmail(settings.smtp_from, [to_addr], msg.as_string())
+        return {'sent': True, 'to': to_addr, 'from': settings.smtp_from}
+    except Exception as exc:
+        print(f'[WARN] {warn_label} failed: {exc}')
+        return {'sent': False, 'reason': 'send-failed', 'error': str(exc)}
+    finally:
+        if smtp is not None:
+            try:
+                smtp.quit()
+            except Exception:
+                pass
+
+
 def _send_access_request_email(row: dict) -> dict:
     """Send an email notification to the asset owner when a new access request arrives.
     Returns a small delivery status so the UI can surface SMTP configuration issues."""
@@ -320,23 +355,7 @@ def _send_access_request_email(row: dict) -> dict:
 </table>
 {footer_html}
 </body></html>"""
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = subject
-        msg['From'] = settings.smtp_from
-        msg['To'] = to_addr
-        msg.attach(MIMEText(body_html, 'html', 'utf-8'))
-        if settings.smtp_use_tls:
-            smtp = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10)
-            smtp.ehlo()
-            smtp.starttls()
-            smtp.ehlo()
-        else:
-            smtp = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=10)
-        if settings.smtp_user and settings.smtp_password:
-            smtp.login(settings.smtp_user, settings.smtp_password)
-        smtp.sendmail(settings.smtp_from, [to_addr], msg.as_string())
-        smtp.quit()
-        return {'sent': True, 'to': to_addr, 'from': settings.smtp_from}
+        return _send_html_email(to_addr, subject, body_html, 'Email notification')
     except Exception as exc:
         print(f'[WARN] Email notification failed: {exc}')
         return {'sent': False, 'reason': 'send-failed', 'error': str(exc)}
@@ -374,23 +393,7 @@ def _send_decision_email(row: dict, decision: str) -> dict:
 </table>
 {footer_html}
 </body></html>"""
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = subject
-        msg['From'] = settings.smtp_from
-        msg['To'] = to_addr
-        msg.attach(MIMEText(body_html, 'html', 'utf-8'))
-        if settings.smtp_use_tls:
-            smtp = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10)
-            smtp.ehlo()
-            smtp.starttls()
-            smtp.ehlo()
-        else:
-            smtp = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=10)
-        if settings.smtp_user and settings.smtp_password:
-            smtp.login(settings.smtp_user, settings.smtp_password)
-        smtp.sendmail(settings.smtp_from, [to_addr], msg.as_string())
-        smtp.quit()
-        return {'sent': True, 'to': to_addr, 'from': settings.smtp_from}
+        return _send_html_email(to_addr, subject, body_html, 'Decision email notification')
     except Exception as exc:
         print(f'[WARN] Decision email notification failed: {exc}')
         return {'sent': False, 'reason': 'send-failed', 'error': str(exc)}

@@ -1248,6 +1248,7 @@
         headers: { 'content-type': 'application/json' },
       });
       writeOut(response);
+      showAccessRequestDecisionEmailResult('Solicitud aprobada', response);
       await loadAccessRequestsPanel();
       refreshSolicitudesBadge();
     }
@@ -1260,8 +1261,38 @@
         headers: { 'content-type': 'application/json' },
       });
       writeOut(response);
+      showAccessRequestDecisionEmailResult('Solicitud rechazada', response);
       await loadAccessRequestsPanel();
       refreshSolicitudesBadge();
+    }
+
+    function describeAccessRequestEmailNotification(notification = {}) {
+      if (notification?.sent) {
+        return `Correo enviado a ${notification.to || '-'}.`;
+      }
+      const reason = String(notification?.reason || '').trim();
+      if (reason === 'smtp-not-configured') return 'Correo no enviado: SMTP no está configurado en local-assets.';
+      if (reason === 'requester-email-missing') return 'Correo no enviado: la solicitud no tiene email del solicitante.';
+      if (reason === 'owner-email-missing') return 'Correo no enviado: la solicitud no tiene email del propietario.';
+      if (reason === 'send-failed') return `Correo no enviado: ${notification.error || 'falló el servidor SMTP.'}`;
+      return 'Correo no enviado: sin detalle de notificación SMTP.';
+    }
+
+    function showAccessRequestDecisionEmailResult(title, response = {}) {
+      const data = response?.data || {};
+      const notification = data?.emailNotification || {};
+      const ok = response.status >= 200 && response.status < 300;
+      if (!ok) {
+        showInfoPopup(title, response);
+        return;
+      }
+      showInfoPopup(notification?.sent ? title : `${title}: correo no enviado`, {
+        status: response.status,
+        requestId: data.requestId || data.item?.requestId || '',
+        decisionStatus: data.status || data.item?.status || '',
+        emailNotification: notification,
+        message: describeAccessRequestEmailNotification(notification),
+      });
     }
 
     async function withdrawAccessRequest(requestId) {
