@@ -108,6 +108,11 @@ services:
     environment:
       CAAS_LOCAL_ASSETS_INTERNAL_BASE_URL: http://conectoruc3m-local-assets:8081/v1/local-assets/files
       CAAS_LOCAL_ASSETS_PUBLIC_BASE_URL: https://gis.eiteldata.eu/conectoruc3m/local-assets/files
+      CAAS_LOCAL_ASSETS_AUTH_TOKEN: ${LOCAL_ASSETS_AUTH_TOKEN}
+      CAAS_ARCGIS_AUTH_ENABLED: ${ARCGIS_AUTH_ENABLED:-true}
+      CAAS_ARCGIS_PORTAL_URL: ${ARCGIS_PORTAL_URL:-https://gis.eiteldata.eu/arcgis}
+      CAAS_ARCGIS_REQUIRED_ORG_ID: ${ARCGIS_REQUIRED_ORG_ID:-}
+      CAAS_ARCGIS_REQUIRED_GROUP_ID: ${ARCGIS_UC3M_GROUP_ID:-}
       CAAS_CONNECTOR_PUBLIC_URL: https://gis.eiteldata.eu/conectoruc3m/edc-ui
       CAAS_SMTP_HOST: ${CAAS_SMTP_HOST:-}
       CAAS_SMTP_PORT: ${CAAS_SMTP_PORT:-587}
@@ -132,6 +137,12 @@ services:
       dockerfile: Dockerfile
     container_name: conectoruc3m-download-sink
     restart: always
+    environment:
+      DOWNLOAD_SINK_AUTH_TOKEN: ${LOCAL_ASSETS_AUTH_TOKEN}
+      DOWNLOAD_SINK_ARCGIS_AUTH_ENABLED: ${ARCGIS_AUTH_ENABLED:-true}
+      DOWNLOAD_SINK_ARCGIS_PORTAL_URL: ${ARCGIS_PORTAL_URL:-https://gis.eiteldata.eu/arcgis}
+      DOWNLOAD_SINK_ARCGIS_REQUIRED_ORG_ID: ${ARCGIS_REQUIRED_ORG_ID:-}
+      DOWNLOAD_SINK_ARCGIS_REQUIRED_GROUP_ID: ${ARCGIS_UC3M_GROUP_ID:-}
     volumes:
       - download_sink_data:/app/data
     networks:

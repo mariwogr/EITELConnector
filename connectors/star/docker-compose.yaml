@@ -77,6 +77,7 @@ services:
     environment:
       NEXT_PUBLIC_MANAGEMENT_API_URL: /conectorstar/api/management
       NEXT_PUBLIC_MANAGEMENT_API_AUTH_KEY: ${STAR_EDC_API_AUTH_KEY}
+      NEXT_PUBLIC_LOCAL_ASSETS_AUTH_TOKEN: ${STAR_EDC_API_AUTH_KEY}
       NEXT_PUBLIC_CONNECTOR_NAME: conectorstar
       NEXT_PUBLIC_DSP_URL: ${STAR_PUBLIC_DSP_URL:-http://localhost:12020/conectorstar/api/v1/dsp/2025-1}
       NEXT_PUBLIC_UI_VARIANT: star
@@ -140,6 +141,7 @@ services:
     environment:
       CAAS_LOCAL_ASSETS_INTERNAL_BASE_URL: http://conectorstar-local-assets:8081/v1/local-assets/files
       CAAS_LOCAL_ASSETS_PUBLIC_BASE_URL: ${STAR_UI_ORIGIN:-http://localhost:12020}/conectorstar/local-assets/files
+      CAAS_LOCAL_ASSETS_AUTH_TOKEN: ${STAR_EDC_API_AUTH_KEY}
     volumes:
       - conectorstar_local_assets_data:/app/data/local-assets
     networks:
@@ -151,6 +153,8 @@ services:
       dockerfile: Dockerfile
     container_name: conectorstar-download-sink
     restart: always
+    environment:
+      DOWNLOAD_SINK_AUTH_TOKEN: ${STAR_EDC_API_AUTH_KEY}
     volumes:
       - conectorstar_download_sink_data:/app/data
     networks:

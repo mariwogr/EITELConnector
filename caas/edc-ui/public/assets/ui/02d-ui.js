@@ -1123,7 +1123,7 @@
         try {
           const rawResp = await fetch(`${providerBase}/access-requests`, {
             method: 'POST',
-            headers: { 'content-type': 'application/json' },
+            headers: getLocalAssetsAuthHeaders({ 'content-type': 'application/json' }),
             body: JSON.stringify(payload),
             credentials: 'include',
             cache: 'no-store',

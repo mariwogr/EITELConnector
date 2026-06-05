@@ -157,7 +157,7 @@
           const url = `${providerBase}/access-requests${params.toString() ? `?${params.toString()}` : ''}`;
           const res = await fetch(url, {
             method: 'GET',
-            headers: { 'accept': 'application/json' },
+            headers: getLocalAssetsAuthHeaders({ 'accept': 'application/json' }),
             credentials: 'include',
             cache: 'no-store',
             signal: controller.signal,
@@ -214,7 +214,7 @@
         try {
           const res = await fetch(`${providerBase}${path}`, {
             method: 'GET',
-            headers: { accept: 'application/json' },
+            headers: getLocalAssetsAuthHeaders({ accept: 'application/json' }),
             credentials: 'include',
             cache: 'no-store',
             signal: controller.signal,
@@ -350,7 +350,7 @@
       if (providerBase) {
         calls.push(fetch(`${providerBase}/transfer-events`, {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: getLocalAssetsAuthHeaders({ 'content-type': 'application/json' }),
           body: JSON.stringify({ ...payload, role: 'provider' }),
           credentials: 'include',
           cache: 'no-store',

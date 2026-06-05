@@ -1,6 +1,7 @@
 window.EITEL_UI_CONFIG = {
   managementApiUrl: "${NEXT_PUBLIC_MANAGEMENT_API_URL}",
   apiKey: "${NEXT_PUBLIC_MANAGEMENT_API_AUTH_KEY}",
+  localAssetsAuthToken: "${NEXT_PUBLIC_LOCAL_ASSETS_AUTH_TOKEN}",
   connectorName: "${NEXT_PUBLIC_CONNECTOR_NAME}",
   dspUrl: "${NEXT_PUBLIC_DSP_URL}",
   connectorCatalogList: "${NEXT_PUBLIC_CONNECTOR_CATALOG_LIST}",

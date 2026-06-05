@@ -77,6 +77,7 @@ services:
     environment:
       NEXT_PUBLIC_MANAGEMENT_API_URL: /conectorstar-b/api/management
       NEXT_PUBLIC_MANAGEMENT_API_AUTH_KEY: ${STAR_B_EDC_API_AUTH_KEY}
+      NEXT_PUBLIC_LOCAL_ASSETS_AUTH_TOKEN: ${STAR_B_EDC_API_AUTH_KEY}
       NEXT_PUBLIC_CONNECTOR_NAME: ${STAR_B_PARTICIPANT_ID}
       NEXT_PUBLIC_DSP_URL: ${STAR_B_PUBLIC_DSP_URL}
       NEXT_PUBLIC_CONNECTOR_CATALOG_LIST: ${STAR_PAIR_CONNECTOR_LIST}
@@ -113,6 +114,7 @@ services:
     environment:
       CAAS_LOCAL_ASSETS_INTERNAL_BASE_URL: http://conectorstar-b-local-assets:8081/v1/local-assets/files
       CAAS_LOCAL_ASSETS_PUBLIC_BASE_URL: ${STAR_B_UI_ORIGIN}/conectorstar-b/local-assets/files
+      CAAS_LOCAL_ASSETS_AUTH_TOKEN: ${STAR_B_EDC_API_AUTH_KEY}
     volumes:
       - conectorstar_b_local_assets_data:/app/data/local-assets
     networks:
@@ -124,6 +126,8 @@ services:
       dockerfile: Dockerfile
     container_name: conectorstar-b-download-sink
     restart: always
+    environment:
+      DOWNLOAD_SINK_AUTH_TOKEN: ${STAR_B_EDC_API_AUTH_KEY}
     volumes:
       - conectorstar_b_download_sink_data:/app/data
     networks:
