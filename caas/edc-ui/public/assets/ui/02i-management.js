@@ -111,11 +111,213 @@
      * @example
      * await listPolicies(); // Reload and display all policies
      */
+    const POLICY_PURPOSE_LABELS = {
+      analytics: 'Fines analíticos',
+      'analytics-public': 'Fines analíticos y divulgación',
+      commercial: 'Fines comerciales',
+      research: 'Investigación e innovación',
+      'local-processing': 'Procesamiento en entornos locales',
+    };
+    const POLICY_DURATION_LABELS = {
+      always: 'Siempre / Indefinido',
+      '1-month': '1 mes',
+      '1-year': '1 año',
+    };
+    // Short labels for the compact access badge (full label shown on hover).
+    const POLICY_ACCESS_SHORT = {
+      public: 'Público',
+      private: 'Privado',
+      partners: 'Colaboradoras',
+      internal: 'Interno',
+    };
+    const POLICY_CONSTRAINT_LABELS = {
+      'http://www.w3.org/ns/odrl/2/distribute': 'No redistribuir',
+      'https://w3id.org/eitel/ns/identifyThirdParties': 'No identificar a terceros',
+      'http://www.w3.org/ns/odrl/2/sell': 'No vender a terceros',
+      'http://www.w3.org/ns/odrl/2/derive': 'No combinar fuentes',
+      'http://www.w3.org/ns/odrl/2/attribute': 'Citar la fuente',
+      'http://www.w3.org/ns/odrl/2/inform': 'Permitir auditoría',
+    };
+
+    /**
+     * Parses an eitel:prohibition / eitel:obligation value (a JSON-string array
+     * of ODRL action URIs) into friendly labels.
+     *
+     * @param {string|Array} value - Raw private property value.
+     * @returns {string[]} Friendly labels.
+     */
+    function parsePolicyConstraintList(value) {
+      let arr = [];
+      if (Array.isArray(value)) arr = value;
+      else if (typeof value === 'string' && value.trim()) {
+        try { const parsed = JSON.parse(value); if (Array.isArray(parsed)) arr = parsed; } catch { arr = []; }
+      }
+      return arr
+        .map(uri => POLICY_CONSTRAINT_LABELS[uri] || String(uri).split(/[/#]/).filter(Boolean).pop() || '')
+        .filter(Boolean);
+    }
+
+    function formatPolicyDate(ms) {
+      const n = Number(ms);
+      if (!Number.isFinite(n) || n <= 0) return '';
+      try { return new Date(n).toLocaleString(); } catch { return ''; }
+    }
+
+    /**
+     * Builds a friendly HTML summary of a policy definitions list response.
+     * Handles empty and error states.
+     *
+     * @param {Object} resp - API response ({ status, data: [...] }).
+     * @returns {string} HTML markup for the results panel.
+     */
+    function buildPoliciesHtml(resp) {
+      const status = Number(resp?.status) || 0;
+      if (status && (status < 200 || status >= 300)) {
+        const detail = htmlEscape(String(resp?.data?.detail || resp?.data?.error || resp?.error || `HTTP ${status}`));
+        return `<div class="cdef-empty cdef-error">No se pudieron cargar las policies (HTTP ${status}). ${detail}</div>`;
+      }
+      const list = unwrap(resp);
+      if (!list.length) {
+        return '<div class="cdef-empty">No hay policies publicadas en este conector.</div>';
+      }
+      const head = `<div class="cdef-head"><span class="cdef-count">${list.length} polic${list.length === 1 ? 'y' : 'ies'}</span>${status ? `<span class="cdef-status">HTTP ${status}</span>` : ''}</div>`;
+      const row = (key, value) => `<div class="cdef-row"><span class="cdef-key">${htmlEscape(key)}</span><span class="cdef-val">${value ? htmlEscape(value) : '<span class="cdef-muted">—</span>'}</span></div>`;
+      const chipsBlock = (label, items, cls) => items.length
+        ? `<div class="pol-section"><div class="pol-section-label">${htmlEscape(label)}</div><div class="pol-chips">${items.map(t => `<span class="pol-chip ${cls}">${htmlEscape(t)}</span>`).join('')}</div></div>`
+        : '';
+      const accessLabel = (lvl) => (typeof policyAccessLevelLabel === 'function' ? policyAccessLevelLabel(lvl) : lvl);
+      const cards = list.map((item) => {
+        const id = String(item?.['@id'] || item?.id || '—');
+        const props = item?.privateProperties || {};
+        const accessLevel = String(props['eitel:accessLevel'] || 'public');
+        const purpose = String(props['eitel:purpose'] || '');
+        const duration = String(props['eitel:accessDuration'] || '');
+        const prohibitions = parsePolicyConstraintList(props['eitel:prohibition']);
+        const obligations = parsePolicyConstraintList(props['eitel:obligation']);
+        const created = formatPolicyDate(item?.createdAt);
+        return `
+          <div class="cdef-card">
+            <div class="cdef-card-head">
+              <span class="cdef-card-id">${htmlEscape(id)}</span>
+              <span class="pol-access-badge ${htmlEscape(accessLevel)}" title="${htmlEscape(accessLabel(accessLevel))}">${htmlEscape(POLICY_ACCESS_SHORT[accessLevel] || accessLabel(accessLevel))}</span>
+            </div>
+            <div class="cdef-rows">
+              ${row('Finalidad', POLICY_PURPOSE_LABELS[purpose] || purpose)}
+              ${row('Tiempo de acceso', POLICY_DURATION_LABELS[duration] || duration)}
+              ${created ? row('Creada', created) : ''}
+            </div>
+            ${chipsBlock('Prohibiciones', prohibitions, 'prohib')}
+            ${chipsBlock('Obligaciones', obligations, 'oblig')}
+            <div class="cdef-card-actions">
+              <button type="button" class="cdef-del-btn" onclick="window.deletePolicyFromList(${jsAttr(id)})">Borrar policy</button>
+            </div>
+          </div>`;
+      }).join('');
+      return head + `<div class="cdef-grid">${cards}</div>`;
+    }
+
     async function listPolicies() {
       const r = await callApi('POST', '/v3/policydefinitions/request', q());
       writeOut(r);
+      const box = document.getElementById('policiesResult');
+      if (box) {
+        box.innerHTML = buildPoliciesHtml(r);
+        box.style.display = 'block';
+      }
       return r;
     }
+
+    /** Escapes a value for safe use as a quoted JS string inside an HTML onclick attribute. */
+    function jsAttr(value) {
+      return htmlEscape(JSON.stringify(String(value == null ? '' : value)));
+    }
+
+    /**
+     * Refreshes the "Mis publicaciones" grid and the dashboard after an artifact
+     * is deleted, so an asset that lost its policy/contract shows it immediately.
+     */
+    async function refreshPublicationViews() {
+      if (typeof loadPublishedAssets === 'function') await loadPublishedAssets(false);
+      if (typeof refreshOverview === 'function') await refreshOverview();
+    }
+
+    /**
+     * Confirms, then deletes a policy from the "Listar policies" panel and
+     * refreshes the list. Invoked from the per-card "Borrar policy" button.
+     *
+     * @param {string} policyId - PolicyDefinition id.
+     */
+    window.deletePolicyFromList = function deletePolicyFromList(policyId) {
+      const id = String(policyId || '').trim();
+      if (!id) return;
+      showInfoPopup('Eliminar policy', { policyId: id }, {
+        html: renderResultCard({
+          title: '¿Eliminar esta policy?',
+          subtitle: id,
+          tone: 'warn',
+          hint: 'Se eliminará la PolicyDefinition del conector. Esta acción no se puede deshacer.'
+        }),
+        actionLabel: 'Eliminar',
+        onAction: async () => {
+          const actionBtn = document.getElementById('btnInfoAction');
+          if (actionBtn) actionBtn.disabled = true;
+          try {
+            const response = await callApi('DELETE', `/v3/policydefinitions/${encodeURIComponent(id)}`);
+            writeOut(response);
+            if (response.status >= 200 && response.status < 300) {
+              await listPolicies();
+              await refreshPublicationViews();
+              showInfoPopup('Policy eliminada', { policyId: id, status: response.status }, { html: renderResultCard({
+                title: 'Policy eliminada', subtitle: id, tone: 'ok', status: response.status
+              }) });
+            } else {
+              showInfoPopup('Error eliminando policy', response);
+            }
+          } finally {
+            if (actionBtn) actionBtn.disabled = false;
+          }
+        }
+      });
+    };
+
+    /**
+     * Confirms, then deletes a contract definition from the
+     * "Listar ContractDefinitions" panel and refreshes the list.
+     *
+     * @param {string} contractDefId - ContractDefinition id.
+     */
+    window.deleteContractDefFromList = function deleteContractDefFromList(contractDefId) {
+      const id = String(contractDefId || '').trim();
+      if (!id) return;
+      showInfoPopup('Eliminar ContractDefinition', { contractDefId: id }, {
+        html: renderResultCard({
+          title: '¿Eliminar este contrato?',
+          subtitle: id,
+          tone: 'warn',
+          hint: 'Se eliminará la ContractDefinition y dejará de exponerse en el catálogo. Esta acción no se puede deshacer.'
+        }),
+        actionLabel: 'Eliminar',
+        onAction: async () => {
+          const actionBtn = document.getElementById('btnInfoAction');
+          if (actionBtn) actionBtn.disabled = true;
+          try {
+            const response = await callApi('DELETE', `/v3/contractdefinitions/${encodeURIComponent(id)}`);
+            writeOut(response);
+            if (response.status >= 200 && response.status < 300) {
+              await listContractDefinitions();
+              await refreshPublicationViews();
+              showInfoPopup('ContractDefinition eliminada', { contractDefId: id, status: response.status }, { html: renderResultCard({
+                title: 'ContractDefinition eliminada', subtitle: id, tone: 'ok', status: response.status
+              }) });
+            } else {
+              showInfoPopup('Error eliminando ContractDefinition', response);
+            }
+          } finally {
+            if (actionBtn) actionBtn.disabled = false;
+          }
+        }
+      });
+    };
 
     /**
      * Deletes a policy definition from the connector.
@@ -142,6 +344,7 @@
       const response = await callApi('DELETE', `/v3/policydefinitions/${encodeURIComponent(policyId)}`);
       writeOut(response);
       if (response.status >= 200 && response.status < 300) {
+        await refreshPublicationViews();
         showInfoPopup('Policy eliminada', { policyId, status: response.status }, { html: renderResultCard({
           title: 'Policy eliminada',
           subtitle: policyId,
@@ -249,11 +452,13 @@
           <div class="cdef-card">
             <div class="cdef-card-head">
               <span class="cdef-card-id">${htmlEscape(id)}</span>
-              <span class="cdef-card-badge">ContractDefinition</span>
             </div>
             <div class="cdef-rows">
               ${row('Asset', assetId)}
               ${policyRows}
+            </div>
+            <div class="cdef-card-actions">
+              <button type="button" class="cdef-del-btn" onclick="window.deleteContractDefFromList(${jsAttr(id)})">Borrar contrato</button>
             </div>
           </div>`;
       }).join('');
@@ -307,6 +512,7 @@
       const response = await callApi('DELETE', `/v3/contractdefinitions/${encodeURIComponent(id)}`);
       writeOut(response);
       if (response.status >= 200 && response.status < 300) {
+        await refreshPublicationViews();
         showInfoPopup('ContractDefinition eliminada', { contractDefId: id, status: response.status }, { html: renderResultCard({
           title: 'ContractDefinition eliminada',
           subtitle: id,

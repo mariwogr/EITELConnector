@@ -125,10 +125,19 @@
     }
 
     function enrichPublishedAssetsWithRuntimeArtifacts(rows = [], policies = [], contractDefinitions = []) {
+      const livePolicyIds = new Set((Array.isArray(policies) ? policies : []).map(getPolicyDefinitionId).filter(Boolean));
+      const liveContractIds = new Set((Array.isArray(contractDefinitions) ? contractDefinitions : [])
+        .map(c => String(c?.['@id'] || c?.id || c?.['edc:id'] || '').trim()).filter(Boolean));
       return (Array.isArray(rows) ? rows : []).map((row) => {
         const assetId = String(row?.id || '').trim();
-        const policyId = String(row?.policyId || '').trim() || inferPublishedPolicyId(assetId, policies);
-        const contractDefId = String(row?.contractDefId || '').trim() || inferPublishedContractDefId(assetId, contractDefinitions);
+        // Drop a bundle-cached id when the policy/contract no longer exists in the connector
+        // (e.g. it was just deleted), so the card shows "no policy/contract".
+        let policyId = String(row?.policyId || '').trim();
+        if (policyId && !livePolicyIds.has(policyId)) policyId = '';
+        if (!policyId) policyId = inferPublishedPolicyId(assetId, policies);
+        let contractDefId = String(row?.contractDefId || '').trim();
+        if (contractDefId && !liveContractIds.has(contractDefId)) contractDefId = '';
+        if (!contractDefId) contractDefId = inferPublishedContractDefId(assetId, contractDefinitions);
         return { ...row, policyId, contractDefId };
       });
     }

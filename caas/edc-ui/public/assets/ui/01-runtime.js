@@ -229,7 +229,8 @@
       `;
       stack.appendChild(toast);
       setTimeout(() => {
-        toast.remove();
+        toast.classList.add('leaving');
+        setTimeout(() => toast.remove(), 220); // let the exit animation play, then drop it
       }, tone === 'error' ? 9000 : 6500);
     }
 

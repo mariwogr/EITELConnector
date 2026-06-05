@@ -203,20 +203,39 @@
         infoActionHandler = null;
         actionBtn.style.display = 'none';
       }
+      infoModal.classList.remove('closing');
       infoModal.classList.add('open');
     }
     /**
-     * Closes the information popup modal.
-     * Removes popup from DOM and clears its content.
-     * 
+     * Closes the information popup modal with an exit animation.
+     * Falls back to an immediate close when reduced motion is preferred
+     * or if the animation never fires, so the modal can't get stuck open.
+     *
      * @example
-     * closeInfoPopup(); // Hides and removes popup modal
+     * closeInfoPopup(); // Animates out, then hides the popup modal
      */
     function closeInfoPopup() {
-      infoModal.classList.remove('open');
+      if (!infoModal.classList.contains('open')) return;
       infoActionHandler = null;
       const actionBtn = document.getElementById('btnInfoAction');
-      actionBtn.style.display = 'none';
+      const card = infoModal.querySelector('.modal-card');
+      const finalize = () => {
+        infoModal.classList.remove('open', 'closing');
+        if (actionBtn) actionBtn.style.display = 'none';
+      };
+      const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!card || reduceMotion) { finalize(); return; }
+      infoModal.classList.add('closing');
+      let done = false;
+      const onEnd = (e) => {
+        if (e && e.target !== card) return; // ignore animationend bubbling up from children
+        if (done) return;
+        done = true;
+        card.removeEventListener('animationend', onEnd);
+        finalize();
+      };
+      card.addEventListener('animationend', onEnd);
+      setTimeout(onEnd, 280); // fallback so the modal always closes
     }
 
     /**
