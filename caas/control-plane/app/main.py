@@ -8,9 +8,11 @@ from pathlib import Path
 from typing import Literal
 from uuid import uuid4
 import base64
+import hashlib
 import hmac
 import ipaddress
 import json
+import re
 import shutil
 import smtplib
 import time
@@ -54,7 +56,10 @@ class Settings(BaseSettings):
     local_assets_public_base_url: str = 'https://gis.eiteldata.eu/conectoruc3m/local-assets/files'
     local_assets_auth_token: str = ''
     local_assets_auth_required: bool = True
-    local_assets_allow_internal_unauthenticated: bool = True
+    # Fail-closed by default. The legitimate internal EDC fetch now authenticates
+    # with a signed per-file token in the URL, so the spoofable IP/Host bypass is
+    # no longer needed and stays off unless explicitly re-enabled.
+    local_assets_allow_internal_unauthenticated: bool = False
 
     # ArcGIS Enterprise auth for browser access to local-assets.
     arcgis_auth_enabled: bool = False
@@ -131,6 +136,55 @@ def _expected_local_assets_token() -> str:
     if fallback and fallback != 'change-me':
         return fallback
     return ''
+
+
+def _local_assets_signing_key() -> str:
+    # Reuse the configured local-assets secret as the HMAC signing key.
+    return _expected_local_assets_token()
+
+
+def _sign_local_asset(file_id: str, filename: str) -> str:
+    key = _local_assets_signing_key()
+    if not key:
+        return ''
+    message = f'{file_id}/{_safe_upload_name(filename)}'.encode('utf-8')
+    digest = hmac.new(key.encode('utf-8'), message, hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(digest).decode('ascii').rstrip('=')
+
+
+def _local_asset_path_with_token(file_id: str, filename: str) -> str:
+    base = f'/{file_id}/{filename}'
+    token = _sign_local_asset(file_id, filename)
+    return f'{base}?t={token}' if token else base
+
+
+def _is_valid_signed_file_token(file_id: str, filename: str, token: str) -> bool:
+    token = str(token or '').strip()
+    if not token:
+        return False
+    expected = _sign_local_asset(file_id, filename)
+    return bool(expected) and hmac.compare_digest(token, expected)
+
+
+_LOCAL_ASSET_FILE_PATH_RE = re.compile(r'^/v1/local-assets/files/([^/]+)/(.+)$')
+
+
+def _is_signed_file_request_authorized(request: Request) -> bool:
+    """Authorize a GET of a specific local-asset file via its signed `t` token.
+
+    This is how the EDC data-plane (and any shareable link) fetches a file
+    without the global secret: the token only grants access to that one file
+    and cannot be forged without the signing key.
+    """
+    if request.method.upper() != 'GET':
+        return False
+    match = _LOCAL_ASSET_FILE_PATH_RE.match(request.url.path or '')
+    if not match:
+        return False
+    file_id = urllib.parse.unquote(match.group(1))
+    filename = urllib.parse.unquote(match.group(2))
+    token = str(request.query_params.get('t') or '').strip()
+    return _is_valid_signed_file_token(file_id, filename, token)
 
 
 def _extract_bearer_token(value: str) -> str:
@@ -279,6 +333,9 @@ async def require_local_assets_auth(request: Request, call_next):
     if request.method.upper() == 'OPTIONS' or not is_local_assets_path:
         return await call_next(request)
     if path == '/v1/local-assets/download-sink/ingest' and request.method.upper() in {'POST', 'PUT'}:
+        return await call_next(request)
+    # A valid signed per-file token authorizes that single file download.
+    if _is_signed_file_request_authorized(request):
         return await call_next(request)
     if _is_local_assets_request_authorized(request):
         return await call_next(request)
@@ -819,7 +876,7 @@ async def upload_local_asset(file: UploadFile = File(...)):
     with target_path.open('wb') as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    path = f'/{file_id}/{filename}'
+    path = _local_asset_path_with_token(file_id, filename)
     size = target_path.stat().st_size
     media_type = file.content_type or guess_type(filename)[0] or 'application/octet-stream'
     return {
@@ -828,6 +885,7 @@ async def upload_local_asset(file: UploadFile = File(...)):
         'contentType': media_type,
         'bytes': size,
         'path': path,
+        'token': _sign_local_asset(file_id, filename),
         'internalBaseUrl': settings.local_assets_internal_base_url.rstrip('/'),
         'publicUrl': f"{settings.local_assets_public_base_url.rstrip('/')}{path}",
     }
@@ -846,7 +904,7 @@ async def upload_local_asset_raw(request: Request, filename: str | None = None):
     target_path = target_dir / safe_filename
     target_path.write_bytes(raw)
 
-    path = f'/{file_id}/{safe_filename}'
+    path = _local_asset_path_with_token(file_id, safe_filename)
     media_type = request.headers.get('content-type') or guess_type(safe_filename)[0] or 'application/octet-stream'
     return {
         'fileId': file_id,
@@ -854,6 +912,7 @@ async def upload_local_asset_raw(request: Request, filename: str | None = None):
         'contentType': media_type,
         'bytes': len(raw),
         'path': path,
+        'token': _sign_local_asset(file_id, safe_filename),
         'internalBaseUrl': settings.local_assets_internal_base_url.rstrip('/'),
         'publicUrl': f"{settings.local_assets_public_base_url.rstrip('/')}{path}",
     }
