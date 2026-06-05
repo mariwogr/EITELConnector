@@ -832,6 +832,22 @@
     .pol-chip.prohib { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); background: color-mix(in srgb, var(--danger) 8%, var(--surface)); }
     .pol-chip.oblig { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 30%, var(--line)); background: var(--primary-soft); }
 
+    /* Per-card delete button in the policies / contractdefs visualizers */
+    .cdef-card-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+    .cdef-del-btn {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 8px;
+      border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--line));
+      color: var(--danger);
+      background: var(--surface);
+      cursor: pointer;
+      transition: background .12s ease;
+    }
+    .cdef-del-btn:hover { background: color-mix(in srgb, var(--danger) 10%, var(--surface)); }
+    .cdef-del-btn:disabled { opacity: .55; cursor: default; }
+
     .asset-showcase {
       margin-top: 12px;
       display: grid;

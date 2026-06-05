@@ -201,6 +201,9 @@
             </div>
             ${chipsBlock('Prohibiciones', prohibitions, 'prohib')}
             ${chipsBlock('Obligaciones', obligations, 'oblig')}
+            <div class="cdef-card-actions">
+              <button type="button" class="cdef-del-btn" onclick="window.deletePolicyFromList(${jsAttr(id)})">Borrar policy</button>
+            </div>
           </div>`;
       }).join('');
       return head + `<div class="cdef-grid">${cards}</div>`;
@@ -216,6 +219,87 @@
       }
       return r;
     }
+
+    /** Escapes a value for safe use as a quoted JS string inside an HTML onclick attribute. */
+    function jsAttr(value) {
+      return htmlEscape(JSON.stringify(String(value == null ? '' : value)));
+    }
+
+    /**
+     * Confirms, then deletes a policy from the "Listar policies" panel and
+     * refreshes the list. Invoked from the per-card "Borrar policy" button.
+     *
+     * @param {string} policyId - PolicyDefinition id.
+     */
+    window.deletePolicyFromList = function deletePolicyFromList(policyId) {
+      const id = String(policyId || '').trim();
+      if (!id) return;
+      showInfoPopup('Eliminar policy', { policyId: id }, {
+        html: renderResultCard({
+          title: '¿Eliminar esta policy?',
+          subtitle: id,
+          tone: 'warn',
+          hint: 'Se eliminará la PolicyDefinition del conector. Esta acción no se puede deshacer.'
+        }),
+        actionLabel: 'Eliminar',
+        onAction: async () => {
+          const actionBtn = document.getElementById('btnInfoAction');
+          if (actionBtn) actionBtn.disabled = true;
+          try {
+            const response = await callApi('DELETE', `/v3/policydefinitions/${encodeURIComponent(id)}`);
+            writeOut(response);
+            if (response.status >= 200 && response.status < 300) {
+              await listPolicies();
+              showInfoPopup('Policy eliminada', { policyId: id, status: response.status }, { html: renderResultCard({
+                title: 'Policy eliminada', subtitle: id, tone: 'ok', status: response.status
+              }) });
+            } else {
+              showInfoPopup('Error eliminando policy', response);
+            }
+          } finally {
+            if (actionBtn) actionBtn.disabled = false;
+          }
+        }
+      });
+    };
+
+    /**
+     * Confirms, then deletes a contract definition from the
+     * "Listar ContractDefinitions" panel and refreshes the list.
+     *
+     * @param {string} contractDefId - ContractDefinition id.
+     */
+    window.deleteContractDefFromList = function deleteContractDefFromList(contractDefId) {
+      const id = String(contractDefId || '').trim();
+      if (!id) return;
+      showInfoPopup('Eliminar ContractDefinition', { contractDefId: id }, {
+        html: renderResultCard({
+          title: '¿Eliminar este contrato?',
+          subtitle: id,
+          tone: 'warn',
+          hint: 'Se eliminará la ContractDefinition y dejará de exponerse en el catálogo. Esta acción no se puede deshacer.'
+        }),
+        actionLabel: 'Eliminar',
+        onAction: async () => {
+          const actionBtn = document.getElementById('btnInfoAction');
+          if (actionBtn) actionBtn.disabled = true;
+          try {
+            const response = await callApi('DELETE', `/v3/contractdefinitions/${encodeURIComponent(id)}`);
+            writeOut(response);
+            if (response.status >= 200 && response.status < 300) {
+              await listContractDefinitions();
+              showInfoPopup('ContractDefinition eliminada', { contractDefId: id, status: response.status }, { html: renderResultCard({
+                title: 'ContractDefinition eliminada', subtitle: id, tone: 'ok', status: response.status
+              }) });
+            } else {
+              showInfoPopup('Error eliminando ContractDefinition', response);
+            }
+          } finally {
+            if (actionBtn) actionBtn.disabled = false;
+          }
+        }
+      });
+    };
 
     /**
      * Deletes a policy definition from the connector.
@@ -354,6 +438,9 @@
             <div class="cdef-rows">
               ${row('Asset', assetId)}
               ${policyRows}
+            </div>
+            <div class="cdef-card-actions">
+              <button type="button" class="cdef-del-btn" onclick="window.deleteContractDefFromList(${jsAttr(id)})">Borrar contrato</button>
             </div>
           </div>`;
       }).join('');
