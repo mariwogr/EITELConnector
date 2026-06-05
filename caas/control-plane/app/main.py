@@ -8,15 +8,20 @@ from pathlib import Path
 from typing import Literal
 from uuid import uuid4
 import base64
+import hmac
+import ipaddress
 import json
 import shutil
 import smtplib
+import time
 
+import urllib.parse
 import urllib.request
 import yaml
 from fastapi import Depends, FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
@@ -47,6 +52,16 @@ class Settings(BaseSettings):
     local_assets_dir: str = './data/local-assets'
     local_assets_internal_base_url: str = 'http://conectoruc3m-local-assets:8081/v1/local-assets/files'
     local_assets_public_base_url: str = 'https://gis.eiteldata.eu/conectoruc3m/local-assets/files'
+    local_assets_auth_token: str = ''
+    local_assets_auth_required: bool = True
+    local_assets_allow_internal_unauthenticated: bool = True
+
+    # ArcGIS Enterprise auth for browser access to local-assets.
+    arcgis_auth_enabled: bool = False
+    arcgis_portal_url: str = ''
+    arcgis_required_org_id: str = ''
+    arcgis_required_group_id: str = ''
+    arcgis_validation_timeout: float = 6.0
 
     # SMTP para notificaciones de solicitudes de acceso (todos opcionales)
     smtp_host: str = ''
@@ -103,6 +118,180 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
+
+arcgis_token_auth_cache: dict[str, tuple[float, bool]] = {}
+ARCGIS_AUTH_CACHE_TTL_SECONDS = 180
+
+
+def _expected_local_assets_token() -> str:
+    configured = str(settings.local_assets_auth_token or '').strip()
+    if configured:
+        return configured
+    fallback = str(settings.default_edc_api_key or '').strip()
+    if fallback and fallback != 'change-me':
+        return fallback
+    return ''
+
+
+def _extract_bearer_token(value: str) -> str:
+    raw = str(value or '').strip()
+    if not raw:
+        return ''
+    parts = raw.split(None, 1)
+    if len(parts) == 2 and parts[0].lower() in {'bearer', 'apikey', 'api-key'}:
+        return parts[1].strip()
+    return raw
+
+
+def _extract_arcgis_token(request: Request) -> str:
+    explicit = str(request.headers.get('x-arcgis-token', '') or '').strip()
+    if explicit:
+        return explicit
+    auth = str(request.headers.get('authorization', '') or '').strip()
+    parts = auth.split(None, 1)
+    if len(parts) == 2 and parts[0].lower() == 'bearer':
+        return parts[1].strip()
+    return ''
+
+
+def _is_private_client_host(host: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(str(host or '').strip())
+    except ValueError:
+        return False
+    return ip.is_loopback or ip.is_private or ip.is_link_local
+
+
+def _is_internal_local_assets_host(host: str) -> bool:
+    normalized = str(host or '').strip().lower()
+    return (
+        'local-assets' in normalized
+        or normalized.startswith('localhost')
+        or normalized.startswith('127.')
+        or normalized.startswith('[::1]')
+        or normalized.endswith(':8081')
+    )
+
+
+def _is_internal_unproxied_request(request: Request) -> bool:
+    if not settings.local_assets_allow_internal_unauthenticated:
+        return False
+    if request.headers.get('x-forwarded-for') or request.headers.get('x-forwarded-prefix'):
+        return False
+    return _is_private_client_host(request.client.host if request.client else '') and _is_internal_local_assets_host(request.headers.get('host', ''))
+
+
+def _arcgis_portal_base_url() -> str:
+    return str(settings.arcgis_portal_url or '').strip().rstrip('/').replace('/home/index.html', '').replace('/home', '')
+
+
+def _fetch_arcgis_json(path: str, token: str) -> dict:
+    portal = _arcgis_portal_base_url()
+    if not portal:
+        return {}
+    query = urllib.parse.urlencode({'f': 'json', 'token': token})
+    url = f'{portal}/sharing/rest/{path.lstrip("/")}?{query}'
+    with urllib.request.urlopen(url, timeout=float(settings.arcgis_validation_timeout or 6.0)) as response:
+        raw = response.read()
+    parsed = json.loads(raw.decode('utf-8', errors='replace'))
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _arcgis_user_in_required_group(username: str, token: str) -> bool:
+    group_id = str(settings.arcgis_required_group_id or '').strip()
+    if not group_id:
+        return True
+
+    try:
+        group = _fetch_arcgis_json(f'community/groups/{urllib.parse.quote(group_id)}/userList', token)
+        members = {
+            *[str(item or '') for item in group.get('users') or []],
+            *[str(item or '') for item in group.get('admins') or []],
+        }
+        if group.get('owner'):
+            members.add(str(group.get('owner')))
+        if username in members:
+            return True
+    except Exception:
+        pass
+
+    try:
+        user = _fetch_arcgis_json(f'community/users/{urllib.parse.quote(username)}', token)
+        groups = user.get('groups') if isinstance(user.get('groups'), list) else []
+        return any(str(group.get('id') or '') == group_id for group in groups if isinstance(group, dict))
+    except Exception:
+        return False
+
+
+def _is_arcgis_token_authorized(token: str) -> bool:
+    token = str(token or '').strip()
+    if not settings.arcgis_auth_enabled or not token:
+        return False
+
+    now = time.time()
+    cached = arcgis_token_auth_cache.get(token)
+    if cached and cached[0] > now:
+        return cached[1]
+
+    authorized = False
+    try:
+        self_info = _fetch_arcgis_json('community/self', token)
+        if not self_info.get('error'):
+            user_info = self_info.get('user') if isinstance(self_info.get('user'), dict) else {}
+            username = str(self_info.get('username') or user_info.get('username') or '').strip()
+            org_id = str(self_info.get('orgId') or user_info.get('orgId') or '').strip()
+            required_org = str(settings.arcgis_required_org_id or '').strip()
+            authorized = bool(username) and (not required_org or org_id == required_org) and _arcgis_user_in_required_group(username, token)
+    except Exception:
+        authorized = False
+
+    arcgis_token_auth_cache[token] = (now + ARCGIS_AUTH_CACHE_TTL_SECONDS, authorized)
+    if len(arcgis_token_auth_cache) > 200:
+        for cached_token, (expires_at, _) in list(arcgis_token_auth_cache.items()):
+            if expires_at <= now:
+                arcgis_token_auth_cache.pop(cached_token, None)
+    return authorized
+
+
+def _is_local_assets_request_authorized(request: Request) -> bool:
+    expected = _expected_local_assets_token()
+    if not settings.local_assets_auth_required:
+        return True
+    if _is_internal_unproxied_request(request):
+        return True
+    if not expected:
+        return _is_arcgis_token_authorized(_extract_arcgis_token(request))
+
+    service_token_candidates = [
+        request.headers.get('x-local-assets-token', ''),
+        request.headers.get('x-api-key', ''),
+        _extract_bearer_token(request.headers.get('authorization', '')),
+    ]
+    if any(token and hmac.compare_digest(str(token).strip(), expected) for token in service_token_candidates):
+        return True
+    return _is_arcgis_token_authorized(_extract_arcgis_token(request))
+
+
+@app.middleware('http')
+async def require_local_assets_auth(request: Request, call_next):
+    path = request.url.path or ''
+    is_local_assets_path = path == '/v1/local-assets' or path.startswith('/v1/local-assets/')
+    if request.method.upper() == 'OPTIONS' or not is_local_assets_path:
+        return await call_next(request)
+    if path == '/v1/local-assets/download-sink/ingest' and request.method.upper() in {'POST', 'PUT'}:
+        return await call_next(request)
+    if _is_local_assets_request_authorized(request):
+        return await call_next(request)
+    if not _expected_local_assets_token() and not settings.arcgis_auth_enabled and settings.local_assets_auth_required:
+        return JSONResponse(
+            status_code=503,
+            content={'detail': 'local-assets auth token is not configured'},
+        )
+    return JSONResponse(
+        status_code=401,
+        content={'detail': 'local-assets authentication required'},
+    )
+
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / 'templates'))
 app.mount('/static', StaticFiles(directory=str(Path(__file__).parent / 'static')), name='static')

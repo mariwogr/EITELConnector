@@ -169,6 +169,9 @@
         path = buildArcgisPathWithToken(removeQueryParams(path, ['token']), authToken);
         headers = { ...headers, token: authToken };
       }
+      if (sourceMode === 'local-file') {
+        headers = getLocalAssetsAuthHeaders(headers);
+      }
 
       const sourceUrl = sourceMode === 'local-file' && props['eitel:localAssetPublicUrl']
         ? String(props['eitel:localAssetPublicUrl']).trim()
@@ -370,7 +373,11 @@
      */
     async function getLatestDownloadSinkRecord(contractId) {
       const sinkBaseUrl = buildLocalDownloadSinkPublicBaseUrl();
-      const recordsRes = await fetch(`${sinkBaseUrl}/records?contractId=${encodeURIComponent(contractId)}`);
+      const recordsRes = await fetch(`${sinkBaseUrl}/records?contractId=${encodeURIComponent(contractId)}`, {
+        headers: getLocalAssetsAuthHeaders(),
+        credentials: 'include',
+        cache: 'no-store',
+      });
       const recordsData = await recordsRes.json();
       const records = Array.isArray(recordsData?.items) ? recordsData.items : [];
       return records[0] || null;
@@ -442,7 +449,11 @@
       const url = String(sourceUrl || '').trim();
       if (!url) return { status: 404, error: 'Sin URL de origen alternativa para descarga directa.', contractId, assetId };
       try {
-        const response = await fetch(url, { method: 'GET', credentials: 'include' });
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: getLocalAssetsAuthHeadersForUrl(url),
+          credentials: 'include',
+        });
         const contentType = response.headers.get('content-type') || 'application/octet-stream';
         if (!response.ok) {
           const detail = await response.text();

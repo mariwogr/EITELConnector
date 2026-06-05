@@ -61,7 +61,11 @@
           return { status: 404, error: 'El asset no está localmente y no hay URL alternativa para ArcGIS.' };
         }
         try {
-          const hintedRes = await fetch(hintedUrl, { method: 'GET', credentials: 'include' });
+          const hintedRes = await fetch(hintedUrl, {
+            method: 'GET',
+            headers: getLocalAssetsAuthHeadersForUrl(hintedUrl),
+            credentials: 'include',
+          });
           const hintedContentType = hintedRes.headers.get('content-type') || 'application/octet-stream';
           if (!hintedRes.ok) {
             const detail = await hintedRes.text();
@@ -157,6 +161,9 @@
         path = buildArcgisPathWithToken(removeQueryParams(path, ['token']), authToken);
         headers = { ...headers, token: authToken };
       }
+      if (sourceMode === 'local-file') {
+        headers = getLocalAssetsAuthHeaders(headers);
+      }
 
       const sourceUrl = sourceMode === 'local-file' && props['eitel:localAssetPublicUrl']
         ? String(props['eitel:localAssetPublicUrl']).trim()
@@ -201,7 +208,7 @@
         ? sinkPublicBaseUrl
         : sinkInternalBaseUrl;
 
-      try { await fetch(`${sinkPublicBaseUrl}/records`, { method: 'DELETE' }); } catch {}
+      try { await fetch(`${sinkPublicBaseUrl}/records`, { method: 'DELETE', headers: getLocalAssetsAuthHeaders() }); } catch {}
 
       const path = `/ingest?contractId=${encodeURIComponent(contractId)}&assetId=${encodeURIComponent(assetId || '')}`;
       const transferReq = {
@@ -239,7 +246,7 @@
         if (record?.downloadPath) {
           const fileUrl = `${sinkPublicBaseUrl}${record.downloadPath}`;
           try {
-            const fileResp = await fetch(fileUrl, { method: 'GET', credentials: 'include' });
+            const fileResp = await fetch(fileUrl, { method: 'GET', headers: getLocalAssetsAuthHeaders(), credentials: 'include' });
             if (!fileResp.ok) {
               return {
                 status: fileResp.status,
@@ -463,7 +470,27 @@
           const latest = await getLatestDownloadSinkRecord(contractId).catch(() => null);
           if (latest && latest.downloadPath) {
             const fileUrl = `${buildLocalDownloadSinkPublicBaseUrl()}${latest.downloadPath || ''}`;
-            triggerBrowserDownload(fileUrl, latest.filename || 'download.bin');
+            const fileResp = await fetch(fileUrl, {
+              method: 'GET',
+              headers: getLocalAssetsAuthHeaders(),
+              credentials: 'include',
+              cache: 'no-store',
+            });
+            if (!fileResp.ok) {
+              writeOut({
+                status: fileResp.status,
+                error: 'El sink local recibió archivo, pero no se pudo descargar con autenticación.',
+                transferId,
+                contractId,
+                assetId,
+                sourceUrl: fileUrl,
+              });
+              return;
+            }
+            const blob = await fileResp.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            triggerBrowserDownload(objectUrl, latest.filename || 'download.bin');
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
             writeOut({
               status: 200,
               downloaded: true,
@@ -543,7 +570,7 @@
       }
 
       // Limpiar registros previos del sink para evitar descargar archivos antiguos por error.
-      try { await fetch(`${sinkPublicBaseUrl}/records`, { method: 'DELETE' }); } catch {}
+      try { await fetch(`${sinkPublicBaseUrl}/records`, { method: 'DELETE', headers: getLocalAssetsAuthHeaders() }); } catch {}
 
       const dataplanesResp = await callApi('GET', '/v3/dataplanes', undefined, { silent: true, retries: 0 });
       const dataplanes = Array.isArray(dataplanesResp?.data) ? dataplanesResp.data : [];
@@ -700,10 +727,10 @@
           const rawUrl = `${baseUrl}/upload-raw?filename=${encodeURIComponent(filename)}`;
           const rawRes = await fetch(rawUrl, {
             method: 'PUT',
-            headers: {
+            headers: getLocalAssetsAuthHeaders({
               'Content-Type': file.type || 'application/octet-stream',
               'X-Filename': filename,
-            },
+            }),
             body: file,
           });
           const rawText = await rawRes.text();
@@ -727,6 +754,7 @@
         try {
           const res = await fetch(`${baseUrl}/upload`, {
             method: 'POST',
+            headers: getLocalAssetsAuthHeaders(),
             body: formData,
           });
           const text = await res.text();
@@ -784,6 +812,7 @@
       try {
         const res = await fetch(`${getLocalAssetsApiBaseUrl()}/upload`, {
           method: 'POST',
+          headers: getLocalAssetsAuthHeaders(),
           body: formData,
         });
         const text = await res.text();

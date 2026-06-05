@@ -13,6 +13,57 @@
       return `${window.location.origin}${prefix}/local-assets`;
     }
 
+    function isLocalAssetsPlaceholderToken(value) {
+      const text = String(value || '').trim();
+      return !text || /^\$\{[^}]+\}$/.test(text);
+    }
+
+    function getLocalAssetsAuthToken() {
+      const configured = String(cfg?.localAssetsAuthToken || '').trim();
+      return isLocalAssetsPlaceholderToken(configured) ? '' : configured;
+    }
+
+    function getLocalAssetsArcgisToken() {
+      try {
+        if (typeof getArcgisAccessTokenForPublish === 'function') {
+          const token = String(getArcgisAccessTokenForPublish() || '').trim();
+          if (token) return token;
+        }
+      } catch {}
+      try {
+        if (typeof getStoredArcgisToken === 'function') {
+          const token = String(getStoredArcgisToken() || '').trim();
+          if (token) return token;
+        }
+      } catch {}
+      try {
+        return String(sessionStorage.getItem('eitel.arcgis.access_token') || '').trim();
+      } catch {
+        return '';
+      }
+    }
+
+    function getLocalAssetsAuthHeaders(baseHeaders = {}) {
+      const headers = { ...(baseHeaders || {}) };
+      const arcgisToken = getLocalAssetsArcgisToken();
+      if (arcgisToken && !headers.Authorization && !headers.authorization) {
+        headers.Authorization = `Bearer ${arcgisToken}`;
+        return headers;
+      }
+      const token = getLocalAssetsAuthToken();
+      if (token && !headers['x-api-key'] && !headers['X-Api-Key']) {
+        headers['x-api-key'] = token;
+      }
+      return headers;
+    }
+
+    function getLocalAssetsAuthHeadersForUrl(url, baseHeaders = {}) {
+      const text = String(url || '').toLowerCase();
+      return text.includes('/local-assets/') || text.includes('/download-sink/')
+        ? getLocalAssetsAuthHeaders(baseHeaders)
+        : { ...(baseHeaders || {}) };
+    }
+
     /**
      * Extracts connector prefix from the management API URL.
      * Identifies which connector this UI is managing (e.g., 'conectoruc3m').
@@ -177,7 +228,7 @@
           if (body && !headers['content-type'] && typeof body === 'string') headers['content-type'] = 'application/json';
           const response = await fetch(url, {
             method: String(method || 'GET').toUpperCase(),
-            headers,
+            headers: getLocalAssetsAuthHeaders(headers),
             body,
             credentials: 'include',
             cache: 'no-store',

@@ -77,6 +77,7 @@ services:
     environment:
       NEXT_PUBLIC_MANAGEMENT_API_URL: /conectornormal/api/management
       NEXT_PUBLIC_MANAGEMENT_API_AUTH_KEY: ${NORMAL_EDC_API_AUTH_KEY}
+      NEXT_PUBLIC_LOCAL_ASSETS_AUTH_TOKEN: ${NORMAL_EDC_API_AUTH_KEY}
       NEXT_PUBLIC_CONNECTOR_NAME: conectornormal
       NEXT_PUBLIC_DSP_URL: ${NORMAL_PUBLIC_DSP_URL:-http://localhost:12010/conectornormal/api/v1/dsp/2025-1}
       NEXT_PUBLIC_ARCGIS_AUTH_ENABLED: "false"
@@ -102,6 +103,7 @@ services:
     environment:
       CAAS_LOCAL_ASSETS_INTERNAL_BASE_URL: http://conectornormal-local-assets:8081/v1/local-assets/files
       CAAS_LOCAL_ASSETS_PUBLIC_BASE_URL: ${NORMAL_UI_ORIGIN:-http://localhost:12010}/conectornormal/local-assets/files
+      CAAS_LOCAL_ASSETS_AUTH_TOKEN: ${NORMAL_EDC_API_AUTH_KEY}
     volumes:
       - conectornormal_local_assets_data:/app/data/local-assets
     networks:
@@ -113,6 +115,8 @@ services:
       dockerfile: Dockerfile
     container_name: conectornormal-download-sink
     restart: always
+    environment:
+      DOWNLOAD_SINK_AUTH_TOKEN: ${NORMAL_EDC_API_AUTH_KEY}
     volumes:
       - conectornormal_download_sink_data:/app/data
     networks:

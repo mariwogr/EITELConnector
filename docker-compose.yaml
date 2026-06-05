@@ -65,6 +65,7 @@ services:
     environment:
       NEXT_PUBLIC_MANAGEMENT_API_URL: /conectoruc3m/api/management
       NEXT_PUBLIC_MANAGEMENT_API_AUTH_KEY: change-me
+      NEXT_PUBLIC_LOCAL_ASSETS_AUTH_TOKEN: change-me
       NEXT_PUBLIC_CONNECTOR_NAME: conectoruc3m
       NEXT_PUBLIC_DSP_URL: http://conectoruc3m:11003/api/v1/dsp/2025-1
     volumes:
@@ -82,8 +83,21 @@ services:
     environment:
       CAAS_LOCAL_ASSETS_INTERNAL_BASE_URL: http://conectoruc3m-local-assets:8081/v1/local-assets/files
       CAAS_LOCAL_ASSETS_PUBLIC_BASE_URL: http://localhost:12000/conectoruc3m/local-assets/files
+      CAAS_LOCAL_ASSETS_AUTH_TOKEN: change-me
     volumes:
       - local_assets_data:/app/data/local-assets
+    networks:
+      - edc-net
+
+  conectoruc3m-download-sink:
+    build:
+      context: ./caas/download-sink
+      dockerfile: Dockerfile
+    container_name: conectoruc3m-download-sink
+    environment:
+      DOWNLOAD_SINK_AUTH_TOKEN: change-me
+    volumes:
+      - download_sink_data:/app/data
     networks:
       - edc-net
 
@@ -94,6 +108,7 @@ services:
       - conectoruc3m-ui
       - conectoruc3m
       - conectoruc3m-local-assets
+      - conectoruc3m-download-sink
     ports:
       - "12000:80"
     volumes:
@@ -107,3 +122,4 @@ networks:
 
 volumes:
   local_assets_data:
+  download_sink_data:

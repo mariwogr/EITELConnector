@@ -514,6 +514,7 @@
         const data = imageUploadResp.data || {};
         assetImageUrl = String(data.publicUrl || '').trim();
       }
+      const localAssetsServiceToken = getLocalAssetsAuthToken();
 
       const body = {
         '@context': { edc: 'https://w3id.org/edc/v0.0.1/ns/' },
@@ -549,6 +550,7 @@
           method: 'GET',
           path,
           headers,
+          ...(sourceMode === 'local-file' && localAssetsServiceToken ? { 'header:X-Api-Key': localAssetsServiceToken } : {}),
           // For ArcGIS token (client=referer), the EDC connector must send the Referer header.
           // EDC's HttpData extension forwards DataAddress properties with the 'header:' prefix as HTTP headers.
           ...(authType === 'arcgis-login' ? { 'header:Referer': window.location.origin } : {})
