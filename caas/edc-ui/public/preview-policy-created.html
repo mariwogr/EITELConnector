@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Preview · Popup "Policy creada/actualizada"</title>
+  <link rel="stylesheet" href="assets/ui.css?v=20260604b" />
+  <style>
+    /* Preview-only chrome (not part of the app) */
+    body { padding: 24px; }
+    .preview-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+    .preview-bar h1 { font-size: 16px; margin: 0 12px 0 0; }
+    .preview-note { color: var(--muted); font-size: 12px; margin: 0 0 18px; }
+    .preview-modal { position: static; display: block; background: transparent; padding: 0; margin-bottom: 26px; }
+    .preview-modal .modal-card { margin: 0 auto; box-shadow: 0 10px 24px rgba(0,0,0,.10); }
+  </style>
+</head>
+<body data-theme="light">
+  <div class="preview-bar">
+    <h1>Preview · Popup "Policy creada/actualizada"</h1>
+    <button class="ghost" id="btnTheme">Cambiar a oscuro</button>
+  </div>
+  <p class="preview-note">Vista previa estática del nuevo popup. Usa el render real (<code>renderPolicyCreatedCard</code>) y el CSS real (<code>ui.css</code>). No necesita backend.</p>
+
+  <!-- Example 1: update (HTTP 204) — the exact case from the issue -->
+  <div class="modal open preview-modal" id="infoModal">
+    <div class="modal-card">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h2 id="infoTitle" style="margin:0">Policy creada/actualizada</h2>
+        <button class="ghost">Cerrar</button>
+      </div>
+      <pre class="info-pre info-rich" id="infoBodyUpdate">{}</pre>
+    </div>
+  </div>
+
+  <!-- Example 2: create (HTTP 200) with visibility -->
+  <div class="modal open preview-modal" id="infoModal">
+    <div class="modal-card">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h2 style="margin:0">Policy creada/actualizada</h2>
+        <button class="ghost">Cerrar</button>
+      </div>
+      <pre class="info-pre info-rich" id="infoBodyCreate">{}</pre>
+    </div>
+  </div>
+
+  <script src="assets/ui/02a-utils.js?v=20260604a"></script>
+  <script src="assets/ui/02d-ui.js?v=20260604e"></script>
+  <script>
+    document.getElementById('infoBodyUpdate').innerHTML = renderPolicyCreatedCard({
+      assetId: 'asset-aaa', policyId: 'policy-aaa', status: 204
+    });
+    document.getElementById('infoBodyCreate').innerHTML = renderPolicyCreatedCard({
+      assetId: 'asset-clima-uc3m', policyId: 'policy-clima-uc3m', status: 200, accessLevel: 'partners'
+    });
+
+    const btn = document.getElementById('btnTheme');
+    btn.addEventListener('click', () => {
+      const dark = document.body.dataset.theme === 'dark';
+      document.body.dataset.theme = dark ? 'light' : 'dark';
+      btn.textContent = dark ? 'Cambiar a oscuro' : 'Cambiar a claro';
+    });
+  </script>
+</body>
+</html>

@@ -65,6 +65,8 @@
       consolePos: 'right',
       consoleFont: 13,
       consoleExpanded: false,
+      consoleWidth: 410,
+      consoleHeight: 300,
       apiBaseUrl: cfg.managementApiUrl || '/api/management',
       apiKeyOverride: '',
       apiTimeoutMs: 15000,

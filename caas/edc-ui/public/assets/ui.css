@@ -62,11 +62,14 @@
       height: 100dvh;
       min-height: 100dvh;
       display: grid;
-      grid-template-columns: 250px 1fr 410px;
+      /* Console size is drag-resizable; JS overrides these vars inline on .app */
+      --console-w: 410px;
+      --console-h: 300px;
+      grid-template-columns: 250px 1fr var(--console-w);
     }
     .app.console-bottom {
       grid-template-columns: 250px 1fr;
-      grid-template-rows: 1fr 300px;
+      grid-template-rows: 1fr var(--console-h);
     }
     .app.console-bottom .console { grid-column: 2; grid-row: 2; border-left: 0; border-top: 1px solid var(--line); }
     .app.console-hidden { grid-template-columns: 250px 1fr 0; }
@@ -321,6 +324,54 @@
     }
     .console-handle button:hover { color: var(--primary); }
 
+    /* Drag-to-resize strip on the console's inner edge */
+    .console-resizer {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+      cursor: col-resize;
+      z-index: 25;
+      background: transparent;
+      transition: background .12s ease;
+      touch-action: none;
+    }
+    .console-resizer::before {
+      content: "";
+      position: absolute;
+      left: 1px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 2px;
+      height: 34px;
+      border-radius: 2px;
+      background: var(--console-line);
+    }
+    .console-resizer:hover,
+    .console-resizer.dragging {
+      background: color-mix(in srgb, var(--primary) 28%, transparent);
+    }
+    .console-resizer:hover::before,
+    .console-resizer.dragging::before { background: var(--primary); }
+    .app.console-bottom .console-resizer {
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: auto;
+      width: auto;
+      height: 6px;
+      cursor: row-resize;
+    }
+    .app.console-bottom .console-resizer::before {
+      left: 50%;
+      top: 1px;
+      transform: translateX(-50%);
+      width: 34px;
+      height: 2px;
+    }
+    .app.console-hidden .console-resizer { display: none; }
+
     .console-show {
       position: fixed;
       right: 10px;
@@ -419,10 +470,8 @@
     /* hard override: bottom console must stay visible as horizontal panel */
     .app.console-bottom {
       grid-template-columns: 250px 1fr !important;
-      grid-template-rows: 1fr 300px !important;
+      grid-template-rows: 1fr var(--console-h) !important;
     }
-    .app.console-expanded.console-bottom { grid-template-rows: 1fr 46vh !important; }
-    .app.console-expanded:not(.console-bottom) { grid-template-columns: 250px 1fr 560px !important; }
     .app.console-bottom .console {
       display: flex !important;
       grid-column: 2 !important;
@@ -488,6 +537,13 @@
       color: #fff;
       background: var(--ok);
     }
+    /* Tone modifiers for the generic result card (default .pub-hero is ok/green) */
+    .pub-hero-info { border-color: color-mix(in srgb, var(--primary) 35%, var(--line)); background: color-mix(in srgb, var(--primary) 10%, var(--surface)); }
+    .pub-hero-info .pub-hero-icon { background: var(--primary); }
+    .pub-hero-warn { border-color: color-mix(in srgb, var(--warn) 40%, var(--line)); background: color-mix(in srgb, var(--warn) 12%, var(--surface)); }
+    .pub-hero-warn .pub-hero-icon { background: var(--warn); }
+    .pub-hero-danger { border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); }
+    .pub-hero-danger .pub-hero-icon { background: var(--danger); }
     .pub-hero-text { flex: 1 1 auto; min-width: 0; }
     .pub-hero-title { font-weight: 600; font-size: 15px; color: var(--text); }
     .pub-hero-id {
@@ -602,8 +658,126 @@
       border-left: 3px solid var(--primary);
       background: color-mix(in srgb, var(--primary-soft) 55%, var(--surface));
     }
+    .pub-details {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface-2);
+      overflow: hidden;
+    }
+    .pub-details > summary {
+      cursor: pointer;
+      padding: 8px 11px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      user-select: none;
+    }
+    .pub-details[open] > summary { border-bottom: 1px solid var(--line); }
+    .pub-pre {
+      margin: 0;
+      padding: 10px 11px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 38vh;
+      overflow: auto;
+      color: var(--text);
+    }
     @media (max-width: 560px) {
       .pub-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ContractDefinitions results panel ("Listar ContractDefinitions") */
+    .cdef-result { margin-top: 14px; }
+    .cdef-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .cdef-count { font-size: 13px; font-weight: 600; color: var(--text); }
+    .cdef-status {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ok);
+      border: 1px solid color-mix(in srgb, var(--ok) 45%, var(--line));
+      border-radius: 999px;
+      padding: 2px 9px;
+      background: var(--surface);
+    }
+    .cdef-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 12px;
+    }
+    .cdef-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: var(--surface-2);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, .06);
+      min-width: 0;
+    }
+    .cdef-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .cdef-card-id {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--primary);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      overflow-wrap: anywhere;
+      min-width: 0;
+    }
+    .cdef-card-badge {
+      flex: 0 0 auto;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 8px;
+      background: var(--surface);
+    }
+    .cdef-rows { display: flex; flex-direction: column; gap: 6px; }
+    .cdef-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+      padding-bottom: 6px;
+      border-bottom: 1px dashed var(--line);
+    }
+    .cdef-row:last-child { border-bottom: 0; padding-bottom: 0; }
+    .cdef-key { color: var(--muted); flex: 0 0 auto; }
+    .cdef-val {
+      color: var(--text);
+      text-align: right;
+      overflow-wrap: anywhere;
+      min-width: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .cdef-muted { color: var(--muted); }
+    .cdef-empty {
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      color: var(--muted);
+      font-size: 13px;
+      background: var(--surface-2);
+    }
+    .cdef-empty.cdef-error {
+      border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
+      color: var(--danger);
+      background: color-mix(in srgb, var(--danger) 8%, var(--surface));
     }
 
     .asset-showcase {
@@ -1291,6 +1465,7 @@
       .main { padding-bottom: 44vh; }
       .console { position: fixed; inset: auto 0 0 0; height: min(42vh, 360px); z-index: 50; border-left: 0; border-top: 1px solid var(--line); }
       .app.console-hidden .console { display: none; }
+      .console-resizer { display: none; } /* fixed-position console on small screens is not grid-resizable */
       .console-handle { left: auto; right: 10px; top: -42px; flex-direction: row; }
       .console-handle button { width: 34px; height: 22px; border-right: 1px solid var(--line); border-radius: 10px 10px 0 0; }
       .alert-stack {

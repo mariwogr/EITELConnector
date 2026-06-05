@@ -186,9 +186,13 @@
       } else if (options && options.plainText) {
         infoBody.classList.remove('info-rich');
         infoBody.textContent = typeof payload === 'string' ? payload : String(payload ?? '');
+      } else if (payload && typeof payload === 'object') {
+        // Auto-prettify object/array payloads into a card instead of dumping raw JSON.
+        infoBody.classList.add('info-rich');
+        infoBody.innerHTML = renderGenericPayloadCard(title, payload);
       } else {
         infoBody.classList.remove('info-rich');
-        infoBody.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+        infoBody.textContent = typeof payload === 'string' ? payload : String(payload ?? '');
       }
       const actionBtn = document.getElementById('btnInfoAction');
       if (options && options.actionLabel && typeof options.onAction === 'function') {
@@ -389,10 +393,269 @@
     }
 
     /**
+     * Maps an access-level code to its Spanish label (matches the policy selector).
+     *
+     * @param {string} level - public | private | partners | internal.
+     * @returns {string} Human-readable label.
+     */
+    function policyAccessLevelLabel(level) {
+      switch (String(level || '')) {
+        case 'public': return 'Público';
+        case 'private': return 'Privado (requiere solicitud)';
+        case 'partners': return 'Solo entidades colaboradoras';
+        case 'internal': return 'Uso interno del proyecto';
+        default: return level ? String(level) : '';
+      }
+    }
+
+    /**
+     * Builds a friendly HTML card for a created/updated policy response,
+     * used as the body of the info popup instead of raw JSON.
+     *
+     * @param {Object} info - { policyId, assetId, status, accessLevel }.
+     * @returns {string} HTML markup for showInfoPopup({ html }).
+     */
+    function renderPolicyCreatedCard(info) {
+      const data = info || {};
+      const status = Number(data.status) || 0;
+      // 204 (No Content) is returned by the PUT update path; 200/201 by the create path.
+      const updated = status === 204;
+      const policyId = String(data.policyId || '—');
+      const assetId = String(data.assetId || '');
+      const accessLevel = String(data.accessLevel || data.visibility || '').trim();
+
+      const field = (label, value) => `
+        <div class="pub-field">
+          <span class="pub-field-label">${htmlEscape(label)}</span>
+          <span class="pub-field-value">${value && String(value).trim() ? htmlEscape(value) : '<span class="pub-empty">—</span>'}</span>
+        </div>`;
+
+      const fields = [field('Asset', assetId)];
+      if (accessLevel) fields.push(field('Visibilidad', policyAccessLevelLabel(accessLevel)));
+
+      return `
+        <div class="pub-result">
+          <div class="pub-hero">
+            <div class="pub-hero-icon">✓</div>
+            <div class="pub-hero-text">
+              <div class="pub-hero-title">Política de uso ${updated ? 'actualizada' : 'creada'} correctamente</div>
+              <div class="pub-hero-id">${htmlEscape(policyId)}</div>
+            </div>
+            ${status ? `<span class="pub-status-badge">HTTP ${status}</span>` : ''}
+          </div>
+          <div class="pub-grid">
+            ${fields.join('')}
+          </div>
+          <p class="pub-hint">La política quedó asociada al asset. Continúa a Contrato para exponer la oferta en el catálogo.</p>
+        </div>`;
+    }
+
+    /**
+     * Generic result card for info popups, reusing the .pub-* styles.
+     * Use it instead of dumping raw JSON for simple confirmation/info popups.
+     *
+     * @param {Object} opts
+     * @param {string} opts.title - Hero title.
+     * @param {string} [opts.subtitle] - Monospace identifier under the title.
+     * @param {('ok'|'info'|'warn'|'danger')} [opts.tone='ok'] - Visual tone.
+     * @param {number} [opts.status] - HTTP status badge (omitted when falsy).
+     * @param {Array<{label:string,value:*}>} [opts.fields] - Key/value rows.
+     * @param {Array<{label:string,json:string}>} [opts.details] - Collapsible JSON blocks.
+     * @param {string} [opts.hint] - Footer note.
+     * @returns {string} HTML markup for showInfoPopup({ html }).
+     */
+    function renderResultCard(opts) {
+      const o = opts || {};
+      const tone = ['ok', 'info', 'warn', 'danger'].includes(o.tone) ? o.tone : 'ok';
+      const icon = { ok: '✓', info: 'ℹ', warn: '!', danger: '✕' }[tone];
+      const status = Number(o.status) || 0;
+      const fields = (Array.isArray(o.fields) ? o.fields : []).filter(f => f && f.label);
+      const details = (Array.isArray(o.details) ? o.details : []).filter(d => d && d.json);
+      const fieldHtml = (label, value) => `
+        <div class="pub-field">
+          <span class="pub-field-label">${htmlEscape(label)}</span>
+          <span class="pub-field-value">${value !== undefined && value !== null && String(value).trim() ? htmlEscape(value) : '<span class="pub-empty">—</span>'}</span>
+        </div>`;
+      const grid = fields.length ? `<div class="pub-grid">${fields.map(f => fieldHtml(f.label, f.value)).join('')}</div>` : '';
+      const detailsHtml = details.map(d => `<details class="pub-details"><summary>${htmlEscape(d.label || 'Detalle')}</summary><pre class="pub-pre">${htmlEscape(d.json)}</pre></details>`).join('');
+      const subtitle = o.subtitle ? `<div class="pub-hero-id">${htmlEscape(o.subtitle)}</div>` : '';
+      const hint = o.hint ? `<p class="pub-hint">${htmlEscape(o.hint)}</p>` : '';
+      return `
+        <div class="pub-result">
+          <div class="pub-hero pub-hero-${tone}">
+            <div class="pub-hero-icon">${icon}</div>
+            <div class="pub-hero-text">
+              <div class="pub-hero-title">${htmlEscape(o.title || '')}</div>
+              ${subtitle}
+            </div>
+            ${status ? `<span class="pub-status-badge">HTTP ${status}</span>` : ''}
+          </div>
+          ${grid}
+          ${detailsHtml}
+          ${hint}
+        </div>`;
+    }
+
+    // Keys treated specially when auto-rendering an arbitrary payload object.
+    const POPUP_ID_KEYS = ['assetId', 'policyId', 'contractDefId', 'negotiationId', 'agreementId', 'transferId', 'transferProcessId', 'offerId', '@id', 'id'];
+    const POPUP_HINT_KEYS = ['message', 'note', 'hint', 'nextStep', 'detail', 'errorDetail', 'error', 'reason'];
+    const POPUP_SKIP_KEYS = ['@context', '@type'];
+    const POPUP_KEY_LABELS = {
+      assetId: 'Asset', policyId: 'Policy', contractDefId: 'ContractDefinition',
+      negotiationId: 'Negociación', agreementId: 'Agreement', transferId: 'Transferencia',
+      transferProcessId: 'Transferencia', offerId: 'Oferta', provider: 'Provider', consumer: 'Consumer',
+      providerId: 'Provider', consumerId: 'Consumer', estado: 'Estado', status: 'Estado HTTP',
+      httpStatus: 'Estado HTTP', visibility: 'Visibilidad', negotiationState: 'Estado negociación',
+      counterPartyId: 'Contraparte', counterPartyAddress: 'Dirección contraparte', removed: 'Eliminados',
+    };
+
+    function popupHumanizeKey(key) {
+      if (POPUP_KEY_LABELS[key]) return POPUP_KEY_LABELS[key];
+      return String(key)
+        .replace(/^@/, '')
+        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+        .replace(/[_-]+/g, ' ')
+        .replace(/^./, c => c.toUpperCase());
+    }
+
+    function popupSafeJson(value) {
+      try { return JSON.stringify(value, null, 2); } catch { return String(value); }
+    }
+
+    /**
+     * Infers a visual tone from a popup title and HTTP status (cosmetic only).
+     * @returns {('ok'|'info'|'warn'|'danger')}
+     */
+    function inferPopupTone(title, status) {
+      const t = String(title || '').toLowerCase();
+      const code = Number(status) || 0;
+      if (code >= 400) return 'danger';
+      if (/error|fall[aoó]|no se pudo|rechaz|denegad|❌/.test(t)) return 'danger';
+      if (/⚠|bloquead|estancad|sin |no hay|no puedes|no reconocid|todav[ií]a|pendiente|requerid|falta|no encontrad|no disponible/.test(t)) return 'warn';
+      if (/en curso|monitoriz|iniciad|enviad|cargad|detalle|estado:|evento:/.test(t)) return 'info';
+      return 'ok';
+    }
+
+    /**
+     * Auto-renders an arbitrary popup payload (object or array) into a result card:
+     * primitive entries become field rows, an id-like key becomes the subtitle,
+     * message-like keys become the footer hint, and nested values become
+     * collapsible JSON blocks (so detail is preserved, not dumped).
+     *
+     * @param {string} title - Popup title (also used to infer tone).
+     * @param {Object|Array} payload - Arbitrary payload.
+     * @returns {string} HTML markup.
+     */
+    function renderGenericPayloadCard(title, payload) {
+      const isArray = Array.isArray(payload);
+      const obj = (!isArray && payload && typeof payload === 'object') ? payload : {};
+      const status = Number(obj.status) || 0;
+      const tone = inferPopupTone(title, status);
+      const skip = new Set(['status', ...POPUP_SKIP_KEYS]);
+
+      let subtitle = '';
+      for (const k of POPUP_ID_KEYS) {
+        const v = obj[k];
+        if (v != null && String(v).trim() && String(v) !== '-') { subtitle = String(v); skip.add(k); break; }
+      }
+
+      const hintParts = [];
+      for (const k of POPUP_HINT_KEYS) {
+        const v = obj[k];
+        if (typeof v === 'string' && v.trim()) { hintParts.push(v.trim()); skip.add(k); }
+      }
+
+      const fields = [];
+      const details = [];
+      const entries = isArray ? [['items', payload]] : Object.entries(obj);
+      for (const [k, v] of entries) {
+        if (skip.has(k)) continue;
+        if (v == null || v === '') continue;
+        if (typeof v === 'object') {
+          details.push({ label: popupHumanizeKey(k), json: popupSafeJson(v) });
+        } else {
+          fields.push({ label: popupHumanizeKey(k), value: String(v) });
+        }
+      }
+
+      return renderResultCard({ title, subtitle, tone, status, fields, details, hint: hintParts.join(' ') });
+    }
+
+    // Console resize bounds (px). The minimum keeps the console usable.
+    const CONSOLE_MIN_W = 280;
+    const CONSOLE_MIN_H = 140;
+
+    // Max size leaves room for the 250px sidebar + main content (width) and the top bar (height).
+    function consoleMaxWidth() { return Math.max(CONSOLE_MIN_W, window.innerWidth - 250 - 320); }
+    function consoleMaxHeight() { return Math.max(CONSOLE_MIN_H, window.innerHeight - 220); }
+
+    /**
+     * Applies the persisted console width/height (clamped) as CSS variables on .app.
+     * Width drives the right-docked console; height drives the bottom-docked console.
+     *
+     * @example
+     * applyConsoleSize(); // Re-applies settings.consoleWidth / consoleHeight
+     */
+    function applyConsoleSize() {
+      const w = Math.min(Math.max(Number(settings.consoleWidth) || 410, CONSOLE_MIN_W), consoleMaxWidth());
+      const h = Math.min(Math.max(Number(settings.consoleHeight) || 300, CONSOLE_MIN_H), consoleMaxHeight());
+      app.style.setProperty('--console-w', `${w}px`);
+      app.style.setProperty('--console-h', `${h}px`);
+    }
+
+    /**
+     * Wires the drag handle that resizes the console by dragging its inner border.
+     * Right dock => horizontal resize (width); bottom dock => vertical resize (height).
+     * The size is clamped to [min, max] and persisted on release.
+     *
+     * @example
+     * initConsoleResizer(); // Call once during bootstrap
+     */
+    function initConsoleResizer() {
+      const resizer = document.getElementById('consoleResizer');
+      if (!resizer) return;
+      let dragging = false;
+
+      const onMove = (e) => {
+        if (!dragging) return;
+        if (settings.consolePos === 'bottom') {
+          const h = window.innerHeight - e.clientY;
+          settings.consoleHeight = Math.min(Math.max(h, CONSOLE_MIN_H), consoleMaxHeight());
+        } else {
+          const w = window.innerWidth - e.clientX;
+          settings.consoleWidth = Math.min(Math.max(w, CONSOLE_MIN_W), consoleMaxWidth());
+        }
+        applyConsoleSize();
+      };
+
+      const stop = () => {
+        if (!dragging) return;
+        dragging = false;
+        resizer.classList.remove('dragging');
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', stop);
+        persistSettings();
+      };
+
+      resizer.addEventListener('pointerdown', (e) => {
+        if (app.classList.contains('console-hidden')) return; // nothing to resize while hidden
+        dragging = true;
+        resizer.classList.add('dragging');
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = settings.consolePos === 'bottom' ? 'row-resize' : 'col-resize';
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', stop);
+        e.preventDefault();
+      });
+    }
+
+    /**
      * Applies UI configuration and initialization settings.
      * Sets up theme, language, layout preferences from stored configuration.
      * Called on page load to restore user preferences.
-     * 
+     *
      * @example
      * applySettings(); // Restores saved UI configuration
      */
@@ -401,6 +664,7 @@
       app.classList.toggle('console-bottom', settings.consolePos === 'bottom');
       app.classList.toggle('console-expanded', settings.consoleExpanded);
       out.style.fontSize = `${settings.consoleFont}px`;
+      applyConsoleSize();
 
       document.getElementById('consoleState').textContent = `${settings.consolePos}${settings.consoleExpanded ? ' + expanded' : ''}`;
       document.getElementById('setLanguage').value = settings.language;

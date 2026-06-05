@@ -93,7 +93,8 @@
       }
       if (response.status >= 200 && response.status < 300) {
         upsertAssetBundleBackup({ assetId, policyId, policyBody: body, policyMeta });
-        showInfoPopup('Policy creada/actualizada', { assetId, policyId, status: response.status });
+        const policyInfo = { assetId, policyId, status: response.status, accessLevel: policyMeta?.accessLevel || '' };
+        showInfoPopup('Policy creada/actualizada', policyInfo, { html: renderPolicyCreatedCard(policyInfo) });
       } else {
         showInfoPopup('Error creando policy', response);
       }
@@ -129,8 +130,27 @@
      */
     async function deletePolicy() {
       const policyId = (document.getElementById('policyIdPreview')?.value || document.getElementById('policyIdMirror')?.value || '').trim();
-      if (!policyId) { writeOut({ status: 400, error: 'Policy ID requerido.' }); return; }
-      writeOut(await callApi('DELETE', `/v3/policydefinitions/${encodeURIComponent(policyId)}`));
+      if (!policyId) {
+        writeOut({ status: 400, error: 'Policy ID requerido.' });
+        showInfoPopup('Policy ID requerido', { status: 400 }, { html: renderResultCard({
+          title: 'Falta el Policy ID',
+          tone: 'warn',
+          hint: 'Selecciona o introduce un Policy ID antes de borrar.'
+        }) });
+        return;
+      }
+      const response = await callApi('DELETE', `/v3/policydefinitions/${encodeURIComponent(policyId)}`);
+      writeOut(response);
+      if (response.status >= 200 && response.status < 300) {
+        showInfoPopup('Policy eliminada', { policyId, status: response.status }, { html: renderResultCard({
+          title: 'Policy eliminada',
+          subtitle: policyId,
+          tone: 'ok',
+          status: response.status,
+        }) });
+      } else {
+        showInfoPopup('Error eliminando policy', response);
+      }
     }
 
     /**
@@ -166,7 +186,15 @@
       }
       if (response.status >= 200 && response.status < 300) {
         upsertAssetBundleBackup({ assetId, contractDefId, contractBody: body, policyId });
-        showInfoPopup('Contract Definition creada/actualizada', { assetId, contractDefId, policyId, status: response.status });
+        const contractInfo = { assetId, contractDefId, policyId, status: response.status };
+        showInfoPopup('Contract Definition creada/actualizada', contractInfo, { html: renderResultCard({
+          title: `Contrato ${response.status === 204 ? 'actualizado' : 'creado'} correctamente`,
+          subtitle: contractDefId,
+          tone: 'ok',
+          status: response.status,
+          fields: [{ label: 'Asset', value: assetId }, { label: 'Policy', value: policyId }],
+          hint: 'La oferta ya está expuesta en el catálogo del conector.'
+        }) });
       } else {
         showInfoPopup('Error creando Contract Definition', response);
       }
@@ -174,18 +202,83 @@
     }
 
     /**
+     * Extracts the asset id targeted by a ContractDefinition assetsSelector.
+     * Prefers the EDC `id` criterion; falls back to the first operandRight.
+     *
+     * @param {Array} assetsSelector - Array of ODRL Criterion objects.
+     * @returns {string} The asset id, or '' when not resolvable.
+     */
+    function extractContractDefAssetId(assetsSelector) {
+      if (!Array.isArray(assetsSelector)) return '';
+      const idCriterion = assetsSelector.find((c) => {
+        const left = String(c?.operandLeft || '');
+        return left === 'id' || left.endsWith('/id') || left.endsWith('#id');
+      });
+      const chosen = idCriterion || assetsSelector[0];
+      return String(chosen?.operandRight || '');
+    }
+
+    /**
+     * Builds a friendly HTML summary of a ContractDefinitions list response.
+     * Handles empty and error states.
+     *
+     * @param {Object} resp - API response ({ status, data: [...] }).
+     * @returns {string} HTML markup for the results panel.
+     */
+    function buildContractDefinitionsHtml(resp) {
+      const status = Number(resp?.status) || 0;
+      if (status && (status < 200 || status >= 300)) {
+        const detail = htmlEscape(String(resp?.data?.detail || resp?.data?.error || resp?.error || `HTTP ${status}`));
+        return `<div class="cdef-empty cdef-error">No se pudieron cargar las ContractDefinitions (HTTP ${status}). ${detail}</div>`;
+      }
+      const list = unwrap(resp);
+      if (!list.length) {
+        return '<div class="cdef-empty">No hay ContractDefinitions publicadas en este conector.</div>';
+      }
+      const head = `<div class="cdef-head"><span class="cdef-count">${list.length} ContractDefinition${list.length === 1 ? '' : 's'}</span>${status ? `<span class="cdef-status">HTTP ${status}</span>` : ''}</div>`;
+      const row = (key, value) => `<div class="cdef-row"><span class="cdef-key">${htmlEscape(key)}</span><span class="cdef-val">${value ? htmlEscape(value) : '<span class="cdef-muted">—</span>'}</span></div>`;
+      const cards = list.map((item) => {
+        const id = String(item?.['@id'] || item?.id || '—');
+        const assetId = extractContractDefAssetId(item?.assetsSelector);
+        const accessPolicy = String(item?.accessPolicyId || '');
+        const contractPolicy = String(item?.contractPolicyId || '');
+        const policyRows = accessPolicy && accessPolicy === contractPolicy
+          ? row('Policy', accessPolicy)
+          : row('Access policy', accessPolicy) + row('Contract policy', contractPolicy);
+        return `
+          <div class="cdef-card">
+            <div class="cdef-card-head">
+              <span class="cdef-card-id">${htmlEscape(id)}</span>
+              <span class="cdef-card-badge">ContractDefinition</span>
+            </div>
+            <div class="cdef-rows">
+              ${row('Asset', assetId)}
+              ${policyRows}
+            </div>
+          </div>`;
+      }).join('');
+      return head + `<div class="cdef-grid">${cards}</div>`;
+    }
+
+    /**
      * Retrieves all contract definitions from the connector.
-     * Fetches contract list from Management API and displays in UI.
-     * 
+     * Writes the raw response to the console and renders a formatted
+     * summary panel below the action buttons.
+     *
      * @async
      * @returns {Promise<Object>} API response with contract list
-     * 
+     *
      * @example
      * await listContractDefinitions(); // Reload and display contracts
      */
     async function listContractDefinitions() {
       const r = await callApi('POST', '/v3/contractdefinitions/request', q());
       writeOut(r);
+      const box = document.getElementById('contractDefsResult');
+      if (box) {
+        box.innerHTML = buildContractDefinitionsHtml(r);
+        box.style.display = 'block';
+      }
       return r;
     }
 
@@ -202,8 +295,27 @@
      */
     async function deleteContractDefinition() {
       const id = (document.getElementById('contractDefIdPreview')?.value || document.getElementById('contractDefIdMirror')?.value || '').trim();
-      if (!id) { writeOut({ status: 400, error: 'ContractDefinition ID requerido.' }); return; }
-      writeOut(await callApi('DELETE', `/v3/contractdefinitions/${encodeURIComponent(id)}`));
+      if (!id) {
+        writeOut({ status: 400, error: 'ContractDefinition ID requerido.' });
+        showInfoPopup('ContractDefinition ID requerido', { status: 400 }, { html: renderResultCard({
+          title: 'Falta el ContractDefinition ID',
+          tone: 'warn',
+          hint: 'Selecciona o introduce un ContractDefinition ID antes de borrar.'
+        }) });
+        return;
+      }
+      const response = await callApi('DELETE', `/v3/contractdefinitions/${encodeURIComponent(id)}`);
+      writeOut(response);
+      if (response.status >= 200 && response.status < 300) {
+        showInfoPopup('ContractDefinition eliminada', { contractDefId: id, status: response.status }, { html: renderResultCard({
+          title: 'ContractDefinition eliminada',
+          subtitle: id,
+          tone: 'ok',
+          status: response.status,
+        }) });
+      } else {
+        showInfoPopup('Error eliminando ContractDefinition', response);
+      }
     }
 
     async function purgeConnectorArtifacts() {
@@ -234,7 +346,16 @@
 
       await refreshOverview();
       writeOut({ purged: removed });
-      showInfoPopup('Conector vaciado', { removed, note: 'Se eliminaron assets, policies y contract definitions del conector actual.' });
+      showInfoPopup('Conector vaciado', { removed }, { html: renderResultCard({
+        title: 'Conector vaciado',
+        tone: 'ok',
+        fields: [
+          { label: 'Assets', value: removed.assets },
+          { label: 'Policies', value: removed.policyDefinitions },
+          { label: 'ContractDefinitions', value: removed.contractDefinitions },
+        ],
+        hint: 'Se eliminaron assets, policies y contract definitions del conector actual.'
+      }) });
     }
 
     /**
@@ -593,7 +714,12 @@
       const assets = unwrap(assetsResp);
       const asset = assets.find(a => (a['@id'] || a.id || '') === id);
       if (!asset) {
-        showInfoPopup('Asset no encontrado', { assetId: id });
+        showInfoPopup('Asset no encontrado', { assetId: id }, { html: renderResultCard({
+          title: 'Asset no encontrado',
+          subtitle: id,
+          tone: 'warn',
+          hint: 'No existe ese asset en el runtime actual del conector.'
+        }) });
         return;
       }
       const props = asset.properties || asset['edc:properties'] || {};
@@ -626,7 +752,12 @@
       setVal('assetBaseUrl', dataAddress?.baseUrl || '');
       setVal('assetPath', dataAddress?.path || '');
       activateView('asset');
-      showInfoPopup('Asset cargado para edición', { assetId: id, note: 'Revisa y pulsa Crear/Actualizar asset para guardar cambios.' });
+      showInfoPopup('Asset cargado para edición', { assetId: id }, { html: renderResultCard({
+        title: 'Asset cargado para editar',
+        subtitle: id,
+        tone: 'info',
+        hint: 'Revisa y pulsa Crear/Actualizar asset para guardar los cambios.'
+      }) });
     }
 
     async function resolvePublishedPolicyForEdit(assetId, bundle = null) {
@@ -665,7 +796,12 @@
       const bundle = await getPublicationBundleByAssetId(id);
       const { policyId, policy } = await resolvePublishedPolicyForEdit(id, bundle);
       if (!policyId || !policy) {
-        showInfoPopup('Policy no encontrada', { assetId: id, message: 'No hay policy asociada guardada para esta publicación.' });
+        showInfoPopup('Policy no encontrada', { assetId: id }, { html: renderResultCard({
+          title: 'Policy no encontrada',
+          subtitle: id,
+          tone: 'warn',
+          hint: 'No hay policy asociada guardada para esta publicación.'
+        }) });
         return;
       }
       const setVal = (elId, value) => { const el = document.getElementById(elId); if (el) el.value = value; };
@@ -680,7 +816,13 @@
       const policyAccessSelect = document.getElementById('policyAccessLevel');
       if (policyAccessSelect) policyAccessSelect.value = resolvePublicationAccessLevel({}, bundle);
       activateView('policy');
-      showInfoPopup('Policy cargada para edición', { assetId: id, policyId, note: 'Se ha cargado en modo JSON-LD para editarla sin perder detalle.' });
+      showInfoPopup('Policy cargada para edición', { assetId: id, policyId }, { html: renderResultCard({
+        title: 'Policy cargada para editar',
+        subtitle: policyId,
+        tone: 'info',
+        fields: [{ label: 'Asset', value: id }],
+        hint: 'Se ha cargado en modo JSON-LD para editarla sin perder detalle.'
+      }) });
     }
 
     async function editPublishedContract(assetId) {
@@ -689,7 +831,12 @@
       const bundle = await getPublicationBundleByAssetId(id);
       const { contractDefId, policyId } = await resolvePublishedContractForEdit(id, bundle);
       if (!contractDefId) {
-        showInfoPopup('ContractDefinition no encontrada', { assetId: id, message: 'No hay ContractDefinition asociada guardada para esta publicación.' });
+        showInfoPopup('ContractDefinition no encontrada', { assetId: id }, { html: renderResultCard({
+          title: 'ContractDefinition no encontrada',
+          subtitle: id,
+          tone: 'warn',
+          hint: 'No hay ContractDefinition asociada guardada para esta publicación.'
+        }) });
         return;
       }
       const setVal = (elId, value) => { const el = document.getElementById(elId); if (el) el.value = value; };
@@ -701,7 +848,13 @@
       setVal('contractAccessPolicyId', policyId);
       setVal('contractContractPolicyId', policyId);
       activateView('contractdef');
-      showInfoPopup('ContractDefinition cargada', { assetId: id, contractDefId, policyId });
+      showInfoPopup('ContractDefinition cargada', { assetId: id, contractDefId, policyId }, { html: renderResultCard({
+        title: 'ContractDefinition cargada para editar',
+        subtitle: contractDefId,
+        tone: 'info',
+        fields: [{ label: 'Asset', value: id }, { label: 'Policy', value: policyId }],
+        hint: 'Revisa los campos y pulsa Crear ContractDefinition para guardar los cambios.'
+      }) });
     }
 
     /**
@@ -721,7 +874,13 @@
       const r = await callApi('DELETE', `/v3/assets/${encodeURIComponent(id)}`);
       if (r.status >= 200 && r.status < 300) {
         removeAssetBundleBackup(id);
-        showInfoPopup('Asset eliminado', { assetId: id, status: r.status });
+        showInfoPopup('Asset eliminado', { assetId: id, status: r.status }, { html: renderResultCard({
+          title: 'Asset eliminado',
+          subtitle: id,
+          tone: 'ok',
+          status: r.status,
+          hint: 'Se eliminó el asset y su copia de backup local.'
+        }) });
       } else {
         showInfoPopup('Error eliminando asset', { assetId: id, response: r });
       }
@@ -735,13 +894,24 @@
       const bundle = await getPublicationBundleByAssetId(id);
       const policyId = String(bundle?.policyId || bundle?.policyBody?.['@id'] || '').trim();
       if (!policyId) {
-        showInfoPopup('Policy no encontrada', { assetId: id });
+        showInfoPopup('Policy no encontrada', { assetId: id }, { html: renderResultCard({
+          title: 'Policy no encontrada',
+          subtitle: id,
+          tone: 'warn',
+          hint: 'No hay policy asociada guardada para este asset.'
+        }) });
         return;
       }
       const response = await callApi('DELETE', `/v3/policydefinitions/${encodeURIComponent(policyId)}`);
       if (response.status >= 200 && response.status < 300) {
         upsertAssetBundleBackup({ assetId: id, policyId: '', policyBody: null });
-        showInfoPopup('Policy eliminada', { assetId: id, policyId, status: response.status });
+        showInfoPopup('Policy eliminada', { assetId: id, policyId, status: response.status }, { html: renderResultCard({
+          title: 'Policy eliminada',
+          subtitle: policyId,
+          tone: 'ok',
+          status: response.status,
+          fields: [{ label: 'Asset', value: id }]
+        }) });
       } else {
         showInfoPopup('Error eliminando policy', { assetId: id, policyId, response });
       }
@@ -755,13 +925,24 @@
       const bundle = await getPublicationBundleByAssetId(id);
       const contractDefId = String(bundle?.contractDefId || bundle?.contractBody?.['@id'] || '').trim();
       if (!contractDefId) {
-        showInfoPopup('ContractDefinition no encontrada', { assetId: id });
+        showInfoPopup('ContractDefinition no encontrada', { assetId: id }, { html: renderResultCard({
+          title: 'ContractDefinition no encontrada',
+          subtitle: id,
+          tone: 'warn',
+          hint: 'No hay ContractDefinition asociada guardada para este asset.'
+        }) });
         return;
       }
       const response = await callApi('DELETE', `/v3/contractdefinitions/${encodeURIComponent(contractDefId)}`);
       if (response.status >= 200 && response.status < 300) {
         upsertAssetBundleBackup({ assetId: id, contractDefId: '', contractBody: null });
-        showInfoPopup('ContractDefinition eliminada', { assetId: id, contractDefId, status: response.status });
+        showInfoPopup('ContractDefinition eliminada', { assetId: id, contractDefId, status: response.status }, { html: renderResultCard({
+          title: 'ContractDefinition eliminada',
+          subtitle: contractDefId,
+          tone: 'ok',
+          status: response.status,
+          fields: [{ label: 'Asset', value: id }]
+        }) });
       } else {
         showInfoPopup('Error eliminando ContractDefinition', { assetId: id, contractDefId, response });
       }

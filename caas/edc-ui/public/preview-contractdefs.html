@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Preview · Listar ContractDefinitions</title>
+  <link rel="stylesheet" href="assets/ui.css?v=20260604c" />
+  <style>
+    /* Preview-only chrome (not part of the app) */
+    body { padding: 24px; }
+    .preview-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+    .preview-bar h1 { font-size: 16px; margin: 0 12px 0 0; }
+    .preview-note { color: var(--muted); font-size: 12px; margin: 0 0 18px; }
+    section.card.wide { max-width: 920px; }
+  </style>
+</head>
+<body data-theme="light">
+  <div class="preview-bar">
+    <h1>Preview · "Listar ContractDefinitions"</h1>
+    <button class="ghost" id="btnTheme">Cambiar a oscuro</button>
+  </div>
+  <p class="preview-note">Vista previa estática del panel de resultados. Usa el render real (<code>buildContractDefinitionsHtml</code>) y el CSS real (<code>ui.css</code>). No necesita backend.</p>
+
+  <section class="card wide">
+    <h2>Definir contrato</h2>
+    <p class="muted">Aquí se asocia el asset con la policy mediante ContractDefinition.</p>
+    <div class="row" style="margin-top:8px">
+      <button class="primary">Crear ContractDefinition</button>
+      <button class="ghost" id="btnList">Listar ContractDefinitions</button>
+      <button class="danger">Borrar ContractDefinition</button>
+    </div>
+    <div id="contractDefsResult" class="cdef-result" style="display:none"></div>
+  </section>
+
+  <script>
+    // Minimal stand-ins for the two globals the builder needs.
+    function htmlEscape(v) {
+      return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+    const unwrap = (p) => Array.isArray(p?.data) ? p.data : (Array.isArray(p?.data?.value) ? p.data.value : (Array.isArray(p?.data?.content) ? p.data.content : []));
+  </script>
+  <script src="assets/ui/02i-management.js?v=20260604d"></script>
+  <script>
+    const sample = { status: 200, attempt: 0, data: [
+      { '@id': 'contractdef-data', '@type': 'ContractDefinition', accessPolicyId: 'policy-data', contractPolicyId: 'policy-data', assetsSelector: [{ '@type': 'Criterion', operandLeft: 'https://w3id.org/edc/v0.0.1/ns/id', operator: '=', operandRight: 'asset-data' }] },
+      { '@id': 'contractdef-privae', '@type': 'ContractDefinition', accessPolicyId: 'policy-privae', contractPolicyId: 'policy-privae', assetsSelector: [{ '@type': 'Criterion', operandLeft: 'https://w3id.org/edc/v0.0.1/ns/id', operator: '=', operandRight: 'asset-privae' }] },
+      { '@id': 'contractdef-prueba-geojson', '@type': 'ContractDefinition', accessPolicyId: 'policy-prueba-geojson', contractPolicyId: 'policy-prueba-geojson', assetsSelector: [{ '@type': 'Criterion', operandLeft: 'https://w3id.org/edc/v0.0.1/ns/id', operator: '=', operandRight: 'asset-prueba-geojson' }] },
+      { '@id': 'contractdef-prueba-geojson-21', '@type': 'ContractDefinition', accessPolicyId: 'policy-prueba-geojson-21', contractPolicyId: 'policy-prueba-geojson-21', assetsSelector: [{ '@type': 'Criterion', operandLeft: 'https://w3id.org/edc/v0.0.1/ns/id', operator: '=', operandRight: 'asset-prueba-geojson-21' }] },
+      { '@id': 'contractdef-lll', '@type': 'ContractDefinition', accessPolicyId: 'policy-lll', contractPolicyId: 'policy-lll', assetsSelector: [{ '@type': 'Criterion', operandLeft: 'https://w3id.org/edc/v0.0.1/ns/id', operator: '=', operandRight: 'asset-lll' }] },
+      { '@id': 'contractdef-por-favor', '@type': 'ContractDefinition', accessPolicyId: 'policy-por-favor', contractPolicyId: 'policy-por-favor', assetsSelector: [{ '@type': 'Criterion', operandLeft: 'https://w3id.org/edc/v0.0.1/ns/id', operator: '=', operandRight: 'asset-por-favor' }] }
+    ]};
+
+    const box = document.getElementById('contractDefsResult');
+    function render() {
+      box.innerHTML = buildContractDefinitionsHtml(sample);
+      box.style.display = 'block';
+    }
+    document.getElementById('btnList').addEventListener('click', render);
+    render();
+
+    const btn = document.getElementById('btnTheme');
+    btn.addEventListener('click', () => {
+      const dark = document.body.dataset.theme === 'dark';
+      document.body.dataset.theme = dark ? 'light' : 'dark';
+      btn.textContent = dark ? 'Cambiar a oscuro' : 'Cambiar a claro';
+    });
+  </script>
+</body>
+</html>
