@@ -1,0 +1,244 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #172026;
+  background: #eef2f4;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 900px;
+  min-height: 620px;
+}
+
+button {
+  font: inherit;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 28px;
+  background: #f9fbfb;
+  border-right: 1px solid #d8e0e2;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand img {
+  width: 84px;
+  height: auto;
+}
+
+.brand p {
+  margin: 0 0 2px;
+  color: #62717a;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.profile-list {
+  display: grid;
+  gap: 10px;
+}
+
+.profile-card {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 12px;
+  width: 100%;
+  min-height: 104px;
+  padding: 14px;
+  text-align: left;
+  border: 1px solid #d7e0e2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: inherit;
+  cursor: pointer;
+}
+
+.profile-card:hover,
+.profile-card.is-selected {
+  border-color: #234c64;
+  box-shadow: 0 8px 20px rgba(22, 52, 68, 0.12);
+}
+
+.profile-card__status {
+  width: 10px;
+  border-radius: 99px;
+  background: #234c64;
+}
+
+.profile-card[data-tone="green"] .profile-card__status {
+  background: #25835f;
+}
+
+.profile-card[data-tone="slate"] .profile-card__status {
+  background: #5b6872;
+}
+
+.profile-card[data-tone="gold"] .profile-card__status {
+  background: #b9852a;
+}
+
+.profile-card__body {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.profile-card strong {
+  font-size: 17px;
+}
+
+.profile-card small {
+  color: #65747c;
+  line-height: 1.35;
+}
+
+.profile-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.profile-card__tags span {
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: #314149;
+  background: #edf3f4;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.main-panel {
+  display: grid;
+  align-content: center;
+  gap: 24px;
+  padding: 52px;
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.9)),
+    url("/eitel-logo.png") right 44px bottom 34px / 180px auto no-repeat,
+    #eef2f4;
+}
+
+.connector-preview {
+  display: grid;
+  gap: 22px;
+  max-width: 760px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #5f6f77;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+h2 {
+  margin: 0;
+  font-size: 54px;
+  line-height: 1.02;
+}
+
+.summary {
+  margin: 10px 0 0;
+  max-width: 560px;
+  color: #465962;
+  font-size: 19px;
+}
+
+.url-box {
+  width: min(760px, 100%);
+  padding: 16px 18px;
+  border: 1px solid #ccd7da;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #263840;
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+}
+
+.primary-action,
+.secondary-action {
+  min-width: 148px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.primary-action {
+  border: 1px solid #15384b;
+  background: #15384b;
+  color: #ffffff;
+}
+
+.secondary-action {
+  border: 1px solid #b9c7cb;
+  background: #ffffff;
+  color: #263840;
+}
+
+.notes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 900px;
+}
+
+.notes article {
+  display: grid;
+  gap: 6px;
+  min-height: 104px;
+  padding: 16px;
+  border: 1px solid #d1dcdf;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.notes strong {
+  font-size: 15px;
+}
+
+.notes span {
+  color: #53666e;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+code {
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.95em;
+}

@@ -40,6 +40,7 @@ Esta estructura no sustituye por sí sola a `uc3m` ni a `fuenlabrada`.
 - [caas/control-plane](caas/control-plane): API FastAPI para `local-assets` y utilidades de publicación.
 - [caas/download-sink](caas/download-sink): servicio receptor de descargas.
 - [caas/edc-ui](caas/edc-ui): frontend EITEL servido con nginx.
+- [desktop/eitel-tauri](desktop/eitel-tauri): launcher de escritorio Tauri para abrir conectores por participante.
 - [deploy](deploy): Dockerfile del runtime y documentación de despliegue.
 - [deploy/aws](deploy/aws): scripts SQL y guías de despliegue en AWS.
 - [traefik](traefik): configuraciones nginx/gateway para los conectores.
@@ -55,6 +56,7 @@ Para desarrollo local también puede ser útil:
 
 - Python 3.11+
 - entorno virtual local `.venv`
+- Node.js 22+ y Rust/Cargo si se compila la app de escritorio Tauri
 
 ## Arranque rápido local
 
@@ -121,6 +123,25 @@ docker compose --env-file connectors/dual/.env -f connectors/dual/docker-compose
 ```
 
 Más detalle en [connectors/shared/README.md](connectors/shared/README.md).
+
+## App de escritorio Tauri
+
+La PoC de escritorio está en [desktop/eitel-tauri](desktop/eitel-tauri). Es un launcher ligero con perfiles de participante que abre la consola web del conector correspondiente.
+
+```powershell
+cd desktop/eitel-tauri
+npm install
+npm run tauri:dev
+```
+
+Para generar instaladores Windows:
+
+```powershell
+cd desktop/eitel-tauri
+npm run tauri:build
+```
+
+Requiere Rust/Cargo (`rustup`) y WebView2 Runtime. Los perfiles se editan en [desktop/eitel-tauri/src/profiles.ts](desktop/eitel-tauri/src/profiles.ts).
 
 ## CAAS
 

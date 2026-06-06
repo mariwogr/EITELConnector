@@ -11,6 +11,9 @@ __pycache__/
 connectors/*/.env
 caas/control-plane/.env
 demo_assets_data/
+desktop/eitel-tauri/node_modules/
+desktop/eitel-tauri/dist/
+desktop/eitel-tauri/src-tauri/target/
 
 # GAIA-X credentials — archivos sensibles, no subir al repo
 # Los archivos reales van en los servidores directamente
