@@ -7,6 +7,9 @@ const pairing = createPairingServer();
 pairing.listen(port, host).then((address) => {
   const resolvedHost = address.address === '::' ? '127.0.0.1' : address.address;
   console.log(`EITEL pairing server listening on http://${resolvedHost}:${address.port}`);
+}).catch((error) => {
+  console.error(`Could not start EITEL pairing server: ${error.message || error}`);
+  process.exit(1);
 });
 
 process.on('SIGINT', async () => {

@@ -125,8 +125,18 @@ function createPairingServer({ ttlMs = 10 * 60 * 1000 } = {}) {
     server,
     rooms,
     listen(port = 8765, host = '127.0.0.1') {
-      return new Promise((resolve) => {
-        server.listen(port, host, () => resolve(server.address()));
+      return new Promise((resolve, reject) => {
+        function onError(error) {
+          server.off('listening', onListening);
+          reject(error);
+        }
+        function onListening() {
+          server.off('error', onError);
+          resolve(server.address());
+        }
+        server.once('error', onError);
+        server.once('listening', onListening);
+        server.listen(port, host);
       });
     },
     close() {

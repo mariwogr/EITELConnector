@@ -1,6 +1,6 @@
 {
   "name": "eitel-connector-desktop",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Aplicacion de escritorio EITEL Connector",
   "author": "EITEL",
   "main": "src/main.js",

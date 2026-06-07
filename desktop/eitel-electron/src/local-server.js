@@ -4,6 +4,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { URL } = require('node:url');
 const { profiles, getProfile } = require('./profiles');
+const { createPairingServer } = require('./pairing-server');
 
 const textTypes = new Set(['.html', '.js', '.css', '.svg', '.json', '.txt', '.map']);
 const mimeTypes = {
@@ -26,6 +27,8 @@ const AUTH_DIGEST = 'sha256';
 const DESKTOP_SESSION_COOKIE = 'eitel_desktop_session';
 const APP_AUTH_COOKIE = 'eitel_desktop_auth';
 const DEFAULT_PAIRING_SERVER_URL = 'http://127.0.0.1:8765';
+const DEFAULT_PAIRING_HOST = '127.0.0.1';
+const DEFAULT_PAIRING_PORT = 8765;
 
 function readJson(file, fallback) {
   try {
@@ -38,6 +41,28 @@ function readJson(file, fallback) {
 function writeJson(file, payload) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify(payload, null, 2), 'utf8');
+}
+
+function createLogger(userDataDir) {
+  const logPath = path.join(userDataDir, 'desktop.log');
+  function write(level, message, meta = null) {
+    const entry = {
+      ts: new Date().toISOString(),
+      level,
+      message,
+      ...(meta ? { meta } : {}),
+    };
+    try {
+      fs.mkdirSync(path.dirname(logPath), { recursive: true });
+      fs.appendFileSync(logPath, `${JSON.stringify(entry)}\n`, 'utf8');
+    } catch {}
+  }
+  return {
+    path: logPath,
+    info(message, meta) { write('info', message, meta); },
+    warn(message, meta) { write('warn', message, meta); },
+    error(message, meta) { write('error', message, meta); },
+  };
 }
 
 function hashPassword(password, salt, iterations = AUTH_ITERATIONS) {
@@ -299,6 +324,69 @@ function normalizePairingServerUrl(value) {
   return String(value || DEFAULT_PAIRING_SERVER_URL).trim().replace(/\/+$/, '');
 }
 
+function describePairingRuntime(runtime) {
+  if (!runtime) {
+    return {
+      mode: 'unavailable',
+      running: false,
+      serverUrl: DEFAULT_PAIRING_SERVER_URL,
+      message: 'Rendezvous no iniciado.',
+    };
+  }
+  return {
+    mode: runtime.mode,
+    running: Boolean(runtime.running),
+    serverUrl: runtime.serverUrl || DEFAULT_PAIRING_SERVER_URL,
+    message: runtime.message || '',
+    error: runtime.error || '',
+  };
+}
+
+async function startEmbeddedPairingServer(logger) {
+  const pairing = createPairingServer();
+  try {
+    await pairing.listen(DEFAULT_PAIRING_PORT, DEFAULT_PAIRING_HOST);
+    logger.info('embedded pairing server started', { serverUrl: DEFAULT_PAIRING_SERVER_URL });
+    return {
+      mode: 'embedded',
+      running: true,
+      serverUrl: DEFAULT_PAIRING_SERVER_URL,
+      message: 'Rendezvous local embebido activo.',
+      close: () => pairing.close(),
+    };
+  } catch (error) {
+    const code = error?.code || '';
+    if (code === 'EADDRINUSE') {
+      try {
+        const res = await fetch(`${DEFAULT_PAIRING_SERVER_URL}/health`, { headers: { accept: 'application/json' } });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) {
+          logger.info('existing pairing server detected', { serverUrl: DEFAULT_PAIRING_SERVER_URL });
+          return {
+            mode: 'external',
+            running: true,
+            serverUrl: DEFAULT_PAIRING_SERVER_URL,
+            message: 'Rendezvous local externo activo.',
+            close: null,
+          };
+        }
+      } catch {}
+    }
+    const message = code === 'EADDRINUSE'
+      ? 'El puerto rendezvous local esta ocupado por otro proceso no compatible.'
+      : 'No se pudo iniciar el rendezvous local embebido.';
+    logger.warn('embedded pairing server not started', { code, error: String(error.message || error) });
+    return {
+      mode: 'unavailable',
+      running: false,
+      serverUrl: DEFAULT_PAIRING_SERVER_URL,
+      message,
+      error: String(error.message || error),
+      close: null,
+    };
+  }
+}
+
 async function callPairingServer(serverUrl, endpointPath, { method = 'GET', body = null } = {}) {
   const target = `${normalizePairingServerUrl(serverUrl)}${endpointPath}`;
   const res = await fetch(target, {
@@ -448,33 +536,36 @@ function renderDashboard({ store, selectedProfileId }) {
   <title>EITEL Connector Desktop</title>
   <style>
     *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;font-family:"Segoe UI",system-ui,sans-serif;background:#eef2f4;color:#172026}
+    body{margin:0;min-height:100vh;font-family:"Segoe UI",system-ui,sans-serif;background:linear-gradient(135deg,#f5f9fb 0%,#eef2f4 46%,#f8fbf7 100%);color:#172026}
     button,input,select{font:inherit}
-    .app{min-height:100vh;display:grid;grid-template-rows:54px 1fr}
-    .top{height:54px;background:#fff;border-bottom:1px solid #d8e0e2;display:flex;align-items:center;justify-content:space-between;padding:0 22px}
+    .app{min-height:100vh;display:grid;grid-template-rows:58px 1fr}
+    .top{height:58px;background:rgba(255,255,255,.92);backdrop-filter:blur(14px);border-bottom:1px solid #d8e0e2;display:flex;align-items:center;justify-content:space-between;padding:0 24px}
     .top-title{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:800;color:#172026}
-    .mark{width:18px;height:18px;background:#15384b;border-radius:5px}
+    .mark{width:20px;height:20px;background:linear-gradient(135deg,#15384b,#2d7b8f);border-radius:6px;box-shadow:0 8px 18px rgba(21,56,75,.22)}
     .top-actions{display:flex;gap:10px;align-items:center}
-    .layout{display:grid;grid-template-columns:300px 1fr}
-    nav{background:#fff;border-right:1px solid #d8e0e2;padding:18px;display:flex;flex-direction:column;gap:8px}
-    .nav-item{height:42px;border:0;background:transparent;border-radius:8px;text-align:left;padding:0 14px;color:#263840;cursor:pointer;font-weight:700}
-    .nav-item:hover{background:#eef2f4}.nav-item.active{background:#e8f2fc;color:#15384b}
+    .layout{display:grid;grid-template-columns:292px 1fr}
+    nav{background:rgba(255,255,255,.86);border-right:1px solid #d8e0e2;padding:18px;display:flex;flex-direction:column;gap:8px}
+    .nav-item{height:44px;border:1px solid transparent;background:transparent;border-radius:8px;text-align:left;padding:0 14px;color:#263840;cursor:pointer;font-weight:750}
+    .nav-item:hover{background:#f3f8fa;border-color:#dfebef}.nav-item.active{background:#e8f3f6;border-color:#cce1e7;color:#15384b;box-shadow:inset 3px 0 0 #2d7b8f}
     main{padding:30px;display:grid;gap:18px;align-content:start}
     .page-title{display:flex;justify-content:space-between;gap:16px;align-items:flex-end}
-    h1{margin:0;font-size:30px;font-weight:800} h2{margin:0;font-size:18px;font-weight:800}
+    h1{margin:0;font-size:32px;font-weight:850} h2{margin:0;font-size:18px;font-weight:820}
     p{margin:0;color:#5f6f77;line-height:1.45}.muted{color:#5f6f77;font-size:13px}
-    .surface{background:#fff;border:1px solid #d8e0e2;border-radius:8px;padding:18px;box-shadow:0 8px 20px rgba(22,52,68,.08)}
-    .grid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:12px}
-    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .surface{background:rgba(255,255,255,.94);border:1px solid #d8e0e2;border-radius:10px;padding:18px;box-shadow:0 14px 34px rgba(22,52,68,.10)}
+    .highlight{background:linear-gradient(135deg,#ffffff 0%,#edf7f8 100%);border-color:#cbe1e6}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:14px}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
     .field{display:grid;gap:5px;min-width:220px;flex:1}
     label{font-size:12px;font-weight:800;color:#263840}
     input,select{height:40px;border:1px solid #b9c7cb;border-radius:8px;background:#fff;padding:0 12px}
     input:focus,select:focus{outline:2px solid #2b7a9f;outline-offset:1px;border-color:#2b7a9f}
     button{height:40px;border:1px solid #b9c7cb;background:#fff;border-radius:8px;padding:0 14px;font-weight:800;cursor:pointer}
-    button.primary{background:#15384b;color:#fff;border-color:#15384b}
-    button.subtle{border-color:transparent;background:transparent}
+    button:hover{background:#f6fafb}
+    button.primary{background:#15384b;color:#fff;border-color:#15384b;box-shadow:0 10px 22px rgba(21,56,75,.18)}
+    button.primary:hover{background:#204b60}
+    button.subtle{border-color:transparent;background:transparent;box-shadow:none}
     button:disabled{opacity:.58;cursor:default}
-    .profile-box{display:grid;gap:10px;border:1px solid #d8e0e2;background:#fbfdfe;padding:14px;border-radius:8px}
+    .profile-box{display:grid;gap:10px;border:1px solid #d8e0e2;background:#fbfdfe;padding:14px;border-radius:10px}
     .profile-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
     .pill{display:inline-flex;align-items:center;height:24px;border-radius:12px;background:#eef6fc;color:#15384b;padding:0 10px;font-size:12px;font-weight:800}
     .status{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#4f4f4f}
@@ -484,11 +575,15 @@ function renderDashboard({ store, selectedProfileId }) {
     th{font-weight:800;color:#263840;background:#f7fafb}
     code{font-family:"Cascadia Mono",Consolas,monospace;font-size:12px}
     pre{margin:0;white-space:pre-wrap;word-break:break-word;max-height:180px;overflow:auto;background:#1e1e1e;color:#dcdcdc;padding:12px;border-radius:8px;font-size:12px}
-    .split{display:grid;grid-template-columns:repeat(2,minmax(280px,1fr));gap:12px}
-    .pairing-code{font-size:28px;font-weight:900;letter-spacing:.04em;color:#15384b;background:#eef6fc;border:1px solid #c9dfea;border-radius:8px;padding:12px;text-align:center}
+    .split{display:grid;grid-template-columns:repeat(2,minmax(280px,1fr));gap:14px}
+    .pairing-card{position:relative;overflow:hidden}
+    .pairing-card:before{content:"";position:absolute;inset:0 0 auto 0;height:4px;background:linear-gradient(90deg,#15384b,#2d7b8f,#75a857)}
+    .pairing-code{font-size:28px;font-weight:900;letter-spacing:0;color:#15384b;background:#eef6fc;border:1px solid #c9dfea;border-radius:8px;padding:12px;text-align:center}
     .result-box{display:grid;gap:10px;margin-top:12px}
+    .server-status{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;padding:10px 12px;border:1px solid #d8e0e2;border-radius:8px;background:#f8fbfc}
+    .server-status code{max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .view{display:none}.view.active{display:grid;gap:18px}
-    @media(max-width:900px){.layout{grid-template-columns:1fr}nav{display:none}.grid{grid-template-columns:1fr}.page-title{align-items:flex-start;flex-direction:column}}
+    @media(max-width:900px){.layout{grid-template-columns:1fr}nav{display:none}.grid,.split{grid-template-columns:1fr}.page-title{align-items:flex-start;flex-direction:column}main{padding:18px}}
   </style>
 </head>
 <body>
@@ -516,7 +611,7 @@ function renderDashboard({ store, selectedProfileId }) {
             </div>
             <button class="primary" onclick="openProfile(${JSON.stringify(selected.id)})">Abrir consola ${selected.name}</button>
           </div>
-          <section class="surface">
+          <section class="surface highlight">
             <h2>Prueba rapida entre participantes</h2>
             <p class="muted">Ejecuta una consulta de catalogo desde un conector consumidor hacia otro proveedor.</p>
             <div class="row" style="margin-top:12px">
@@ -544,7 +639,7 @@ function renderDashboard({ store, selectedProfileId }) {
               <p>Intercambia endpoints P2P con codigo corto, estilo croc, sin publicar claves ni tokens.</p>
             </div>
           </div>
-          <section class="surface">
+          <section class="surface highlight">
             <div class="row">
               <div class="field">
                 <label>Servidor rendezvous</label>
@@ -552,10 +647,13 @@ function renderDashboard({ store, selectedProfileId }) {
               </div>
               <button id="savePairServerBtn">Guardar</button>
             </div>
-            <p class="muted" style="margin-top:8px">Para pruebas locales, arranca <code>npm run pairing-server</code> en <code>desktop/eitel-electron</code>.</p>
+            <div class="server-status">
+              <span class="status" id="pairServerStatus"><span class="dot warn"></span>Comprobando rendezvous</span>
+              <code id="pairLogPath"></code>
+            </div>
           </section>
           <div class="split">
-            <section class="surface">
+            <section class="surface pairing-card">
               <h2>Crear codigo</h2>
               <div class="field" style="margin-top:12px">
                 <label>Mi nodo</label>
@@ -571,7 +669,7 @@ function renderDashboard({ store, selectedProfileId }) {
               </div>
               <div id="pairCreateResult" class="result-box"></div>
             </section>
-            <section class="surface">
+            <section class="surface pairing-card">
               <h2>Unirse a codigo</h2>
               <div class="field" style="margin-top:12px">
                 <label>Codigo</label>
@@ -729,12 +827,27 @@ function renderDashboard({ store, selectedProfileId }) {
       window.location.assign('/desktop/open/' + encodeURIComponent(id));
     }
 
+    function renderPairServerStatus(status, logPath) {
+      const node = byId('pairServerStatus');
+      const logNode = byId('pairLogPath');
+      if (!node) return;
+      const running = Boolean(status?.running);
+      const mode = status?.mode || 'unavailable';
+      const dot = running ? 'ok' : 'bad';
+      const text = running
+        ? (mode === 'embedded' ? 'Rendezvous embebido activo' : 'Rendezvous disponible')
+        : 'Rendezvous no disponible';
+      node.innerHTML = '<span class="dot ' + dot + '"></span>' + escapeHtml(text);
+      if (logNode) logNode.textContent = logPath ? 'log: ' + logPath : '';
+    }
+
     async function loadPairingSettings() {
       const res = await fetch('/desktop/pairing/settings');
       const data = await res.json().catch(function () { return {}; });
       if (!res.ok || !data.ok) return;
       pairingSettings = { serverUrl: data.serverUrl || pairingSettings.serverUrl };
       byId('pairServerUrl').value = pairingSettings.serverUrl;
+      renderPairServerStatus(data.pairingStatus, data.logPath);
     }
 
     async function savePairServer() {
@@ -747,6 +860,7 @@ function renderDashboard({ store, selectedProfileId }) {
       const data = await res.json().catch(function () { return {}; });
       pairingSettings = { serverUrl: data.serverUrl || serverUrl || pairingSettings.serverUrl };
       byId('pairServerUrl').value = pairingSettings.serverUrl;
+      renderPairServerStatus(data.pairingStatus, data.logPath);
       renderPairingResult('pairCreateResult', data.ok ? { ok: true, summary: 'Servidor guardado.' } : data);
     }
 
@@ -925,16 +1039,35 @@ function renderConfig(store, profile) {
   return `window.EITEL_UI_CONFIG = ${JSON.stringify(config, null, 2)};`;
 }
 
-function renderDesktopBridge(store, sessionToken) {
+function renderDesktopBridge(store, sessionToken, currentProfile) {
   const profileMap = resolveProfiles(store).map((profile) => ({
+    id: profile.id,
+    name: profile.name,
+    description: profile.description,
     prefix: profile.prefix,
     remoteOrigin: profile.remoteOrigin,
     remotePrefix: profile.remotePrefix,
   }));
+  const current = {
+    id: currentProfile.id,
+    name: currentProfile.name,
+    prefix: currentProfile.prefix,
+  };
   return `(function () {
   const profiles = ${JSON.stringify(profileMap)};
+  const currentProfile = ${JSON.stringify(current)};
   const sessionToken = ${JSON.stringify(sessionToken)};
   const originalFetch = window.fetch.bind(window);
+  let profileItems = [];
+  let pairingSettings = { serverUrl: ${JSON.stringify(DEFAULT_PAIRING_SERVER_URL)} };
+  let activePairCode = '';
+
+  function byId(id) { return document.getElementById(id); }
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[<>&"]/g, function (c) {
+      return ({ '<':'&lt;', '>':'&gt;', '&':'&amp;', '"':'&quot;' })[c];
+    });
+  }
   function isDesktopProxyUrl(value) {
     const raw = typeof value === 'string' ? value : (value && value.url) || '';
     if (!raw) return false;
@@ -943,6 +1076,13 @@ function renderDesktopBridge(store, sessionToken) {
     if (url.origin !== window.location.origin) return false;
     const firstSegment = url.pathname.split('/').filter(Boolean)[0] || '';
     return profiles.some((profile) => profile.prefix.toLowerCase() === firstSegment.toLowerCase());
+  }
+  function isDesktopInternalUrl(value) {
+    const raw = typeof value === 'string' ? value : (value && value.url) || '';
+    if (!raw) return false;
+    let url;
+    try { url = new URL(raw, window.location.href); } catch { return false; }
+    return url.origin === window.location.origin && url.pathname.startsWith('/desktop/');
   }
   function rewriteUrl(input) {
     const raw = typeof input === 'string' ? input : (input && input.url) || '';
@@ -964,13 +1104,285 @@ function renderDesktopBridge(store, sessionToken) {
   }
   window.fetch = function (input, init) {
     const rewritten = rewriteUrl(input);
-    if (!isDesktopProxyUrl(rewritten)) return originalFetch(rewritten, init);
+    if (!isDesktopProxyUrl(rewritten) && !isDesktopInternalUrl(rewritten)) return originalFetch(rewritten, init);
     const nextInit = Object.assign({}, init || {});
     const headers = new Headers(nextInit.headers || (rewritten instanceof Request ? rewritten.headers : undefined));
     headers.set('x-eitel-desktop-session', sessionToken);
     nextInit.headers = headers;
     return originalFetch(rewritten, nextInit);
   };
+
+  function activateDesktopView() {
+    if (typeof window.activateView === 'function') {
+      window.activateView('desktop-pairing');
+      return;
+    }
+    document.querySelectorAll('.nav button').forEach(function (button) { button.classList.remove('active'); });
+    document.querySelectorAll('.panel').forEach(function (panel) { panel.classList.remove('active'); });
+    document.querySelector('.nav button[data-view="desktop-pairing"]')?.classList.add('active');
+    byId('panel-desktop-pairing')?.classList.add('active');
+  }
+
+  function setSelectOptions(id, options, selectedValue) {
+    const node = byId(id);
+    if (!node) return;
+    node.innerHTML = options;
+    if (selectedValue) node.value = selectedValue;
+  }
+
+  async function fetchJson(path, options) {
+    const res = await window.fetch(path, options);
+    const data = await res.json().catch(function () { return {}; });
+    if (!res.ok && data.ok !== false) data.ok = false;
+    if (!res.ok && !data.error) data.error = 'No se pudo completar la operacion.';
+    return data;
+  }
+
+  async function postJson(path, payload) {
+    return fetchJson(path, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload || {})
+    });
+  }
+
+  function currentPairingServerUrl() {
+    return byId('desktopPairServerUrl')?.value.trim() || pairingSettings.serverUrl;
+  }
+
+  function fillDesktopSelects() {
+    const options = profileItems.map(function (profile) {
+      return '<option value="' + escapeHtml(profile.id) + '">' + escapeHtml(profile.name) + '</option>';
+    }).join('');
+    const peer = profileItems.find(function (profile) { return profile.id !== currentProfile.id; }) || profileItems[0] || {};
+    setSelectOptions('desktopPairCreateProfile', options, currentProfile.id);
+    setSelectOptions('desktopPairAcceptTarget', options, peer.id);
+    setSelectOptions('desktopPairJoinProfile', options, peer.id);
+    setSelectOptions('desktopPairJoinTarget', options, currentProfile.id);
+    setSelectOptions('desktopLabConsumer', options, currentProfile.id);
+    setSelectOptions('desktopLabProvider', options, peer.id);
+  }
+
+  async function loadDesktopProfiles() {
+    const data = await fetchJson('/desktop/profiles');
+    profileItems = data.items || profileItems;
+    fillDesktopSelects();
+  }
+
+  function profileName(id) {
+    const profile = profileItems.find(function (item) { return item.id === id; });
+    return profile ? profile.name : id;
+  }
+
+  function renderPairServerStatus(status, logPath) {
+    const node = byId('desktopPairStatus');
+    const logNode = byId('desktopPairLog');
+    if (!node) return;
+    const running = Boolean(status?.running);
+    node.textContent = running
+      ? (status.mode === 'embedded' ? 'Rendezvous embebido activo' : 'Rendezvous disponible')
+      : 'Rendezvous no disponible';
+    node.style.color = running ? 'var(--ok)' : 'var(--danger)';
+    if (logNode) logNode.textContent = logPath ? 'Log: ' + logPath : '';
+  }
+
+  async function loadPairingSettings() {
+    const data = await fetchJson('/desktop/pairing/settings');
+    if (!data.ok) return;
+    pairingSettings = { serverUrl: data.serverUrl || pairingSettings.serverUrl };
+    if (byId('desktopPairServerUrl')) byId('desktopPairServerUrl').value = pairingSettings.serverUrl;
+    renderPairServerStatus(data.pairingStatus, data.logPath);
+  }
+
+  async function savePairServer() {
+    const data = await postJson('/desktop/pairing/settings', { serverUrl: currentPairingServerUrl() });
+    pairingSettings = { serverUrl: data.serverUrl || currentPairingServerUrl() };
+    renderPairServerStatus(data.pairingStatus, data.logPath);
+    renderPairingResult('desktopPairCreateResult', data.ok ? { ok: true, summary: 'Servidor rendezvous guardado.' } : data);
+  }
+
+  async function postPairing(path, payload) {
+    return postJson('/desktop/pairing/' + path, Object.assign({}, payload || {}, { serverUrl: currentPairingServerUrl() }));
+  }
+
+  function renderPairingResult(targetId, data) {
+    const box = byId(targetId);
+    if (!box) return;
+    const ok = Boolean(data.ok);
+    const waiting = Boolean(data.waiting);
+    const title = waiting ? 'Esperando respuesta' : (ok ? 'Listo' : 'Error');
+    const code = data.code ? '<div class="desktop-pair-code">' + escapeHtml(data.code) + '</div>' : '';
+    const summary = data.summary || data.error || (ok ? 'Operacion completada.' : 'Operacion fallida.');
+    const saved = data.savedProfileId ? '<p class="muted">Peer guardado en ' + escapeHtml(profileName(data.savedProfileId)) + '.</p>' : '';
+    const peer = data.answer?.name || data.offer?.name || '';
+    const peerLine = peer ? '<p class="muted">Peer recibido: ' + escapeHtml(peer) + '.</p>' : '';
+    box.innerHTML =
+      code +
+      '<div class="chip" style="color:' + (waiting ? 'var(--warn)' : (ok ? 'var(--ok)' : 'var(--danger)')) + '">' + escapeHtml(title) + '</div>' +
+      '<p class="muted" style="margin-top:8px">' + escapeHtml(summary) + '</p>' +
+      saved +
+      peerLine;
+  }
+
+  async function createPairCode() {
+    const button = byId('desktopCreatePairBtn');
+    if (button) { button.disabled = true; button.textContent = 'Creando...'; }
+    try {
+      const data = await postPairing('create', { profileId: byId('desktopPairCreateProfile')?.value || currentProfile.id });
+      if (data.ok) {
+        activePairCode = data.code;
+        if (byId('desktopJoinPairCode')) byId('desktopJoinPairCode').value = data.code;
+        data.summary = 'Comparte este codigo con el otro participante y despues pulsa Recoger respuesta.';
+      }
+      renderPairingResult('desktopPairCreateResult', data);
+    } finally {
+      if (button) { button.disabled = false; button.textContent = 'Crear codigo'; }
+    }
+  }
+
+  async function acceptPairAnswer() {
+    const button = byId('desktopAcceptPairBtn');
+    if (button) { button.disabled = true; button.textContent = 'Recogiendo...'; }
+    try {
+      const code = activePairCode || byId('desktopJoinPairCode')?.value.trim();
+      const data = await postPairing('accept', { code: code, targetProfileId: byId('desktopPairAcceptTarget')?.value });
+      if (data.ok) await loadDesktopProfiles();
+      if (data.waiting) data.summary = 'El otro participante aun no se ha unido al codigo.';
+      renderPairingResult('desktopPairCreateResult', data);
+    } finally {
+      if (button) { button.disabled = false; button.textContent = 'Recoger respuesta'; }
+    }
+  }
+
+  async function joinPairCode() {
+    const button = byId('desktopJoinPairBtn');
+    if (button) { button.disabled = true; button.textContent = 'Uniendo...'; }
+    try {
+      const data = await postPairing('join', {
+        code: byId('desktopJoinPairCode')?.value.trim(),
+        profileId: byId('desktopPairJoinProfile')?.value,
+        targetProfileId: byId('desktopPairJoinTarget')?.value
+      });
+      if (data.ok) {
+        data.summary = 'Respuesta enviada. El creador ya puede recogerla.';
+        await loadDesktopProfiles();
+      }
+      renderPairingResult('desktopPairJoinResult', data);
+    } finally {
+      if (button) { button.disabled = false; button.textContent = 'Unirme'; }
+    }
+  }
+
+  function statusColor(ok, status) {
+    if (ok) return 'var(--ok)';
+    if (Number(status) >= 400 || Number(status) === 0) return 'var(--danger)';
+    return 'var(--warn)';
+  }
+
+  function renderLabResult(data) {
+    const box = byId('desktopLabResult');
+    if (!box) return;
+    const rows = (data.steps || []).map(function (step) {
+      return '<tr><td>' + escapeHtml(step.name) + '</td><td style="color:' + statusColor(step.ok, step.status) + ';font-weight:700">' + escapeHtml(step.status || '-') + '</td><td>' + escapeHtml(step.count ?? '-') + '</td><td><code>' + escapeHtml(step.url || '') + '</code></td></tr>';
+    }).join('');
+    box.innerHTML =
+      '<div class="chip" style="color:' + (data.ok ? 'var(--ok)' : 'var(--danger)') + '">' + (data.ok ? 'Comunicacion correcta' : 'Comunicacion con incidencias') + '</div>' +
+      '<p class="muted" style="margin-top:8px">' + escapeHtml(data.summary || '') + '</p>' +
+      '<table style="margin-top:10px"><thead><tr><th>Paso</th><th>HTTP</th><th>Elementos</th><th>Endpoint</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+
+  async function runLab() {
+    const button = byId('desktopRunLabBtn');
+    if (button) { button.disabled = true; button.textContent = 'Probando...'; }
+    try {
+      const data = await postJson('/desktop/communication/test', {
+        consumerId: byId('desktopLabConsumer')?.value,
+        providerId: byId('desktopLabProvider')?.value
+      });
+      renderLabResult(data);
+    } finally {
+      if (button) { button.disabled = false; button.textContent = 'Ejecutar prueba'; }
+    }
+  }
+
+  function mountDesktopPairingPanel() {
+    if (window.EITEL_DESKTOP_PAIRING_INSTALLED || byId('panel-desktop-pairing')) return;
+    const nav = document.querySelector('.nav');
+    const main = document.querySelector('.main');
+    if (!nav || !main) return;
+    window.EITEL_DESKTOP_PAIRING_INSTALLED = true;
+
+    const group = document.createElement('div');
+    group.className = 'nav-group';
+    group.innerHTML =
+      '<div class="nav-group-title">Escritorio</div>' +
+      '<button data-view="desktop-pairing"><svg viewBox="0 0 24 24"><path d="M8 12h8"/><path d="M12 8v8"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/></svg><span>P2P</span></button>';
+    nav.appendChild(group);
+    group.querySelector('button').onclick = activateDesktopView;
+
+    const style = document.createElement('style');
+    style.textContent =
+      '.desktop-pair-code{font-size:28px;font-weight:800;color:var(--primary);background:var(--primary-soft);border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center;margin:10px 0}' +
+      '.desktop-pair-result{margin-top:12px;min-height:42px}' +
+      '#panel-desktop-pairing input,#panel-desktop-pairing select{width:100%}';
+    document.head.appendChild(style);
+
+    const panel = document.createElement('section');
+    panel.className = 'panel';
+    panel.id = 'panel-desktop-pairing';
+    panel.innerHTML =
+      '<div class="grid">' +
+        '<section class="card wide">' +
+          '<h2>Emparejamiento P2P</h2>' +
+          '<p class="muted">Intercambia endpoints locales con codigo corto estilo croc. No se publican API keys ni tokens.</p>' +
+          '<div class="grid">' +
+            '<div><label>Servidor rendezvous</label><input id="desktopPairServerUrl" value="' + escapeHtml(pairingSettings.serverUrl) + '"></div>' +
+            '<div><label>Estado</label><div class="row" style="margin:0"><span class="chip" id="desktopPairStatus">Comprobando rendezvous</span><button class="ghost" id="desktopPairSaveServer">Guardar</button></div></div>' +
+          '</div>' +
+          '<p class="muted" id="desktopPairLog" style="margin-top:8px"></p>' +
+        '</section>' +
+        '<section class="card">' +
+          '<h3 style="margin-top:0">Crear codigo</h3>' +
+          '<label>Mi nodo</label><select id="desktopPairCreateProfile"></select>' +
+          '<label>Guardar respuesta en</label><select id="desktopPairAcceptTarget"></select>' +
+          '<div class="row" style="margin-top:10px"><button class="primary" id="desktopCreatePairBtn">Crear codigo</button><button class="ghost" id="desktopAcceptPairBtn">Recoger respuesta</button></div>' +
+          '<div class="desktop-pair-result" id="desktopPairCreateResult"></div>' +
+        '</section>' +
+        '<section class="card">' +
+          '<h3 style="margin-top:0">Unirse a codigo</h3>' +
+          '<label>Codigo</label><input id="desktopJoinPairCode" placeholder="azul-mesa-rio-1234">' +
+          '<label>Mi nodo</label><select id="desktopPairJoinProfile"></select>' +
+          '<label>Guardar peer recibido en</label><select id="desktopPairJoinTarget"></select>' +
+          '<div class="row" style="margin-top:10px"><button class="primary" id="desktopJoinPairBtn">Unirme</button></div>' +
+          '<div class="desktop-pair-result" id="desktopPairJoinResult"></div>' +
+        '</section>' +
+        '<section class="card wide">' +
+          '<h3 style="margin-top:0">Prueba entre nodos</h3>' +
+          '<p class="muted">Comprueba Management API, assets publicos y catalogo DSP entre dos perfiles locales.</p>' +
+          '<div class="grid">' +
+            '<div><label>Consumidor</label><select id="desktopLabConsumer"></select></div>' +
+            '<div><label>Proveedor</label><select id="desktopLabProvider"></select></div>' +
+          '</div>' +
+          '<div class="row" style="margin-top:10px"><button class="primary" id="desktopRunLabBtn">Ejecutar prueba</button></div>' +
+          '<div id="desktopLabResult" style="margin-top:12px"></div>' +
+        '</section>' +
+      '</div>';
+    main.appendChild(panel);
+
+    byId('desktopPairSaveServer')?.addEventListener('click', savePairServer);
+    byId('desktopCreatePairBtn')?.addEventListener('click', createPairCode);
+    byId('desktopAcceptPairBtn')?.addEventListener('click', acceptPairAnswer);
+    byId('desktopJoinPairBtn')?.addEventListener('click', joinPairCode);
+    byId('desktopRunLabBtn')?.addEventListener('click', runLab);
+    loadPairingSettings();
+    loadDesktopProfiles();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mountDesktopPairingPanel);
+  } else {
+    mountDesktopPairingPanel();
+  }
   window.EITEL_DESKTOP = true;
 })();`;
 }
@@ -1111,11 +1523,14 @@ async function runCommunicationTest(store, payload) {
 
   const ok = Boolean(catalogRequest.ok);
   const missingCredentials = [consumerAssets, providerAssets].some((step) => step.status === 401 || step.status === 403);
+  const unreachable = steps.some((step) => Number(step.status) === 0);
   const summary = ok
     ? `${consumer.name} ha consultado el catalogo DSP de ${provider.name}.`
     : missingCredentials
       ? 'Hay conectores que no aceptan la credencial configurada. Revisa las API keys.'
-      : 'La prueba no ha conseguido completar el catalogo DSP entre los dos conectores.';
+      : unreachable
+        ? 'No hay conexion con uno o ambos nodos locales. Arranca los conectores y revisa los puertos configurados.'
+        : 'La prueba no ha conseguido completar el catalogo DSP entre los dos conectores.';
 
   return {
     ok,
@@ -1169,7 +1584,7 @@ function serveStatic(req, res, uiDir, store, profile, prefix, sessionToken) {
   const incoming = new URL(req.url, `http://${req.headers.host}`);
   const pathAfterPrefix = incoming.pathname.slice(`/${prefix}`.length) || '/';
   if (pathAfterPrefix === '/config.js') return send(res, 200, renderConfig(store, profile), 'text/javascript;charset=utf-8');
-  if (pathAfterPrefix === '/desktop/desktop-bridge.js') return send(res, 200, renderDesktopBridge(store, sessionToken), 'text/javascript;charset=utf-8');
+  if (pathAfterPrefix === '/desktop/desktop-bridge.js') return send(res, 200, renderDesktopBridge(store, sessionToken, profile), 'text/javascript;charset=utf-8');
 
   const fileName = pathAfterPrefix === '/' ? 'index.final.html' : sanitizePath(pathAfterPrefix);
   let filePath = path.resolve(uiDir, fileName);
@@ -1194,8 +1609,11 @@ function serveStatic(req, res, uiDir, store, profile, prefix, sessionToken) {
 }
 
 async function startServer({ uiDir, userDataDir }) {
+  const logger = createLogger(userDataDir);
+  logger.info('desktop local server starting', { uiDir });
   const settingsPath = path.join(userDataDir, 'participants.json');
   const store = createStore(settingsPath);
+  const pairingRuntime = await startEmbeddedPairingServer(logger);
   const sessionToken = crypto.randomBytes(32).toString('hex');
   const appAuthSessions = new Set();
 
@@ -1219,11 +1637,17 @@ async function startServer({ uiDir, userDataDir }) {
 
     if (incoming.pathname === '/' || incoming.pathname === '/desktop') {
       const authenticated = hasAppAuth(req);
+      if (store.isAuthConfigured() && authenticated) {
+        const profile = resolveProfile(store, store.getLastProfileId());
+        res.writeHead(302, {
+          location: `/${profile.prefix}/`,
+          'set-cookie': cookie(DESKTOP_SESSION_COOKIE, sessionToken),
+        });
+        return res.end();
+      }
       const body = !store.isAuthConfigured()
         ? renderAuthPage({ mode: 'setup' })
-        : authenticated
-          ? renderDashboard({ store, selectedProfileId: store.getLastProfileId() })
-          : renderAuthPage({ mode: 'login' });
+        : renderAuthPage({ mode: 'login' });
       return send(res, 200, body, 'text/html;charset=utf-8', { 'set-cookie': cookie(DESKTOP_SESSION_COOKIE, sessionToken) });
     }
 
@@ -1267,11 +1691,23 @@ async function startServer({ uiDir, userDataDir }) {
 
     if (incoming.pathname === '/desktop/pairing/settings') {
       if (req.method === 'GET') {
-        return sendJson(res, { ok: true, ...store.getPairingSettings(), identity: store.getIdentity() });
+        return sendJson(res, {
+          ok: true,
+          ...store.getPairingSettings(),
+          identity: store.getIdentity(),
+          pairingStatus: describePairingRuntime(pairingRuntime),
+          logPath: logger.path,
+        });
       }
       if (req.method === 'POST') {
         const payload = await readJsonBody(req);
-        return sendJson(res, { ok: true, ...store.savePairingSettings(payload) });
+        logger.info('pairing settings updated', { serverUrl: normalizePairingServerUrl(payload.serverUrl) });
+        return sendJson(res, {
+          ok: true,
+          ...store.savePairingSettings(payload),
+          pairingStatus: describePairingRuntime(pairingRuntime),
+          logPath: logger.path,
+        });
       }
     }
 
@@ -1287,6 +1723,11 @@ async function startServer({ uiDir, userDataDir }) {
         const result = await pairingActions[incoming.pathname](store, payload);
         return sendJson(res, result, result.ok === false && !result.waiting ? 400 : 200);
       } catch (error) {
+        logger.error('pairing action failed', {
+          path: incoming.pathname,
+          status: Number(error.status || 502),
+          error: String(error.message || error),
+        });
         return sendJson(res, {
           ok: false,
           error: String(error.message || error),
@@ -1321,12 +1762,20 @@ async function startServer({ uiDir, userDataDir }) {
 
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const port = server.address().port;
+  logger.info('desktop local server started', { port });
   return {
     port,
     url: `http://127.0.0.1:${port}/desktop?desktopSession=${sessionToken}`,
     openProfileUrl: (profileId) =>
       `http://127.0.0.1:${port}/desktop/open/${encodeURIComponent(profileId)}?desktopSession=${sessionToken}`,
-    close: () => server.close(),
+    pairingStatus: describePairingRuntime(pairingRuntime),
+    logPath: logger.path,
+    close: async () => {
+      await Promise.allSettled([
+        new Promise((resolve) => server.close(resolve)),
+        pairingRuntime?.close ? pairingRuntime.close() : Promise.resolve(),
+      ]);
+    },
   };
 }
 
