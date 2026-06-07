@@ -3,7 +3,7 @@ const http = require('node:http');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { URL } = require('node:url');
-const { profiles, getProfile, getProfileByPrefix, getConnectorDirectory } = require('./profiles');
+const { profiles, getProfile } = require('./profiles');
 
 const textTypes = new Set(['.html', '.js', '.css', '.svg', '.json', '.txt', '.map']);
 const mimeTypes = {
@@ -59,10 +59,15 @@ function createStore(settingsPath) {
       return data.lastProfileId || profiles[0].id;
     },
     saveCredentials(profileId, credentials) {
+      const base = getProfile(profileId);
       data.profiles = data.profiles || {};
       data.profiles[profileId] = {
         apiKey: String(credentials.apiKey || '').trim(),
         localAssetsToken: String(credentials.localAssetsToken || '').trim(),
+        remoteOrigin: String(credentials.remoteOrigin || base.remoteOrigin || '').trim().replace(/\/+$/, ''),
+        remotePrefix: normalizePrefix(credentials.remotePrefix || base.remotePrefix || ''),
+        connectorName: String(credentials.connectorName || base.connectorName || '').trim(),
+        dspUrl: String(credentials.dspUrl || base.dspUrl || '').trim(),
       };
       data.lastProfileId = profileId;
       writeJson(settingsPath, data);
@@ -95,6 +100,12 @@ function createStore(settingsPath) {
       return timingSafeEqualHex(candidate, data.auth.passwordHash);
     },
   };
+}
+
+function normalizePrefix(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  return `/${raw.replace(/^\/+|\/+$/g, '')}`;
 }
 
 function parseCookies(cookieHeader) {
@@ -161,8 +172,40 @@ function sanitizePath(rawPath) {
   return normalized.replace(/^[/\\]+/, '');
 }
 
+function resolveProfile(store, profileId) {
+  const base = getProfile(profileId);
+  const saved = store.getCredentials(base.id);
+  const remoteOrigin = String(saved.remoteOrigin || base.remoteOrigin || '').trim().replace(/\/+$/, '');
+  const remotePrefix = normalizePrefix(saved.remotePrefix || base.remotePrefix || '');
+  const connectorName = String(saved.connectorName || base.connectorName || '').trim();
+  const dspUrl = String(saved.dspUrl || base.dspUrl || '').trim();
+  return {
+    ...base,
+    remoteOrigin,
+    remotePrefix,
+    connectorName,
+    dspUrl,
+  };
+}
+
+function resolveProfiles(store) {
+  return profiles.map((profile) => resolveProfile(store, profile.id));
+}
+
+function getResolvedProfileByPrefix(store, prefix) {
+  const normalized = String(prefix || '').toLowerCase();
+  return resolveProfiles(store).find((profile) => String(profile.prefix || '').toLowerCase() === normalized) || null;
+}
+
+function getConnectorDirectoryForStore(store) {
+  return resolveProfiles(store).reduce((acc, profile) => {
+    acc[profile.connectorName] = profile.dspUrl;
+    return acc;
+  }, {});
+}
+
 function profilesForClient(store) {
-  return profiles.map((profile) => {
+  return resolveProfiles(store).map((profile) => {
     const credentials = store.getCredentials(profile.id);
     return {
       id: profile.id,
@@ -171,6 +214,8 @@ function profilesForClient(store) {
       prefix: profile.prefix,
       connectorName: profile.connectorName,
       dspUrl: profile.dspUrl,
+      remoteOrigin: profile.remoteOrigin,
+      remotePrefix: profile.remotePrefix,
       remoteBase: `${profile.remoteOrigin}${profile.remotePrefix}`,
       apiKey: credentials.apiKey || '',
       localAssetsToken: credentials.localAssetsToken || '',
@@ -250,7 +295,7 @@ function renderAuthPage({ mode }) {
 
 function renderDashboard({ store, selectedProfileId }) {
   const initialProfiles = profilesForClient(store);
-  const selected = getProfile(selectedProfileId);
+  const selected = resolveProfile(store, selectedProfileId);
   return `<!doctype html>
 <html lang="es">
 <head>
@@ -402,11 +447,19 @@ function renderDashboard({ store, selectedProfileId }) {
         box.className = 'profile-box';
         box.innerHTML =
           '<div class="profile-head"><div><h2>' + profile.name + '</h2><p class="muted">' + profile.description + '</p></div><span class="pill">' + profile.prefix + '</span></div>' +
+          '<div class="field"><label>URL local del nodo</label><input data-origin="' + profile.id + '" value=""></div>' +
+          '<div class="field"><label>Prefijo del gateway</label><input data-prefix="' + profile.id + '" value=""></div>' +
+          '<div class="field"><label>ID del peer</label><input data-connector="' + profile.id + '" value=""></div>' +
+          '<div class="field"><label>Endpoint DSP P2P</label><input data-dsp="' + profile.id + '" value=""></div>' +
           '<div class="field"><label>Management API key</label><input type="password" data-api="' + profile.id + '" value=""></div>' +
           '<div class="field"><label>Token local-assets / download-sink</label><input type="password" data-local="' + profile.id + '" value=""></div>' +
           '<div class="row"><button class="primary" data-save="' + profile.id + '">Guardar</button><button data-open="' + profile.id + '">Abrir consola</button><span class="muted" id="saved-' + profile.id + '"></span></div>' +
           '<code>' + profile.remoteBase + '</code>';
         grid.appendChild(box);
+        box.querySelector('[data-origin="' + profile.id + '"]').value = profile.remoteOrigin || '';
+        box.querySelector('[data-prefix="' + profile.id + '"]').value = profile.remotePrefix || '';
+        box.querySelector('[data-connector="' + profile.id + '"]').value = profile.connectorName || '';
+        box.querySelector('[data-dsp="' + profile.id + '"]').value = profile.dspUrl || '';
         box.querySelector('[data-api="' + profile.id + '"]').value = profile.apiKey || '';
         box.querySelector('[data-local="' + profile.id + '"]').value = profile.localAssetsToken || '';
       });
@@ -427,12 +480,24 @@ function renderDashboard({ store, selectedProfileId }) {
     }
 
     async function saveProfile(id) {
+      const remoteOrigin = document.querySelector('[data-origin="' + id + '"]').value;
+      const remotePrefix = document.querySelector('[data-prefix="' + id + '"]').value;
+      const connectorName = document.querySelector('[data-connector="' + id + '"]').value;
+      const dspUrl = document.querySelector('[data-dsp="' + id + '"]').value;
       const apiKey = document.querySelector('[data-api="' + id + '"]').value;
       const localAssetsToken = document.querySelector('[data-local="' + id + '"]').value;
       const res = await fetch('/desktop/credentials', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ profileId: id, apiKey: apiKey, localAssetsToken: localAssetsToken })
+        body: JSON.stringify({
+          profileId: id,
+          remoteOrigin: remoteOrigin,
+          remotePrefix: remotePrefix,
+          connectorName: connectorName,
+          dspUrl: dspUrl,
+          apiKey: apiKey,
+          localAssetsToken: localAssetsToken
+        })
       });
       const target = byId('saved-' + id);
       target.textContent = res.ok ? 'Guardado' : 'Error';
@@ -493,16 +558,17 @@ function renderDashboard({ store, selectedProfileId }) {
 </html>`;
 }
 
-function renderConfig(profile) {
+function renderConfig(store, profile) {
+  const allProfiles = resolveProfiles(store);
   const config = {
     managementApiUrl: `/${profile.prefix}/api/management`,
     apiKey: '',
     localAssetsAuthToken: '',
     connectorName: profile.connectorName,
     dspUrl: profile.dspUrl,
-    connectorCatalogList: profiles.map((item) => item.connectorName).join(','),
-    defaultRemoteConnector: profiles.find((item) => item.id !== profile.id)?.connectorName || '',
-    connectorDirectory: getConnectorDirectory(),
+    connectorCatalogList: allProfiles.map((item) => item.connectorName).join(','),
+    defaultRemoteConnector: allProfiles.find((item) => item.id !== profile.id)?.connectorName || '',
+    connectorDirectory: getConnectorDirectoryForStore(store),
     uiVariant: profile.uiVariant || 'desktop',
     starMode: 'false',
     starCoordinatorName: '',
@@ -513,18 +579,13 @@ function renderConfig(profile) {
     starVcPresent: 'false',
     starVcIssuer: '',
     arcgisAuthEnabled: 'false',
-    arcgisPortalUrl: '',
-    arcgisClientId: '',
-    arcgisRedirectUri: '',
-    arcgisRequiredOrgId: '',
-    arcgisRequiredGroupId: '',
     gaiaXComplianceUrl: '',
   };
   return `window.EITEL_UI_CONFIG = ${JSON.stringify(config, null, 2)};`;
 }
 
-function renderDesktopBridge(sessionToken) {
-  const profileMap = profiles.map((profile) => ({
+function renderDesktopBridge(store, sessionToken) {
+  const profileMap = resolveProfiles(store).map((profile) => ({
     prefix: profile.prefix,
     remoteOrigin: profile.remoteOrigin,
     remotePrefix: profile.remotePrefix,
@@ -659,8 +720,8 @@ async function fetchJsonStep({ name, url, method = 'GET', headers = {}, body = n
 }
 
 async function runCommunicationTest(store, payload) {
-  const consumer = getProfile(payload.consumerId);
-  const provider = getProfile(payload.providerId);
+  const consumer = resolveProfile(store, payload.consumerId);
+  const provider = resolveProfile(store, payload.providerId);
   const steps = [];
   const q = querySpec();
 
@@ -763,11 +824,11 @@ async function proxyRequest(req, res, profile, prefix) {
   }
 }
 
-function serveStatic(req, res, uiDir, profile, prefix, sessionToken) {
+function serveStatic(req, res, uiDir, store, profile, prefix, sessionToken) {
   const incoming = new URL(req.url, `http://${req.headers.host}`);
   const pathAfterPrefix = incoming.pathname.slice(`/${prefix}`.length) || '/';
-  if (pathAfterPrefix === '/config.js') return send(res, 200, renderConfig(profile), 'text/javascript;charset=utf-8');
-  if (pathAfterPrefix === '/desktop/desktop-bridge.js') return send(res, 200, renderDesktopBridge(sessionToken), 'text/javascript;charset=utf-8');
+  if (pathAfterPrefix === '/config.js') return send(res, 200, renderConfig(store, profile), 'text/javascript;charset=utf-8');
+  if (pathAfterPrefix === '/desktop/desktop-bridge.js') return send(res, 200, renderDesktopBridge(store, sessionToken), 'text/javascript;charset=utf-8');
 
   const fileName = pathAfterPrefix === '/' ? 'index.final.html' : sanitizePath(pathAfterPrefix);
   let filePath = path.resolve(uiDir, fileName);
@@ -870,21 +931,21 @@ async function startServer({ uiDir, userDataDir }) {
 
     if (incoming.pathname.startsWith('/desktop/open/')) {
       const profileId = decodeURIComponent(incoming.pathname.split('/').pop() || '');
-      const profile = getProfile(profileId);
+      const profile = resolveProfile(store, profileId);
       store.rememberProfile(profile.id);
       res.writeHead(302, { location: `/${profile.prefix}/`, 'set-cookie': cookie(DESKTOP_SESSION_COOKIE, sessionToken) });
       return res.end();
     }
 
     const [, prefix] = incoming.pathname.split('/');
-    const profile = getProfileByPrefix(prefix);
+    const profile = getResolvedProfileByPrefix(store, prefix);
     if (!profile) return send(res, 404, 'Perfil no encontrado');
 
     const pathAfterPrefix = incoming.pathname.slice(`/${prefix}`.length);
     if (/^\/(api\/management|api\/v1\/dsp|local-assets|download-sink)/i.test(pathAfterPrefix)) {
       return proxyRequest(req, res, profile, prefix);
     }
-    return serveStatic(req, res, uiDir, profile, prefix, sessionToken);
+    return serveStatic(req, res, uiDir, store, profile, prefix, sessionToken);
   });
 
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));

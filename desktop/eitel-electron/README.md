@@ -6,7 +6,7 @@ La pantalla inicial funciona como un panel de control local:
 
 - login local de primer uso con contrasena hasheada en el perfil de usuario de Electron
 - configuracion de credenciales por conector
-- laboratorio para probar comunicacion consumidor/proveedor por Management API y catalogo DSP
+- laboratorio para probar comunicacion P2P entre dos nodos locales por Management API y catalogo DSP
 - acceso a la consola completa del conector seleccionado
 
 ## Ejecutar en desarrollo
@@ -34,6 +34,8 @@ La app guarda las credenciales en el directorio de usuario de Electron, no en el
 - token de `local-assets` / `download-sink` si es distinto
 
 Los perfiles base estan en `src/profiles.js`.
+
+Por defecto no hay endpoints productivos: la app apunta a `127.0.0.1:12110` y `127.0.0.1:12120`, pensados para `connectors/star-pair/docker-compose.yaml`. Desde `Conectores` puedes cambiar la URL local del nodo, prefijo, ID del peer y endpoint DSP para probar otros equipos en LAN/VPN.
 
 ## Prueba entre conectores
 
