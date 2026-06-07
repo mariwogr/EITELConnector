@@ -51,7 +51,6 @@
       requiredGroupId: (cfg.arcgisRequiredGroupId || '').trim(),
       requiresLogin: uiVariant === 'production',
     };
-    const isDesktopShell = Boolean(window.EITEL_DESKTOP);
     const authState = { username: '', orgId: '' };
     const arcgisTokenStorageKey = 'eitel.arcgis.access_token';
 
@@ -414,7 +413,7 @@
         const portalHost = new URL(arcgis.portalUrl).host;
         const pathParts = (window.location.pathname || '/').split('/').filter(Boolean);
         const connectorPrefix = pathParts[0] || cfg.connectorName || 'conectoruc3m';
-        if (!isDesktopShell && appHost !== portalHost) {
+        if (appHost !== portalHost) {
           showAuthGate(`Host distinto detectado. Abre la consola en https://${portalHost}/${connectorPrefix}/ para reutilizar la sesion del portal. Host actual: ${appHost}`);
           return false;
         }
@@ -452,10 +451,7 @@
         clearStoredArcgisToken();
         const pathParts = (window.location.pathname || '/').split('/').filter(Boolean);
         const connectorPrefix = pathParts[0] || cfg.connectorName || 'conectoruc3m';
-        const tip = isDesktopShell
-          ? 'Tip: vuelve a iniciar sesion desde esta aplicacion de escritorio.'
-          : `Tip: accede siempre por https://gis.eiteldata.eu/${connectorPrefix}/`;
-        showAuthGate(`Inicia sesion en ArcGIS Enterprise para acceder.\n${String(e?.message || e)}\n${tip}`);
+        showAuthGate(`Inicia sesion en ArcGIS Enterprise para acceder.\n${String(e?.message || e)}\nTip: accede siempre por https://gis.eiteldata.eu/${connectorPrefix}/`);
         return false;
       }
     }

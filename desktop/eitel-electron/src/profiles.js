@@ -11,14 +11,6 @@ const profiles = [
     connectorName: 'conectoruc3m',
     dspUrl: `${origin}/conectoruc3m/api/v1/dsp/2025-1`,
     uiVariant: 'desktop',
-    arcgis: {
-      enabled: true,
-      portalUrl: `${origin}/arcgis`,
-      clientId: 'arcgisonline',
-      redirectUri: '',
-      requiredOrgId: '',
-      requiredGroupId: '',
-    },
   },
   {
     id: 'fuenlabrada',
@@ -30,14 +22,6 @@ const profiles = [
     connectorName: 'conectorFuenlabrada',
     dspUrl: `${origin}/conectorFuenlabrada/api/v1/dsp/2025-1`,
     uiVariant: 'desktop',
-    arcgis: {
-      enabled: true,
-      portalUrl: `${origin}/arcgis`,
-      clientId: 'arcgisonline',
-      redirectUri: '',
-      requiredOrgId: '',
-      requiredGroupId: '',
-    },
   },
   {
     id: 'local-uc3m',
@@ -49,7 +33,6 @@ const profiles = [
     connectorName: 'conectoruc3m',
     dspUrl: 'http://localhost:12000/conectoruc3m/api/v1/dsp/2025-1',
     uiVariant: 'desktop',
-    arcgis: { enabled: false, portalUrl: '', clientId: '', redirectUri: '', requiredOrgId: '', requiredGroupId: '' },
   },
 ];
 
