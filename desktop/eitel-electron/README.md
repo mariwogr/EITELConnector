@@ -6,6 +6,7 @@ La pantalla inicial funciona como un panel de control local:
 
 - login local de primer uso con contrasena hasheada en el perfil de usuario de Electron
 - configuracion de credenciales por conector
+- emparejamiento P2P con codigo corto mediante un servidor rendezvous local
 - laboratorio para probar comunicacion P2P entre dos nodos locales por Management API y catalogo DSP
 - acceso a la consola completa del conector seleccionado
 
@@ -36,6 +37,27 @@ La app guarda las credenciales en el directorio de usuario de Electron, no en el
 Los perfiles base estan en `src/profiles.js`.
 
 Por defecto no hay endpoints productivos: la app apunta a `127.0.0.1:12110` y `127.0.0.1:12120`, pensados para `connectors/star-pair/docker-compose.yaml`. Desde `Conectores` puedes cambiar la URL local del nodo, prefijo, ID del peer y endpoint DSP para probar otros equipos en LAN/VPN.
+
+## Emparejamiento P2P
+
+El flujo de `Emparejamiento` funciona parecido a `croc`: un participante crea un codigo corto, el otro se une con ese codigo y ambos intercambian descriptores publicos de sus endpoints. No se publican API keys ni tokens.
+
+Para probarlo en local, arranca el servidor rendezvous:
+
+```powershell
+cd desktop/eitel-electron
+npm run pairing-server
+```
+
+La app usa por defecto `http://127.0.0.1:8765`. En otra red se puede sustituir esa URL por la direccion LAN/VPN del equipo que ejecute el rendezvous.
+
+Para exponerlo en una LAN/VPN:
+
+```powershell
+$env:EITEL_PAIRING_HOST="0.0.0.0"
+$env:EITEL_PAIRING_PORT="8765"
+npm run pairing-server
+```
 
 ## Prueba entre conectores
 

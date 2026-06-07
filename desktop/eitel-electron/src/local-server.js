@@ -25,6 +25,7 @@ const AUTH_KEY_LENGTH = 32;
 const AUTH_DIGEST = 'sha256';
 const DESKTOP_SESSION_COOKIE = 'eitel_desktop_session';
 const APP_AUTH_COOKIE = 'eitel_desktop_auth';
+const DEFAULT_PAIRING_SERVER_URL = 'http://127.0.0.1:8765';
 
 function readJson(file, fallback) {
   try {
@@ -50,7 +51,7 @@ function timingSafeEqualHex(a, b) {
 }
 
 function createStore(settingsPath) {
-  const data = readJson(settingsPath, { profiles: {}, lastProfileId: profiles[0].id, auth: null });
+  const data = readJson(settingsPath, { profiles: {}, lastProfileId: profiles[0].id, auth: null, pairing: null, identity: null });
   return {
     getCredentials(profileId) {
       return data.profiles?.[profileId] || {};
@@ -60,8 +61,10 @@ function createStore(settingsPath) {
     },
     saveCredentials(profileId, credentials) {
       const base = getProfile(profileId);
+      const current = data.profiles?.[profileId] || {};
       data.profiles = data.profiles || {};
       data.profiles[profileId] = {
+        ...current,
         apiKey: String(credentials.apiKey || '').trim(),
         localAssetsToken: String(credentials.localAssetsToken || '').trim(),
         remoteOrigin: String(credentials.remoteOrigin || base.remoteOrigin || '').trim().replace(/\/+$/, ''),
@@ -70,6 +73,27 @@ function createStore(settingsPath) {
         dspUrl: String(credentials.dspUrl || base.dspUrl || '').trim(),
       };
       data.lastProfileId = profileId;
+      writeJson(settingsPath, data);
+    },
+    savePeerDescriptor(profileId, descriptor, meta = {}) {
+      const base = getProfile(profileId);
+      const current = data.profiles?.[profileId] || {};
+      const remoteOrigin = String(descriptor.remoteOrigin || current.remoteOrigin || base.remoteOrigin || '').trim().replace(/\/+$/, '');
+      const remotePrefix = normalizePrefix(descriptor.remotePrefix || current.remotePrefix || base.remotePrefix || '');
+      const connectorName = String(descriptor.connectorName || current.connectorName || base.connectorName || '').trim();
+      const dspUrl = String(descriptor.dspUrl || current.dspUrl || base.dspUrl || '').trim();
+      data.profiles = data.profiles || {};
+      data.profiles[profileId] = {
+        ...current,
+        remoteOrigin,
+        remotePrefix,
+        connectorName,
+        dspUrl,
+        peerName: String(descriptor.name || connectorName || base.name || '').trim(),
+        peerNodeId: String(descriptor.nodeId || '').trim(),
+        pairedAt: new Date().toISOString(),
+        pairingCode: String(meta.code || '').trim(),
+      };
       writeJson(settingsPath, data);
     },
     rememberProfile(profileId) {
@@ -98,6 +122,29 @@ function createStore(settingsPath) {
       const iterations = Number(data.auth.iterations || AUTH_ITERATIONS);
       const candidate = hashPassword(String(password || ''), data.auth.salt, iterations);
       return timingSafeEqualHex(candidate, data.auth.passwordHash);
+    },
+    getPairingSettings() {
+      data.pairing = data.pairing || {};
+      return {
+        serverUrl: String(data.pairing.serverUrl || DEFAULT_PAIRING_SERVER_URL).trim(),
+      };
+    },
+    savePairingSettings(settings) {
+      data.pairing = data.pairing || {};
+      data.pairing.serverUrl = String(settings.serverUrl || DEFAULT_PAIRING_SERVER_URL).trim().replace(/\/+$/, '');
+      writeJson(settingsPath, data);
+      return this.getPairingSettings();
+    },
+    getIdentity() {
+      if (!data.identity?.nodeId) {
+        data.identity = {
+          nodeId: `node-${crypto.randomBytes(8).toString('hex')}`,
+          publicKey: crypto.randomBytes(32).toString('hex'),
+          createdAt: new Date().toISOString(),
+        };
+        writeJson(settingsPath, data);
+      }
+      return data.identity;
     },
   };
 }
@@ -211,6 +258,9 @@ function profilesForClient(store) {
       id: profile.id,
       name: profile.name,
       description: profile.description,
+      peerName: credentials.peerName || '',
+      peerNodeId: credentials.peerNodeId || '',
+      pairedAt: credentials.pairedAt || '',
       prefix: profile.prefix,
       connectorName: profile.connectorName,
       dspUrl: profile.dspUrl,
@@ -223,6 +273,100 @@ function profilesForClient(store) {
   });
 }
 
+function buildPeerDescriptor(store, profileId) {
+  const profile = resolveProfile(store, profileId);
+  const identity = store.getIdentity();
+  return {
+    version: 1,
+    nodeId: identity.nodeId,
+    publicKey: identity.publicKey,
+    profileId: profile.id,
+    name: profile.name,
+    description: profile.description,
+    connectorName: profile.connectorName,
+    prefix: profile.prefix,
+    remoteOrigin: profile.remoteOrigin,
+    remotePrefix: profile.remotePrefix,
+    dspUrl: profile.dspUrl,
+    managementUrl: `${profile.remoteOrigin}${profile.remotePrefix}/api/management`,
+    localAssetsUrl: `${profile.remoteOrigin}${profile.remotePrefix}/local-assets`,
+    downloadSinkUrl: `${profile.remoteOrigin}${profile.remotePrefix}/download-sink`,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function normalizePairingServerUrl(value) {
+  return String(value || DEFAULT_PAIRING_SERVER_URL).trim().replace(/\/+$/, '');
+}
+
+async function callPairingServer(serverUrl, endpointPath, { method = 'GET', body = null } = {}) {
+  const target = `${normalizePairingServerUrl(serverUrl)}${endpointPath}`;
+  const res = await fetch(target, {
+    method,
+    headers: {
+      accept: 'application/json',
+      ...(body ? { 'content-type': 'application/json' } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text();
+  let data = text;
+  try { data = JSON.parse(text); } catch {}
+  if (!res.ok || data?.ok === false) {
+    const message = data?.error || `pairing-http-${res.status}`;
+    const error = new Error(message);
+    error.status = res.status;
+    error.data = data;
+    throw error;
+  }
+  return data;
+}
+
+async function createPairingCode(store, payload) {
+  const serverUrl = normalizePairingServerUrl(payload.serverUrl || store.getPairingSettings().serverUrl);
+  store.savePairingSettings({ serverUrl });
+  const offer = buildPeerDescriptor(store, payload.profileId);
+  const room = await callPairingServer(serverUrl, '/v1/rooms', {
+    method: 'POST',
+    body: { offer },
+  });
+  return { ok: true, serverUrl, code: room.code, expiresAt: room.expiresAt, offer };
+}
+
+async function checkPairingCode(store, payload) {
+  const serverUrl = normalizePairingServerUrl(payload.serverUrl || store.getPairingSettings().serverUrl);
+  const code = encodeURIComponent(String(payload.code || '').trim());
+  const room = await callPairingServer(serverUrl, `/v1/rooms/${code}`);
+  return { ok: true, serverUrl, ...room };
+}
+
+async function joinPairingCode(store, payload) {
+  const serverUrl = normalizePairingServerUrl(payload.serverUrl || store.getPairingSettings().serverUrl);
+  store.savePairingSettings({ serverUrl });
+  const rawCode = String(payload.code || '').trim();
+  const code = encodeURIComponent(rawCode);
+  const room = await callPairingServer(serverUrl, `/v1/rooms/${code}`);
+  const targetProfileId = payload.targetProfileId || payload.remoteProfileId || 'peer-a';
+  store.savePeerDescriptor(targetProfileId, room.offer, { code: rawCode });
+  const answer = buildPeerDescriptor(store, payload.profileId);
+  const joined = await callPairingServer(serverUrl, `/v1/rooms/${code}/answer`, {
+    method: 'POST',
+    body: { answer },
+  });
+  return { ok: true, serverUrl, code: rawCode, savedProfileId: targetProfileId, offer: room.offer, answer, joined };
+}
+
+async function acceptPairingAnswer(store, payload) {
+  const serverUrl = normalizePairingServerUrl(payload.serverUrl || store.getPairingSettings().serverUrl);
+  const rawCode = String(payload.code || '').trim();
+  const code = encodeURIComponent(rawCode);
+  const room = await callPairingServer(serverUrl, `/v1/rooms/${code}`);
+  if (!room.answer) return { ok: false, waiting: true, error: 'answer-not-ready', code: rawCode };
+  const targetProfileId = payload.targetProfileId || payload.remoteProfileId || 'peer-b';
+  store.savePeerDescriptor(targetProfileId, room.answer, { code: rawCode });
+  return { ok: true, serverUrl, code: rawCode, savedProfileId: targetProfileId, offer: room.offer, answer: room.answer };
+}
+
 function renderAuthPage({ mode }) {
   const isSetup = mode === 'setup';
   return `<!doctype html>
@@ -233,18 +377,18 @@ function renderAuthPage({ mode }) {
   <title>EITEL Connector Desktop</title>
   <style>
     *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;font-family:"Segoe UI",system-ui,sans-serif;background:#f3f3f3;color:#1f1f1f;display:grid;place-items:center}
-    .dialog{width:min(430px,calc(100vw - 32px));background:#fff;border:1px solid #d6d6d6;box-shadow:0 16px 50px rgba(0,0,0,.16)}
-    .titlebar{height:34px;background:#f9f9f9;border-bottom:1px solid #e5e5e5;display:flex;align-items:center;padding:0 12px;font-size:12px;color:#4f4f4f}
+    body{margin:0;min-height:100vh;font-family:"Segoe UI",system-ui,sans-serif;background:#eef2f4;color:#172026;display:grid;place-items:center}
+    .dialog{width:min(430px,calc(100vw - 32px));background:#fff;border:1px solid #d8e0e2;border-radius:8px;box-shadow:0 18px 45px rgba(22,52,68,.14)}
+    .titlebar{height:38px;background:#f7fafb;border-bottom:1px solid #e2e9eb;border-radius:8px 8px 0 0;display:flex;align-items:center;padding:0 14px;font-size:12px;color:#5f6f77}
     .content{padding:28px;display:grid;gap:16px}
     h1{margin:0;font-size:24px;font-weight:600}
     p{margin:0;color:#666;line-height:1.45}
     label{display:grid;gap:6px;font-size:13px;font-weight:600;color:#3b3b3b}
-    input{height:34px;border:1px solid #bfbfbf;border-radius:2px;padding:0 10px;font:inherit;background:#fff}
-    input:focus{outline:2px solid #0078d4;outline-offset:-1px;border-color:#0078d4}
+    input{height:40px;border:1px solid #b9c7cb;border-radius:8px;padding:0 12px;font:inherit;background:#fff}
+    input:focus{outline:2px solid #2b7a9f;outline-offset:1px;border-color:#2b7a9f}
     .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
-    button{height:32px;border:1px solid #b8b8b8;background:#fff;border-radius:2px;padding:0 16px;font:inherit;cursor:pointer}
-    button.primary{background:#0078d4;border-color:#0078d4;color:#fff}
+    button{height:40px;border:1px solid #b9c7cb;background:#fff;border-radius:8px;padding:0 16px;font:inherit;font-weight:700;cursor:pointer}
+    button.primary{background:#15384b;border-color:#15384b;color:#fff}
     .error{display:none;color:#a80000;background:#fde7e9;border:1px solid #f3b8bd;padding:9px 10px;font-size:13px}
   </style>
 </head>
@@ -304,42 +448,45 @@ function renderDashboard({ store, selectedProfileId }) {
   <title>EITEL Connector Desktop</title>
   <style>
     *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;font-family:"Segoe UI",system-ui,sans-serif;background:#f3f3f3;color:#1f1f1f}
+    body{margin:0;min-height:100vh;font-family:"Segoe UI",system-ui,sans-serif;background:#eef2f4;color:#172026}
     button,input,select{font:inherit}
-    .app{min-height:100vh;display:grid;grid-template-rows:40px 1fr}
-    .top{height:40px;background:#fbfbfb;border-bottom:1px solid #dedede;display:flex;align-items:center;justify-content:space-between;padding:0 12px}
-    .top-title{display:flex;align-items:center;gap:10px;font-size:13px;color:#333}
-    .mark{width:16px;height:16px;background:#0078d4;border-radius:2px}
-    .top-actions{display:flex;gap:8px;align-items:center}
-    .layout{display:grid;grid-template-columns:248px 1fr}
-    nav{background:#fafafa;border-right:1px solid #dedede;padding:10px;display:flex;flex-direction:column;gap:4px}
-    .nav-item{height:36px;border:0;background:transparent;border-radius:4px;text-align:left;padding:0 12px;color:#202020;cursor:pointer}
-    .nav-item:hover{background:#eeeeee}.nav-item.active{background:#e8f2fc;color:#003e73}
-    main{padding:22px;display:grid;gap:18px;align-content:start}
+    .app{min-height:100vh;display:grid;grid-template-rows:54px 1fr}
+    .top{height:54px;background:#fff;border-bottom:1px solid #d8e0e2;display:flex;align-items:center;justify-content:space-between;padding:0 22px}
+    .top-title{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:800;color:#172026}
+    .mark{width:18px;height:18px;background:#15384b;border-radius:5px}
+    .top-actions{display:flex;gap:10px;align-items:center}
+    .layout{display:grid;grid-template-columns:300px 1fr}
+    nav{background:#fff;border-right:1px solid #d8e0e2;padding:18px;display:flex;flex-direction:column;gap:8px}
+    .nav-item{height:42px;border:0;background:transparent;border-radius:8px;text-align:left;padding:0 14px;color:#263840;cursor:pointer;font-weight:700}
+    .nav-item:hover{background:#eef2f4}.nav-item.active{background:#e8f2fc;color:#15384b}
+    main{padding:30px;display:grid;gap:18px;align-content:start}
     .page-title{display:flex;justify-content:space-between;gap:16px;align-items:flex-end}
-    h1{margin:0;font-size:28px;font-weight:600} h2{margin:0;font-size:18px;font-weight:600}
-    p{margin:0;color:#616161;line-height:1.45}.muted{color:#666;font-size:13px}
-    .surface{background:#fff;border:1px solid #dadada;border-radius:4px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    h1{margin:0;font-size:30px;font-weight:800} h2{margin:0;font-size:18px;font-weight:800}
+    p{margin:0;color:#5f6f77;line-height:1.45}.muted{color:#5f6f77;font-size:13px}
+    .surface{background:#fff;border:1px solid #d8e0e2;border-radius:8px;padding:18px;box-shadow:0 8px 20px rgba(22,52,68,.08)}
     .grid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:12px}
     .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .field{display:grid;gap:5px;min-width:220px;flex:1}
-    label{font-size:12px;font-weight:600;color:#3f3f3f}
-    input,select{height:32px;border:1px solid #bfbfbf;border-radius:2px;background:#fff;padding:0 9px}
-    input:focus,select:focus{outline:2px solid #0078d4;outline-offset:-1px;border-color:#0078d4}
-    button{height:32px;border:1px solid #b8b8b8;background:#fff;border-radius:2px;padding:0 14px;cursor:pointer}
-    button.primary{background:#0078d4;color:#fff;border-color:#0078d4}
+    label{font-size:12px;font-weight:800;color:#263840}
+    input,select{height:40px;border:1px solid #b9c7cb;border-radius:8px;background:#fff;padding:0 12px}
+    input:focus,select:focus{outline:2px solid #2b7a9f;outline-offset:1px;border-color:#2b7a9f}
+    button{height:40px;border:1px solid #b9c7cb;background:#fff;border-radius:8px;padding:0 14px;font-weight:800;cursor:pointer}
+    button.primary{background:#15384b;color:#fff;border-color:#15384b}
     button.subtle{border-color:transparent;background:transparent}
     button:disabled{opacity:.58;cursor:default}
-    .profile-box{display:grid;gap:10px;border:1px solid #e5e5e5;background:#fbfbfb;padding:12px;border-radius:4px}
+    .profile-box{display:grid;gap:10px;border:1px solid #d8e0e2;background:#fbfdfe;padding:14px;border-radius:8px}
     .profile-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
-    .pill{display:inline-flex;align-items:center;height:22px;border-radius:11px;background:#eef6fc;color:#005a9e;padding:0 8px;font-size:12px}
+    .pill{display:inline-flex;align-items:center;height:24px;border-radius:12px;background:#eef6fc;color:#15384b;padding:0 10px;font-size:12px;font-weight:800}
     .status{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#4f4f4f}
     .dot{width:8px;height:8px;border-radius:50%;background:#8a8a8a}.dot.ok{background:#107c10}.dot.warn{background:#ffaa44}.dot.bad{background:#d13438}
     table{width:100%;border-collapse:collapse;font-size:13px;background:#fff}
     th,td{border-bottom:1px solid #e5e5e5;text-align:left;padding:9px;vertical-align:top}
-    th{font-weight:600;color:#4b4b4b;background:#fafafa}
+    th{font-weight:800;color:#263840;background:#f7fafb}
     code{font-family:"Cascadia Mono",Consolas,monospace;font-size:12px}
-    pre{margin:0;white-space:pre-wrap;word-break:break-word;max-height:180px;overflow:auto;background:#1e1e1e;color:#dcdcdc;padding:12px;border-radius:3px;font-size:12px}
+    pre{margin:0;white-space:pre-wrap;word-break:break-word;max-height:180px;overflow:auto;background:#1e1e1e;color:#dcdcdc;padding:12px;border-radius:8px;font-size:12px}
+    .split{display:grid;grid-template-columns:repeat(2,minmax(280px,1fr));gap:12px}
+    .pairing-code{font-size:28px;font-weight:900;letter-spacing:.04em;color:#15384b;background:#eef6fc;border:1px solid #c9dfea;border-radius:8px;padding:12px;text-align:center}
+    .result-box{display:grid;gap:10px;margin-top:12px}
     .view{display:none}.view.active{display:grid;gap:18px}
     @media(max-width:900px){.layout{grid-template-columns:1fr}nav{display:none}.grid{grid-template-columns:1fr}.page-title{align-items:flex-start;flex-direction:column}}
   </style>
@@ -357,6 +504,7 @@ function renderDashboard({ store, selectedProfileId }) {
       <nav>
         <button class="nav-item active" data-view="home">Inicio</button>
         <button class="nav-item" data-view="connectors">Conectores</button>
+        <button class="nav-item" data-view="pairing">Emparejamiento</button>
         <button class="nav-item" data-view="lab">Comunicacion</button>
       </nav>
       <main>
@@ -373,6 +521,7 @@ function renderDashboard({ store, selectedProfileId }) {
             <p class="muted">Ejecuta una consulta de catalogo desde un conector consumidor hacia otro proveedor.</p>
             <div class="row" style="margin-top:12px">
               <button class="primary" onclick="activateView('lab')">Ir a Comunicacion</button>
+              <button onclick="activateView('pairing')">Emparejar peers</button>
               <button onclick="activateView('connectors')">Configurar credenciales</button>
             </div>
           </section>
@@ -386,6 +535,62 @@ function renderDashboard({ store, selectedProfileId }) {
             </div>
           </div>
           <div class="grid" id="profilesGrid"></div>
+        </section>
+
+        <section class="view" id="view-pairing">
+          <div class="page-title">
+            <div>
+              <h1>Emparejamiento</h1>
+              <p>Intercambia endpoints P2P con codigo corto, estilo croc, sin publicar claves ni tokens.</p>
+            </div>
+          </div>
+          <section class="surface">
+            <div class="row">
+              <div class="field">
+                <label>Servidor rendezvous</label>
+                <input id="pairServerUrl" value="${DEFAULT_PAIRING_SERVER_URL}">
+              </div>
+              <button id="savePairServerBtn">Guardar</button>
+            </div>
+            <p class="muted" style="margin-top:8px">Para pruebas locales, arranca <code>npm run pairing-server</code> en <code>desktop/eitel-electron</code>.</p>
+          </section>
+          <div class="split">
+            <section class="surface">
+              <h2>Crear codigo</h2>
+              <div class="field" style="margin-top:12px">
+                <label>Mi nodo</label>
+                <select id="pairCreateProfile"></select>
+              </div>
+              <div class="field" style="margin-top:10px">
+                <label>Guardar respuesta en</label>
+                <select id="pairAcceptTarget"></select>
+              </div>
+              <div class="row" style="margin-top:12px">
+                <button class="primary" id="createPairBtn">Crear codigo</button>
+                <button id="acceptPairBtn">Recoger respuesta</button>
+              </div>
+              <div id="pairCreateResult" class="result-box"></div>
+            </section>
+            <section class="surface">
+              <h2>Unirse a codigo</h2>
+              <div class="field" style="margin-top:12px">
+                <label>Codigo</label>
+                <input id="joinPairCode" placeholder="azul-mesa-rio-1234">
+              </div>
+              <div class="field" style="margin-top:10px">
+                <label>Mi nodo</label>
+                <select id="pairJoinProfile"></select>
+              </div>
+              <div class="field" style="margin-top:10px">
+                <label>Guardar peer recibido en</label>
+                <select id="pairJoinTarget"></select>
+              </div>
+              <div class="row" style="margin-top:12px">
+                <button class="primary" id="joinPairBtn">Unirme</button>
+              </div>
+              <div id="pairJoinResult" class="result-box"></div>
+            </section>
+          </div>
         </section>
 
         <section class="view" id="view-lab">
@@ -415,9 +620,16 @@ function renderDashboard({ store, selectedProfileId }) {
   </div>
   <script>
     let profileItems = ${JSON.stringify(initialProfiles)};
+    let pairingSettings = { serverUrl: ${JSON.stringify(DEFAULT_PAIRING_SERVER_URL)} };
+    let activePairCode = '';
     const initialSelected = ${JSON.stringify(selected.id)};
 
     function byId(id) { return document.getElementById(id); }
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[<>&"]/g, function (c) {
+        return ({ '<':'&lt;', '>':'&gt;', '&':'&amp;', '"':'&quot;' })[c];
+      });
+    }
 
     function activateView(name) {
       document.querySelectorAll('.view').forEach(function (node) { node.classList.toggle('active', node.id === 'view-' + name); });
@@ -428,15 +640,24 @@ function renderDashboard({ store, selectedProfileId }) {
       button.addEventListener('click', function () { activateView(button.dataset.view); });
     });
 
+    function setSelectOptions(id, options, selectedValue) {
+      const node = byId(id);
+      if (!node) return;
+      node.innerHTML = options;
+      if (selectedValue) node.value = selectedValue;
+    }
+
     function fillSelects() {
       const options = profileItems.map(function (profile) {
-        return '<option value="' + profile.id + '">' + profile.name + '</option>';
+        return '<option value="' + escapeHtml(profile.id) + '">' + escapeHtml(profile.name) + '</option>';
       }).join('');
-      byId('consumerSelect').innerHTML = options;
-      byId('providerSelect').innerHTML = options;
-      byId('consumerSelect').value = initialSelected;
       const provider = profileItems.find(function (profile) { return profile.id !== initialSelected; }) || profileItems[0];
-      byId('providerSelect').value = provider.id;
+      setSelectOptions('consumerSelect', options, initialSelected);
+      setSelectOptions('providerSelect', options, provider.id);
+      setSelectOptions('pairCreateProfile', options, initialSelected);
+      setSelectOptions('pairAcceptTarget', options, provider.id);
+      setSelectOptions('pairJoinProfile', options, provider.id);
+      setSelectOptions('pairJoinTarget', options, initialSelected);
     }
 
     function renderProfiles() {
@@ -508,6 +729,121 @@ function renderDashboard({ store, selectedProfileId }) {
       window.location.assign('/desktop/open/' + encodeURIComponent(id));
     }
 
+    async function loadPairingSettings() {
+      const res = await fetch('/desktop/pairing/settings');
+      const data = await res.json().catch(function () { return {}; });
+      if (!res.ok || !data.ok) return;
+      pairingSettings = { serverUrl: data.serverUrl || pairingSettings.serverUrl };
+      byId('pairServerUrl').value = pairingSettings.serverUrl;
+    }
+
+    async function savePairServer() {
+      const serverUrl = byId('pairServerUrl').value.trim();
+      const res = await fetch('/desktop/pairing/settings', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ serverUrl: serverUrl })
+      });
+      const data = await res.json().catch(function () { return {}; });
+      pairingSettings = { serverUrl: data.serverUrl || serverUrl || pairingSettings.serverUrl };
+      byId('pairServerUrl').value = pairingSettings.serverUrl;
+      renderPairingResult('pairCreateResult', data.ok ? { ok: true, summary: 'Servidor guardado.' } : data);
+    }
+
+    function currentPairingServerUrl() {
+      return byId('pairServerUrl').value.trim() || pairingSettings.serverUrl;
+    }
+
+    async function postPairing(path, payload) {
+      const res = await fetch('/desktop/pairing/' + path, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...payload, serverUrl: currentPairingServerUrl() })
+      });
+      const data = await res.json().catch(function () { return {}; });
+      if (!res.ok && data.ok !== false) data.ok = false;
+      if (!res.ok && !data.error) data.error = 'No se pudo completar la operacion.';
+      return data;
+    }
+
+    function profileName(id) {
+      const profile = profileItems.find(function (item) { return item.id === id; });
+      return profile ? profile.name : id;
+    }
+
+    function renderPairingResult(targetId, data) {
+      const box = byId(targetId);
+      if (!box) return;
+      const statusText = data.waiting ? 'Esperando respuesta' : (data.ok ? 'Listo' : 'Error');
+      const dot = data.waiting ? 'warn' : (data.ok ? 'ok' : 'bad');
+      const code = data.code ? '<div class="pairing-code">' + escapeHtml(data.code) + '</div>' : '';
+      const summary = data.summary || data.error || (data.ok ? 'Operacion completada.' : 'Operacion fallida.');
+      const saved = data.savedProfileId ? '<p class="muted">Peer guardado en ' + escapeHtml(profileName(data.savedProfileId)) + '.</p>' : '';
+      const peer = data.answer?.name || data.offer?.name || '';
+      const peerLine = peer ? '<p class="muted">Peer recibido: ' + escapeHtml(peer) + '.</p>' : '';
+      box.innerHTML =
+        code +
+        '<span class="status"><span class="dot ' + dot + '"></span>' + statusText + '</span>' +
+        '<p class="muted">' + escapeHtml(summary) + '</p>' +
+        saved +
+        peerLine;
+    }
+
+    async function createPairCode() {
+      const button = byId('createPairBtn');
+      button.disabled = true;
+      button.textContent = 'Creando...';
+      try {
+        const data = await postPairing('create', { profileId: byId('pairCreateProfile').value });
+        if (data.ok) {
+          activePairCode = data.code;
+          byId('joinPairCode').value = data.code;
+          data.summary = 'Comparte este codigo con el otro participante y despues pulsa Recoger respuesta.';
+        }
+        renderPairingResult('pairCreateResult', data);
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Crear codigo';
+      }
+    }
+
+    async function acceptPairAnswer() {
+      const button = byId('acceptPairBtn');
+      button.disabled = true;
+      button.textContent = 'Recogiendo...';
+      try {
+        const code = activePairCode || byId('joinPairCode').value.trim();
+        const data = await postPairing('accept', { code: code, targetProfileId: byId('pairAcceptTarget').value });
+        if (data.ok) await loadProfiles();
+        if (data.waiting) data.summary = 'El otro participante aun no se ha unido al codigo.';
+        renderPairingResult('pairCreateResult', data);
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Recoger respuesta';
+      }
+    }
+
+    async function joinPairCode() {
+      const button = byId('joinPairBtn');
+      button.disabled = true;
+      button.textContent = 'Uniendo...';
+      try {
+        const data = await postPairing('join', {
+          code: byId('joinPairCode').value.trim(),
+          profileId: byId('pairJoinProfile').value,
+          targetProfileId: byId('pairJoinTarget').value
+        });
+        if (data.ok) {
+          data.summary = 'Respuesta enviada. El creador ya puede recogerla.';
+          await loadProfiles();
+        }
+        renderPairingResult('pairJoinResult', data);
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Unirme';
+      }
+    }
+
     function statusClass(ok, status) {
       if (ok) return 'ok';
       if (Number(status) >= 400) return 'bad';
@@ -544,6 +880,10 @@ function renderDashboard({ store, selectedProfileId }) {
       }
     }
 
+    byId('savePairServerBtn').addEventListener('click', savePairServer);
+    byId('createPairBtn').addEventListener('click', createPairCode);
+    byId('acceptPairBtn').addEventListener('click', acceptPairAnswer);
+    byId('joinPairBtn').addEventListener('click', joinPairCode);
     byId('runLabBtn').addEventListener('click', runLab);
     byId('logoutBtn').addEventListener('click', async function () {
       await fetch('/desktop/auth/logout', { method: 'POST' });
@@ -552,6 +892,7 @@ function renderDashboard({ store, selectedProfileId }) {
 
     renderProfiles();
     fillSelects();
+    loadPairingSettings();
     loadProfiles();
   </script>
 </body>
@@ -922,6 +1263,36 @@ async function startServer({ uiDir, userDataDir }) {
       const profile = getProfile(payload.profileId);
       store.saveCredentials(profile.id, payload);
       return sendJson(res, { ok: true, profileId: profile.id });
+    }
+
+    if (incoming.pathname === '/desktop/pairing/settings') {
+      if (req.method === 'GET') {
+        return sendJson(res, { ok: true, ...store.getPairingSettings(), identity: store.getIdentity() });
+      }
+      if (req.method === 'POST') {
+        const payload = await readJsonBody(req);
+        return sendJson(res, { ok: true, ...store.savePairingSettings(payload) });
+      }
+    }
+
+    const pairingActions = {
+      '/desktop/pairing/create': createPairingCode,
+      '/desktop/pairing/check': checkPairingCode,
+      '/desktop/pairing/join': joinPairingCode,
+      '/desktop/pairing/accept': acceptPairingAnswer,
+    };
+    if (pairingActions[incoming.pathname] && req.method === 'POST') {
+      try {
+        const payload = await readJsonBody(req);
+        const result = await pairingActions[incoming.pathname](store, payload);
+        return sendJson(res, result, result.ok === false && !result.waiting ? 400 : 200);
+      } catch (error) {
+        return sendJson(res, {
+          ok: false,
+          error: String(error.message || error),
+          detail: error.data || null,
+        }, Number(error.status || 502));
+      }
     }
 
     if (incoming.pathname === '/desktop/communication/test' && req.method === 'POST') {

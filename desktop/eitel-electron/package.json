@@ -1,6 +1,6 @@
 {
   "name": "eitel-connector-desktop",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Aplicacion de escritorio EITEL Connector",
   "author": "EITEL",
   "main": "src/main.js",
@@ -9,7 +9,8 @@
     "prepare-ui": "node scripts/copy-ui.js",
     "start": "npm run prepare-ui && electron .",
     "pack": "npm run prepare-ui && electron-builder --dir",
-    "dist": "npm run prepare-ui && electron-builder --win portable"
+    "dist": "npm run prepare-ui && electron-builder --win portable",
+    "pairing-server": "node scripts/pairing-server.js"
   },
   "devDependencies": {
     "electron": "42.3.3",
@@ -24,6 +25,7 @@
     },
     "files": [
       "src/**/*",
+      "scripts/pairing-server.js",
       "ui-dist/**/*",
       "package.json"
     ],
