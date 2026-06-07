@@ -1,0 +1,42 @@
+{
+  "name": "eitel-connector-desktop",
+  "version": "0.2.0",
+  "description": "Aplicacion de escritorio EITEL Connector",
+  "author": "EITEL",
+  "main": "src/main.js",
+  "private": true,
+  "scripts": {
+    "prepare-ui": "node scripts/copy-ui.js",
+    "start": "npm run prepare-ui && electron .",
+    "pack": "npm run prepare-ui && electron-builder --dir",
+    "dist": "npm run prepare-ui && electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "42.3.3",
+    "electron-builder": "26.15.0"
+  },
+  "build": {
+    "appId": "eu.eiteldata.connector.desktop",
+    "productName": "EITEL Connector Desktop",
+    "copyright": "Copyright EITEL",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "ui-dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "EITEL-Connector-Desktop-${version}.${ext}"
+    }
+  }
+}

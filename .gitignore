@@ -11,6 +11,10 @@ __pycache__/
 connectors/*/.env
 caas/control-plane/.env
 demo_assets_data/
+desktop/eitel-electron/node_modules/
+desktop/eitel-electron/dist/
+desktop/eitel-electron/ui-dist/
+desktop/eitel-electron/*.log
 
 # GAIA-X credentials — archivos sensibles, no subir al repo
 # Los archivos reales van en los servidores directamente
