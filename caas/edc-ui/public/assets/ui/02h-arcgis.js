@@ -36,6 +36,69 @@
       return { title, tags, description, snippet };
     }
 
+    function wantsHostedFeatureLayer(rawType) {
+      const value = String(rawType || '').trim().toLowerCase();
+      return [
+        'hostedfeaturelayer',
+        'hosted feature layer',
+        'feature layer',
+        'featurelayer',
+        'capa de entidades',
+      ].includes(value);
+    }
+
+    function inferArcgisPublishFileType(itemType, filename, contentType) {
+      const type = String(itemType || '').trim().toLowerCase();
+      const name = String(filename || '').trim().toLowerCase();
+      const ct = String(contentType || '').trim().toLowerCase();
+      if (type === 'csv' || name.endsWith('.csv') || ct.includes('csv')) return 'csv';
+      if (type === 'shapefile' || name.endsWith('.zip') || ct.includes('zip')) return 'shapefile';
+      if (type === 'geojson' || name.endsWith('.geojson') || name.endsWith('.json') || ct.includes('json')) return 'geojson';
+      return '';
+    }
+
+    function buildArcgisServiceName(title, assetId) {
+      const base = String(title || assetId || 'eitel_feature_layer')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9_]+/gi, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 60) || 'eitel_feature_layer';
+      return `${base}_${Date.now()}`;
+    }
+
+    async function publishArcgisHostedFeatureLayer({ itemId, fileType, token, arcgisMeta, assetId }) {
+      const endpoint = `${arcgis.portalUrl}/sharing/rest/content/users/${encodeURIComponent(authState.username)}/publish`;
+      const publishParameters = {
+        name: buildArcgisServiceName(arcgisMeta.title, assetId),
+        layerInfo: {
+          name: String(arcgisMeta.title || assetId || 'EITEL Feature Layer').slice(0, 90),
+          description: arcgisMeta.description || '',
+        },
+      };
+      const form = new FormData();
+      form.append('f', 'json');
+      form.append('token', token);
+      form.append('itemID', itemId);
+      form.append('filetype', fileType);
+      form.append('publishParameters', JSON.stringify(publishParameters));
+
+      const response = await fetch(endpoint, { method: 'POST', body: form, credentials: 'include' });
+      const text = await response.text();
+      let data = null;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = {
+          error: {
+            message: 'ArcGIS devolvio una respuesta no JSON al publicar el Feature Layer.',
+            preview: text.slice(0, 500),
+          },
+        };
+      }
+      return { endpoint, response, data, publishParameters };
+    }
+
     /**
      * Fetches asset blob/file data for uploading to ArcGIS.
      * Retrieves binary data from local storage or remote source for upload.
@@ -371,7 +434,10 @@
         fallbackKeywords: assetMeta.keywords,
       });
 
-      const resolvedType = normalizeArcgisItemType(typeInput, blobResult.filename, blobResult.contentType);
+      const hostedLayerRequested = wantsHostedFeatureLayer(typeInput);
+      const resolvedType = hostedLayerRequested
+        ? normalizeArcgisItemType('', blobResult.filename, blobResult.contentType)
+        : normalizeArcgisItemType(typeInput, blobResult.filename, blobResult.contentType);
       const autoMode = !String(typeInput || '').trim();
       const buildForm = (itemType) => {
         const form = new FormData();
@@ -425,20 +491,50 @@
             usedType: result.itemType,
           };
         }
+        const itemId = result.data?.id || '';
+        const publishFileType = inferArcgisPublishFileType(result.itemType, blobResult.filename, blobResult.contentType);
+        const shouldPublishHostedLayer = Boolean(itemId && publishFileType && (hostedLayerRequested || autoMode || blobResult.via === 'arcgis-feature-layer'));
+        let publishResult = null;
+        if (shouldPublishHostedLayer) {
+          publishResult = await publishArcgisHostedFeatureLayer({
+            itemId,
+            fileType: publishFileType,
+            token,
+            arcgisMeta,
+            assetId,
+          });
+          if (!publishResult.response.ok || publishResult.data?.error || publishResult.data?.success === false) {
+            return {
+              status: publishResult.response.status || 502,
+              error: publishResult.data?.error?.message || publishResult.data?.error || 'ArcGIS creo el item, pero no pudo publicarlo como Feature Layer.',
+              detail: publishResult.data,
+              fileItemId: itemId,
+              usedType: result.itemType,
+              publishFileType,
+            };
+          }
+        }
+
+        const publishedService = Array.isArray(publishResult?.data?.services) ? publishResult.data.services[0] : null;
         return {
           status: 200,
           uploaded: true,
           contractId,
           assetId,
-          itemId: result.data?.id || '',
+          itemId,
+          featureLayerPublished: Boolean(publishResult),
+          featureLayerItemId: publishedService?.serviceItemId || publishResult?.data?.serviceItemId || publishResult?.data?.itemId || '',
+          featureLayerUrl: publishedService?.serviceurl || publishResult?.data?.serviceurl || '',
           title: arcgisMeta.title,
           tags: arcgisMeta.tags,
           description: arcgisMeta.description,
           filename: blobResult.filename,
           contentType: blobResult.contentType,
           usedType: result.itemType,
+          publishFileType: publishFileType || '',
           sourceUrl: blobResult.sourceUrl,
           arcgisResponse: result.data,
+          arcgisPublishResponse: publishResult?.data || null,
         };
       } catch (error) {
         return { status: 500, error: `Error subiendo item a ArcGIS: ${String(error)}` };
