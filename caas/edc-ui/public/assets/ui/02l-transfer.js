@@ -216,13 +216,16 @@
         await refreshOverview();
         await listTransfers();
         if (uploadResp.status >= 200 && uploadResp.status < 300) {
-          showInfoPopup('Subida a ArcGIS completada', {
+          showInfoPopup(uploadResp.featureLayer ? 'Feature Layer publicada en ArcGIS' : 'Subida a ArcGIS completada', {
             transferId: localTransfer.id,
             contractId,
             assetId: agreementAssetId,
             itemId: uploadResp.itemId,
             title: uploadResp.title,
             filename: uploadResp.filename,
+            ...(uploadResp.featureLayer ? { featureLayer: uploadResp.featureLayer } : {}),
+            ...(uploadResp.publishWarning ? { publishWarning: uploadResp.publishWarning } : {}),
+            ...(uploadResp.geometryNote ? { geometryNote: uploadResp.geometryNote } : {}),
           });
         } else {
           showInfoPopup('Error subiendo a ArcGIS', uploadResp);

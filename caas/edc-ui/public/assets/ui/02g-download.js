@@ -624,19 +624,77 @@
       }
     }
 
-    // Wrap arbitrary JSON into a valid GeoJSON FeatureCollection so ArcGIS can ingest it
-    // as a "GeoJson" item. Real GeoJSON is returned untouched. Tabular/plain JSON records
-    // become Features; a Point geometry is built when a record exposes numeric lon/lat
-    // fields, otherwise geometry is null (RFC 7946 allows this; ArcGIS imports it as a
-    // non-spatial table). Returns a GeoJSON string, or '' when the input has no records.
-    function convertJsonToGeoJsonString(jsonText) {
+    function isGeoJsonGeometry(g) {
+      return g && typeof g === 'object' && typeof g.type === 'string'
+        && ['point', 'linestring', 'polygon', 'multipoint', 'multilinestring', 'multipolygon', 'geometrycollection'].includes(g.type.toLowerCase());
+    }
+
+    // Pull a GeoJSON geometry out of a tabular record using the conventions real-world
+    // open-data portals use, so the result is a *spatial* layer rather than null geometry:
+    //  - embedded GeoJSON geometry/Feature: geometry, geo_shape, the_geom, shape, geom
+    //  - OpenDataSoft geo_point_2d: [lat, lon] | {lat,lon} | "lat,lon"
+    //  - coordinate columns: lon/lat, longitud/latitud, x/y, coordenada_x/coordenada_y...
+    // Coordinates are validated to WGS84 ranges (GeoJSON requires lon/lat in degrees), so
+    // projected values (e.g. UTM) are ignored rather than producing broken geometry.
+    function extractGeometryFromRecord(rec) {
+      if (!rec || typeof rec !== 'object' || Array.isArray(rec)) return null;
+
+      for (const k of ['geometry', 'geo_shape', 'the_geom', 'shape', 'geom']) {
+        const g = rec[k];
+        if (isGeoJsonGeometry(g)) return g;
+        if (g && typeof g === 'object' && g.type === 'Feature' && isGeoJsonGeometry(g.geometry)) return g.geometry;
+      }
+
+      const okPoint = (lon, lat) => Number.isFinite(lon) && Number.isFinite(lat) && Math.abs(lon) <= 180 && Math.abs(lat) <= 90;
+      const gp = rec.geo_point_2d ?? rec.geopoint ?? rec.geo_point;
+      if (Array.isArray(gp) && gp.length >= 2 && okPoint(Number(gp[1]), Number(gp[0]))) {
+        return { type: 'Point', coordinates: [Number(gp[1]), Number(gp[0])] }; // [lat,lon] -> [lon,lat]
+      }
+      if (gp && typeof gp === 'object' && !Array.isArray(gp)) {
+        const la = Number(gp.lat ?? gp.latitude), lo = Number(gp.lon ?? gp.lng ?? gp.longitude);
+        if (okPoint(lo, la)) return { type: 'Point', coordinates: [lo, la] };
+      }
+      if (typeof gp === 'string' && gp.includes(',')) {
+        const [la, lo] = gp.split(',').map((s) => Number(s.trim()));
+        if (okPoint(lo, la)) return { type: 'Point', coordinates: [lo, la] };
+      }
+
+      const LON = new Set(['lon', 'lng', 'long', 'longitude', 'longitud', 'x', 'coordenada_x', 'coord_x', 'x_wgs84', 'lon_wgs84']);
+      const LAT = new Set(['lat', 'latitude', 'latitud', 'y', 'coordenada_y', 'coord_y', 'y_wgs84', 'lat_wgs84']);
+      const pick = (keys) => {
+        for (const k of Object.keys(rec)) {
+          if (keys.has(k.toLowerCase())) { const n = Number(rec[k]); if (Number.isFinite(n)) return n; }
+        }
+        return null;
+      };
+      const lon = pick(LON), lat = pick(LAT);
+      if (lon !== null && lat !== null && okPoint(lon, lat)) return { type: 'Point', coordinates: [lon, lat] };
+      return null;
+    }
+
+    // Build a valid GeoJSON FeatureCollection from arbitrary JSON so ArcGIS can ingest it
+    // as a "GeoJson" item (and publish it as a Feature Layer). Real GeoJSON is returned
+    // untouched. Tabular/plain JSON records become Features, with real geometry extracted
+    // when present (see extractGeometryFromRecord) or null otherwise. Returns
+    // { geojson, hasGeometry, featureCount }, or null when the input has no records.
+    function buildGeoJsonFeatureCollection(jsonText) {
       let parsed;
-      try { parsed = JSON.parse(jsonText); } catch { return ''; }
+      try { parsed = JSON.parse(jsonText); } catch { return null; }
 
       const GEOJSON_TYPES = ['featurecollection', 'feature', 'geometrycollection', 'point', 'linestring', 'polygon', 'multipoint', 'multilinestring', 'multipolygon'];
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)
         && typeof parsed.type === 'string' && GEOJSON_TYPES.includes(parsed.type.toLowerCase())) {
-        return jsonText; // already valid GeoJSON, leave the original bytes alone
+        const t = parsed.type.toLowerCase();
+        let hasGeometry = false, featureCount = 1;
+        if (t === 'featurecollection' && Array.isArray(parsed.features)) {
+          featureCount = parsed.features.length;
+          hasGeometry = parsed.features.some((f) => f && isGeoJsonGeometry(f.geometry));
+        } else if (t === 'feature') {
+          hasGeometry = isGeoJsonGeometry(parsed.geometry);
+        } else {
+          hasGeometry = isGeoJsonGeometry(parsed);
+        }
+        return { geojson: jsonText, hasGeometry, featureCount }; // already GeoJSON, keep bytes
       }
 
       let records = null;
@@ -648,43 +706,45 @@
         }
         if (!records) records = [parsed]; // single object -> single feature
       }
-      if (!Array.isArray(records) || records.length === 0) return '';
+      if (!Array.isArray(records) || records.length === 0) return null;
 
-      const lonKeys = new Set(['lon', 'lng', 'long', 'longitude', 'longitud']);
-      const latKeys = new Set(['lat', 'latitude', 'latitud']);
-      const numFrom = (obj, keys) => {
-        for (const k of Object.keys(obj)) {
-          if (keys.has(k.toLowerCase())) {
-            const n = Number(obj[k]);
-            if (Number.isFinite(n)) return n;
-          }
-        }
-        return null;
-      };
-      const isFeature = (o) => o && typeof o === 'object' && !Array.isArray(o) && o.type === 'Feature';
-
+      const GEOM_FIELDS = ['geometry', 'geo_shape', 'the_geom', 'shape', 'geom', 'geo_point_2d', 'geopoint', 'geo_point'];
+      let hasGeometry = false;
       const features = records.map((rec) => {
-        if (isFeature(rec)) return rec; // already a GeoJSON Feature, keep it
-        const properties = (rec && typeof rec === 'object' && !Array.isArray(rec)) ? rec : { value: rec };
-        const lon = numFrom(properties, lonKeys);
-        const lat = numFrom(properties, latKeys);
-        const geometry = (lon !== null && lat !== null) ? { type: 'Point', coordinates: [lon, lat] } : null;
-        return { type: 'Feature', geometry, properties };
+        if (rec && typeof rec === 'object' && !Array.isArray(rec) && rec.type === 'Feature') {
+          if (isGeoJsonGeometry(rec.geometry)) hasGeometry = true;
+          return rec; // already a GeoJSON Feature, keep it
+        }
+        const geometry = extractGeometryFromRecord(rec);
+        if (geometry) hasGeometry = true;
+        let properties;
+        if (rec && typeof rec === 'object' && !Array.isArray(rec)) {
+          properties = { ...rec };
+          for (const gf of GEOM_FIELDS) delete properties[gf]; // avoid duplicating bulky geometry
+        } else {
+          properties = { value: rec };
+        }
+        return { type: 'Feature', geometry: geometry || null, properties };
       });
 
-      return JSON.stringify({ type: 'FeatureCollection', features });
+      return { geojson: JSON.stringify({ type: 'FeatureCollection', features }), hasGeometry, featureCount: features.length };
     }
 
-    // Returns a { blob, filename } whose bytes are valid GeoJSON (converting plain JSON
-    // when needed), or null when the blob can't be represented as GeoJSON.
+    // Returns { blob, filename, hasGeometry, featureCount } whose bytes are valid GeoJSON
+    // (converting plain JSON when needed), or null when the blob can't be represented.
     async function ensureGeoJsonBlob(blob, filename) {
       if (!blob || typeof blob.text !== 'function') return null;
       let text = '';
       try { text = await blob.text(); } catch { return null; }
-      const geojson = convertJsonToGeoJsonString(text);
-      if (!geojson) return null;
+      const built = buildGeoJsonFeatureCollection(text);
+      if (!built) return null;
       const base = String(filename || 'asset').replace(/\.(geo)?json$/i, '') || 'asset';
-      return { blob: new Blob([geojson], { type: 'application/geo+json' }), filename: `${base}.geojson` };
+      return {
+        blob: new Blob([built.geojson], { type: 'application/geo+json' }),
+        filename: `${base}.geojson`,
+        hasGeometry: built.hasGeometry,
+        featureCount: built.featureCount,
+      };
     }
 
     function isArcgisUnknownTypeError(payload) {

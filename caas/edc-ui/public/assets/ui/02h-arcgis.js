@@ -392,6 +392,7 @@
       // ArcGIS "GeoJson" requires valid GeoJSON. EDC sources frequently serve plain JSON
       // with a .json name, which ArcGIS rejects ("GeoJson doesn't have 'type'"). Wrap it
       // into a valid FeatureCollection (null geometry -> non-spatial table) so it ingests.
+      let geojsonInfo = null;
       if (resolvedType === 'GeoJson') {
         const ensured = await ensureGeoJsonBlob(blobResult.blob, blobResult.filename);
         if (!ensured) {
@@ -403,6 +404,7 @@
             sourceUrl: blobResult.sourceUrl,
           };
         }
+        geojsonInfo = ensured;
         blobResult = { ...blobResult, blob: ensured.blob, filename: ensured.filename, contentType: 'application/geo+json' };
       }
 
@@ -460,12 +462,22 @@
             usedType: result.itemType,
           };
         }
+        const itemId = result.data?.id || '';
+        // Turn the GeoJSON item into a hosted Feature Layer (Feature Service). Best-effort:
+        // a failure here doesn't undo the successful upload, it is reported as a warning.
+        let featureLayer = null;
+        let publishWarning = '';
+        if (itemId && result.itemType === 'GeoJson') {
+          const pub = await publishArcgisGeoJsonAsFeatureLayer(itemId, arcgisMeta.title, token);
+          if (pub.ok) featureLayer = { serviceItemId: pub.serviceItemId, url: pub.serviceUrl, name: pub.name, type: pub.type };
+          else publishWarning = pub.error || 'No se pudo publicar la Feature Layer (el item GeoJSON sí se subió).';
+        }
         return {
           status: 200,
           uploaded: true,
           contractId,
           assetId,
-          itemId: result.data?.id || '',
+          itemId,
           title: arcgisMeta.title,
           tags: arcgisMeta.tags,
           description: arcgisMeta.description,
@@ -473,11 +485,97 @@
           contentType: blobResult.contentType,
           usedType: result.itemType,
           sourceUrl: blobResult.sourceUrl,
+          featureLayer,
+          ...(publishWarning ? { publishWarning } : {}),
+          ...(geojsonInfo && !geojsonInfo.hasGeometry
+            ? { geometryNote: 'El JSON no contenía coordenadas reconocibles, por lo que la Feature Layer se publica como tabla (sin geometría). Si el dato debe ubicarse en el mapa, indica el/los campo(s) de coordenadas.' }
+            : {}),
           arcgisResponse: result.data,
         };
       } catch (error) {
         return { status: 500, error: `Error subiendo item a ArcGIS: ${String(error)}` };
       }
+    }
+
+    // Builds a valid, unique hosted-service name (letters/digits/underscore, can't start
+    // with a digit) from a human title, appending a short suffix to avoid name collisions.
+    function sanitizeArcgisServiceName(name, suffix) {
+      let s = String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // strip accents
+      s = s.replace(/[^A-Za-z0-9_]+/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+      if (!s) s = 'eitel_layer';
+      if (/^[0-9]/.test(s)) s = `l_${s}`;
+      s = s.slice(0, 60);
+      const sfx = String(suffix || '').replace(/[^A-Za-z0-9]+/g, '').slice(-6);
+      return sfx ? `${s}_${sfx}` : s;
+    }
+
+    /**
+     * Publishes an existing GeoJSON portal item as a hosted Feature Layer (Feature Service).
+     * Handles the async publish job and status polling. Best-effort: returns { ok, ... } and
+     * never throws, so a publish failure is surfaced as a warning without failing the upload.
+     */
+    async function publishArcgisGeoJsonAsFeatureLayer(itemId, baseName, token) {
+      if (!itemId || !token || !arcgis?.portalUrl || !authState?.username) {
+        return { ok: false, error: 'Faltan datos para publicar la Feature Layer (item/token/portal/usuario).' };
+      }
+      const serviceName = sanitizeArcgisServiceName(baseName, itemId);
+      const publishParameters = {
+        name: serviceName,
+        targetSR: { wkid: 4326 },
+        maxRecordCount: 2000,
+        hasStaticData: true,
+      };
+      const form = new FormData();
+      form.append('f', 'json');
+      form.append('token', token);
+      form.append('itemId', itemId);
+      form.append('filetype', 'geojson');
+      form.append('publishParameters', JSON.stringify(publishParameters));
+      form.append('overwrite', 'false');
+
+      const endpoint = `${arcgis.portalUrl}/sharing/rest/content/users/${encodeURIComponent(authState.username)}/publish`;
+      let data = null;
+      try {
+        const resp = await fetch(endpoint, { method: 'POST', body: form, credentials: 'include' });
+        const text = await resp.text();
+        try { data = text ? JSON.parse(text) : {}; } catch { data = { error: { message: 'ArcGIS devolvió una respuesta no JSON al publicar.', preview: text.slice(0, 300) } }; }
+      } catch (e) {
+        return { ok: false, error: `Error llamando a publish ArcGIS: ${String(e)}` };
+      }
+
+      if (data?.error) {
+        return { ok: false, error: data.error.message || 'ArcGIS rechazó la publicación de la Feature Layer.', detail: data };
+      }
+      const svc = Array.isArray(data?.services) ? data.services[0] : null;
+      if (!svc || svc.success === false) {
+        return { ok: false, error: svc?.error?.message || 'ArcGIS no devolvió un servicio publicado.', detail: data };
+      }
+
+      // Publishing is usually asynchronous: poll the item status until it completes.
+      if (svc.jobId && svc.serviceItemId) {
+        const done = await waitArcgisPublishCompleted(svc.serviceItemId, svc.jobId, token);
+        if (!done.ok) {
+          return { ok: false, error: done.error || 'La publicación de la Feature Layer no finalizó.', serviceItemId: svc.serviceItemId, serviceUrl: svc.serviceurl };
+        }
+      }
+      return { ok: true, serviceItemId: svc.serviceItemId || '', serviceUrl: svc.serviceurl || '', type: svc.type || 'Feature Service', name: serviceName };
+    }
+
+    async function waitArcgisPublishCompleted(serviceItemId, jobId, token, timeoutMs = 120000) {
+      const base = `${arcgis.portalUrl}/sharing/rest/content/users/${encodeURIComponent(authState.username)}/items/${encodeURIComponent(serviceItemId)}/status`;
+      const started = Date.now();
+      while (Date.now() - started < timeoutMs) {
+        await sleepMs(2500);
+        try {
+          const url = `${base}?f=json&token=${encodeURIComponent(token)}&jobId=${encodeURIComponent(jobId)}&jobType=publish`;
+          const resp = await fetch(url, { method: 'GET', credentials: 'include' });
+          const d = await resp.json().catch(() => null);
+          const st = String(d?.status || '').toLowerCase();
+          if (st === 'completed') return { ok: true };
+          if (st === 'failed' || st === 'partial') return { ok: false, error: d?.statusMessage || `Publicación en estado ${st}.` };
+        } catch { /* transient: keep polling until timeout */ }
+      }
+      return { ok: false, error: 'Timeout esperando que ArcGIS termine de publicar la Feature Layer.' };
     }
 
     /**
