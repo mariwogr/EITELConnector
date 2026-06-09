@@ -388,6 +388,24 @@
           sourceUrl: blobResult.sourceUrl,
         };
       }
+
+      // ArcGIS "GeoJson" requires valid GeoJSON. EDC sources frequently serve plain JSON
+      // with a .json name, which ArcGIS rejects ("GeoJson doesn't have 'type'"). Wrap it
+      // into a valid FeatureCollection (null geometry -> non-spatial table) so it ingests.
+      if (resolvedType === 'GeoJson') {
+        const ensured = await ensureGeoJsonBlob(blobResult.blob, blobResult.filename);
+        if (!ensured) {
+          return {
+            status: 400,
+            error: 'El archivo JSON no es GeoJSON válido y no se pudo convertir a GeoJSON (no contiene registros). Publica el dato como CSV o GeoJSON.',
+            filename: blobResult.filename,
+            contentType: blobResult.contentType,
+            sourceUrl: blobResult.sourceUrl,
+          };
+        }
+        blobResult = { ...blobResult, blob: ensured.blob, filename: ensured.filename, contentType: 'application/geo+json' };
+      }
+
       const buildForm = (itemType) => {
         const form = new FormData();
         form.append('f', 'json');

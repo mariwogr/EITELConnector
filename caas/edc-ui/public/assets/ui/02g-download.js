@@ -604,9 +604,9 @@
         const lower = sample.toLowerCase();
         const firstChar = sample[0];
         if (firstChar === '{' || firstChar === '[') {
-          const isGeoJson = /"type"\s*:\s*"(featurecollection|feature|point|linestring|polygon|multipoint|multilinestring|multipolygon|geometrycollection)"/i.test(sample)
-            || /"(features|geometry|coordinates)"\s*:/i.test(sample);
-          return isGeoJson ? 'GeoJson' : ''; // plain JSON has no ArcGIS file item type
+          // Any JSON (real GeoJSON or plain tabular JSON) targets ArcGIS "GeoJson":
+          // ensureGeoJsonBlob() wraps plain JSON into a valid FeatureCollection at upload.
+          return 'GeoJson';
         }
         if (firstChar === '<') {
           if (lower.includes('<kml')) return 'KML';
@@ -622,6 +622,69 @@
       } catch {
         return '';
       }
+    }
+
+    // Wrap arbitrary JSON into a valid GeoJSON FeatureCollection so ArcGIS can ingest it
+    // as a "GeoJson" item. Real GeoJSON is returned untouched. Tabular/plain JSON records
+    // become Features; a Point geometry is built when a record exposes numeric lon/lat
+    // fields, otherwise geometry is null (RFC 7946 allows this; ArcGIS imports it as a
+    // non-spatial table). Returns a GeoJSON string, or '' when the input has no records.
+    function convertJsonToGeoJsonString(jsonText) {
+      let parsed;
+      try { parsed = JSON.parse(jsonText); } catch { return ''; }
+
+      const GEOJSON_TYPES = ['featurecollection', 'feature', 'geometrycollection', 'point', 'linestring', 'polygon', 'multipoint', 'multilinestring', 'multipolygon'];
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        && typeof parsed.type === 'string' && GEOJSON_TYPES.includes(parsed.type.toLowerCase())) {
+        return jsonText; // already valid GeoJSON, leave the original bytes alone
+      }
+
+      let records = null;
+      if (Array.isArray(parsed)) {
+        records = parsed;
+      } else if (parsed && typeof parsed === 'object') {
+        for (const key of ['features', 'data', 'results', 'records', 'items', 'rows', 'value']) {
+          if (Array.isArray(parsed[key])) { records = parsed[key]; break; }
+        }
+        if (!records) records = [parsed]; // single object -> single feature
+      }
+      if (!Array.isArray(records) || records.length === 0) return '';
+
+      const lonKeys = new Set(['lon', 'lng', 'long', 'longitude', 'longitud']);
+      const latKeys = new Set(['lat', 'latitude', 'latitud']);
+      const numFrom = (obj, keys) => {
+        for (const k of Object.keys(obj)) {
+          if (keys.has(k.toLowerCase())) {
+            const n = Number(obj[k]);
+            if (Number.isFinite(n)) return n;
+          }
+        }
+        return null;
+      };
+      const isFeature = (o) => o && typeof o === 'object' && !Array.isArray(o) && o.type === 'Feature';
+
+      const features = records.map((rec) => {
+        if (isFeature(rec)) return rec; // already a GeoJSON Feature, keep it
+        const properties = (rec && typeof rec === 'object' && !Array.isArray(rec)) ? rec : { value: rec };
+        const lon = numFrom(properties, lonKeys);
+        const lat = numFrom(properties, latKeys);
+        const geometry = (lon !== null && lat !== null) ? { type: 'Point', coordinates: [lon, lat] } : null;
+        return { type: 'Feature', geometry, properties };
+      });
+
+      return JSON.stringify({ type: 'FeatureCollection', features });
+    }
+
+    // Returns a { blob, filename } whose bytes are valid GeoJSON (converting plain JSON
+    // when needed), or null when the blob can't be represented as GeoJSON.
+    async function ensureGeoJsonBlob(blob, filename) {
+      if (!blob || typeof blob.text !== 'function') return null;
+      let text = '';
+      try { text = await blob.text(); } catch { return null; }
+      const geojson = convertJsonToGeoJsonString(text);
+      if (!geojson) return null;
+      const base = String(filename || 'asset').replace(/\.(geo)?json$/i, '') || 'asset';
+      return { blob: new Blob([geojson], { type: 'application/geo+json' }), filename: `${base}.geojson` };
     }
 
     function isArcgisUnknownTypeError(payload) {
