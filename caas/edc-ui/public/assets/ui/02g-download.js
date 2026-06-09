@@ -578,10 +578,21 @@
 
     function isArcgisUnknownTypeError(payload) {
       const text = JSON.stringify(payload || {}).toLowerCase();
+      // ArcGIS rejects an unknown/unsupported item type with a 400 whose message is
+      // "Item type not valid." (EN) or "El tipo de elemento no es válido." (ES). Match
+      // those phrases directly so the caller can fall back to the generic "File" type.
+      if (
+        text.includes('item type not valid') ||
+        text.includes('tipo de elemento no es válido') ||
+        text.includes('tipo de elemento no es valido')
+      ) {
+        return true;
+      }
       return text.includes('type') && (
         text.includes('not recognized') ||
         text.includes('unsupported') ||
         text.includes('invalid') ||
+        text.includes('not valid') ||
         text.includes('no se ha podido reconocer') ||
         text.includes('cannot recognize')
       );
