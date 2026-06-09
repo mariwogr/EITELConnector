@@ -528,24 +528,34 @@
       }
     }
 
-    function mapContentTypeToArcgisType(contentType, fallback = 'File') {
+    // ArcGIS has no generic "File" item type: addItem rejects unknown types with
+    // "Item type not valid." (HTTP 400). These helpers therefore return '' (unknown)
+    // when they can't map a *valid* ArcGIS type, so callers can sniff the bytes or
+    // surface a clear error instead of sending a placeholder ArcGIS will reject.
+    function mapContentTypeToArcgisType(contentType, fallback = '') {
       const txt = String(contentType || '').toLowerCase();
       if (txt.includes('csv')) return 'CSV';
+      if (txt.includes('geo+json') || txt.includes('geojson')) return 'GeoJson';
       if (txt.includes('json')) return 'GeoJson';
       if (txt.includes('zip')) return 'Shapefile';
       if (txt.includes('pdf')) return 'PDF';
-      if (txt.includes('xml')) return 'File Geodatabase';
+      if (txt.includes('spreadsheetml') || txt.includes('ms-excel')) return 'Microsoft Excel';
+      if (txt.includes('image/')) return 'Image';
+      if (txt.includes('vnd.google-earth.kml') || txt.includes('kml')) return 'KML';
       return fallback;
     }
 
-    function mapFilenameToArcgisType(filename, fallback = 'File') {
+    function mapFilenameToArcgisType(filename, fallback = '') {
       const txt = String(filename || '').toLowerCase();
       if (txt.endsWith('.csv')) return 'CSV';
-      if (txt.endsWith('.geojson') || txt.endsWith('.json')) return 'GeoJson';
+      if (txt.endsWith('.geojson')) return 'GeoJson';
+      if (txt.endsWith('.json')) return 'GeoJson';
       if (txt.endsWith('.zip')) return 'Shapefile';
       if (txt.endsWith('.pdf')) return 'PDF';
       if (txt.endsWith('.xlsx') || txt.endsWith('.xls')) return 'Microsoft Excel';
       if (txt.endsWith('.kml')) return 'KML';
+      if (txt.endsWith('.gml')) return 'GML';
+      if (/\.(png|jpe?g|gif|tiff?)$/.test(txt)) return 'Image';
       return fallback;
     }
 
@@ -553,9 +563,7 @@
       const value = String(rawType || '').trim();
       const lower = value.toLowerCase();
       if (!value) {
-        const byName = mapFilenameToArcgisType(filename, '');
-        if (byName) return byName;
-        return mapContentTypeToArcgisType(contentType, 'File');
+        return mapFilenameToArcgisType(filename, '') || mapContentTypeToArcgisType(contentType, '');
       }
 
       const aliases = {
@@ -566,21 +574,61 @@
         shapefile: 'Shapefile',
         shp: 'Shapefile',
         pdf: 'PDF',
-        file: 'File',
         excel: 'Microsoft Excel',
         xlsx: 'Microsoft Excel',
         xls: 'Microsoft Excel',
         kml: 'KML',
+        gml: 'GML',
+        image: 'Image',
       };
 
       return aliases[lower] || value;
+    }
+
+    // Best-effort detection of a *valid* ArcGIS item type from the actual bytes. Used
+    // when an EDC transfer strips the filename/content-type and metadata-based mapping
+    // comes back empty. Returns a valid type string, or '' when it can't tell.
+    async function sniffArcgisItemTypeFromBlob(blob) {
+      if (!blob || typeof blob.slice !== 'function') return '';
+      try {
+        const head = new Uint8Array(await blob.slice(0, 8).arrayBuffer());
+        if (head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46) return 'PDF'; // %PDF
+        if (head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47) return 'Image'; // PNG
+        if (head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff) return 'Image'; // JPEG
+        if (head[0] === 0x47 && head[1] === 0x49 && head[2] === 0x46) return 'Image'; // GIF
+        if (head[0] === 0x50 && head[1] === 0x4b && (head[2] === 0x03 || head[2] === 0x05 || head[2] === 0x07)) {
+          return 'Shapefile'; // ZIP container (shapefile is the common transferred case)
+        }
+        const sample = String(await blob.slice(0, 65536).text() || '').trim();
+        if (!sample) return '';
+        const lower = sample.toLowerCase();
+        const firstChar = sample[0];
+        if (firstChar === '{' || firstChar === '[') {
+          const isGeoJson = /"type"\s*:\s*"(featurecollection|feature|point|linestring|polygon|multipoint|multilinestring|multipolygon|geometrycollection)"/i.test(sample)
+            || /"(features|geometry|coordinates)"\s*:/i.test(sample);
+          return isGeoJson ? 'GeoJson' : ''; // plain JSON has no ArcGIS file item type
+        }
+        if (firstChar === '<') {
+          if (lower.includes('<kml')) return 'KML';
+          if (lower.includes('<wfs') || lower.includes('gml')) return 'GML';
+          return '';
+        }
+        const lines = sample.split(/\r?\n/).filter(Boolean);
+        const firstLine = lines[0] || '';
+        if (lines.length > 1 && (firstLine.includes(',') || firstLine.includes(';') || firstLine.includes('\t'))) {
+          return 'CSV';
+        }
+        return '';
+      } catch {
+        return '';
+      }
     }
 
     function isArcgisUnknownTypeError(payload) {
       const text = JSON.stringify(payload || {}).toLowerCase();
       // ArcGIS rejects an unknown/unsupported item type with a 400 whose message is
       // "Item type not valid." (EN) or "El tipo de elemento no es válido." (ES). Match
-      // those phrases directly so the caller can fall back to the generic "File" type.
+      // those phrases directly so the caller can retry with a content-sniffed valid type.
       if (
         text.includes('item type not valid') ||
         text.includes('tipo de elemento no es válido') ||

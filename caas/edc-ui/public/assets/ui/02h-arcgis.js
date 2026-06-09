@@ -371,8 +371,23 @@
         fallbackKeywords: assetMeta.keywords,
       });
 
-      const resolvedType = normalizeArcgisItemType(typeInput, blobResult.filename, blobResult.contentType);
       const autoMode = !String(typeInput || '').trim();
+      let resolvedType = normalizeArcgisItemType(typeInput, blobResult.filename, blobResult.contentType);
+      // EDC transfers frequently strip the filename/content-type, leaving no valid
+      // ArcGIS item type derivable from metadata. ArcGIS has no generic "File" type
+      // (addItem answers "Item type not valid."), so sniff the bytes and never send a
+      // placeholder ArcGIS will reject.
+      const sniffedType = await sniffArcgisItemTypeFromBlob(blobResult.blob);
+      if (!resolvedType) resolvedType = sniffedType;
+      if (!resolvedType) {
+        return {
+          status: 400,
+          error: 'No se pudo determinar un tipo de item ArcGIS válido para este archivo. Indica el tipo manualmente en el campo "Tipo" (por ejemplo CSV, GeoJson, PDF, Shapefile, Microsoft Excel, KML o Image).',
+          filename: blobResult.filename,
+          contentType: blobResult.contentType,
+          sourceUrl: blobResult.sourceUrl,
+        };
+      }
       const buildForm = (itemType) => {
         const form = new FormData();
         form.append('f', 'json');
@@ -408,13 +423,15 @@
       try {
         let result = await sendAddItem(resolvedType);
         if (!result.response.ok || result.data?.error || result.data?.success === false) {
-          const shouldRetryWithFile = (
+          const isTypeError = (
             isArcgisUnknownTypeError(result.data) ||
             isArcgisGeoJsonAnalysisError(result.data) ||
             (autoMode && isArcgisTypeRequiredError(result.data))
           );
-          if (shouldRetryWithFile && result.itemType !== 'File') {
-            result = await sendAddItem('File');
+          // Retry once with the content-sniffed type when ArcGIS rejected the first
+          // guess (never with the invalid "File" placeholder used previously).
+          if (isTypeError && sniffedType && sniffedType !== result.itemType) {
+            result = await sendAddItem(sniffedType);
           }
         }
         if (!result.response.ok || result.data?.error || result.data?.success === false) {
