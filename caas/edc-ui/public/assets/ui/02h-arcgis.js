@@ -187,6 +187,9 @@
       }
 
       if (sourceMode === 'arcgis-feature-layer') {
+        if (typeof fetchArcgisFeatureLayerBlob === 'function') {
+          return fetchArcgisFeatureLayerBlob(contractId, assetId, asset);
+        }
         const exportFormat = String(props['eitel:arcgisExportFormat'] || 'geojson').trim();
         const token = authType === 'arcgis-login' ? (await resolveArcgisTokenForPublish()) : '';
         if (authType === 'arcgis-login' && !token) {

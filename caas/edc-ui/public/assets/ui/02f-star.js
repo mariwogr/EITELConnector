@@ -756,10 +756,14 @@
       return `${safeAssetId}.${getArcgisExportExtension(exportFormat)}`;
     }
 
-    function buildArcgisFeatureLayerQueryPath(exportFormat, token = '') {
+    function buildArcgisFeatureLayerQueryPath(exportFormat, token = '', options = {}) {
       const fmt = String(exportFormat || 'geojson').trim() || 'geojson';
+      const extraParts = Object.entries(options || {})
+        .filter(([, value]) => value !== undefined && value !== null && String(value) !== '')
+        .map(([key, value]) => `&${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+        .join('');
       const tokenPart = token ? `&token=${encodeURIComponent(token)}` : '';
-      return `/query?where=1=1&outFields=*&f=${encodeURIComponent(fmt)}${tokenPart}`;
+      return `/query?where=1=1&outFields=*&f=${encodeURIComponent(fmt)}${extraParts}${tokenPart}`;
     }
 
     function normalizeHttpDataUrlParts(rawBaseUrl, rawPath) {
