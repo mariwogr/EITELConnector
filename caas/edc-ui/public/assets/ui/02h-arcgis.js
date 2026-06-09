@@ -404,6 +404,15 @@
             sourceUrl: blobResult.sourceUrl,
           };
         }
+        if (ensured.unsupported) {
+          return {
+            status: 400,
+            error: `No se pudo convertir el origen Esri JSON a GeoJSON: ${ensured.unsupported}`,
+            filename: blobResult.filename,
+            contentType: blobResult.contentType,
+            sourceUrl: blobResult.sourceUrl,
+          };
+        }
         geojsonInfo = ensured;
         blobResult = { ...blobResult, blob: ensured.blob, filename: ensured.filename, contentType: 'application/geo+json' };
       }

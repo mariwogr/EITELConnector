@@ -629,6 +629,114 @@
         && ['point', 'linestring', 'polygon', 'multipoint', 'multilinestring', 'multipolygon', 'geometrycollection'].includes(g.type.toLowerCase());
     }
 
+    // --- Esri JSON FeatureSet -> GeoJSON ----------------------------------------------
+    // ArcGIS REST "query?f=json" responses (Esri JSON FeatureSet) are NOT GeoJSON: geometry
+    // lives in features[].geometry as { rings | paths | points | x,y } in the layer's
+    // spatialReference (often Web Mercator or UTM), and attributes in features[].attributes.
+    // To publish a usable Feature Layer we convert to GeoJSON and reproject coordinates to
+    // WGS84, which GeoJSON requires (lon/lat degrees).
+
+    function webMercatorToWgs84(x, y) {
+      const R = 6378137.0;
+      const lon = (x / R) * 180 / Math.PI;
+      const lat = (Math.PI / 2 - 2 * Math.atan(Math.exp(-y / R))) * 180 / Math.PI;
+      return [lon, lat];
+    }
+
+    // Inverse UTM (Transverse Mercator) on the GRS80/ETRS89 ellipsoid -> WGS84 [lon, lat].
+    function utmToWgs84(easting, northing, zone) {
+      const a = 6378137.0, f = 1 / 298.257222101, k0 = 0.9996;
+      const e2 = f * (2 - f), e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2)), ep2 = e2 / (1 - e2);
+      const x = easting - 500000, M = northing / k0;
+      const mu = M / (a * (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256));
+      const phi1 = mu
+        + (3 * e1 / 2 - 27 * e1 ** 3 / 32) * Math.sin(2 * mu)
+        + (21 * e1 ** 2 / 16 - 55 * e1 ** 4 / 32) * Math.sin(4 * mu)
+        + (151 * e1 ** 3 / 96) * Math.sin(6 * mu)
+        + (1097 * e1 ** 4 / 512) * Math.sin(8 * mu);
+      const s = Math.sin(phi1), c = Math.cos(phi1), tn = Math.tan(phi1);
+      const C1 = ep2 * c * c, T1 = tn * tn;
+      const N1 = a / Math.sqrt(1 - e2 * s * s);
+      const R1 = a * (1 - e2) / Math.pow(1 - e2 * s * s, 1.5);
+      const D = x / (N1 * k0);
+      const lat = phi1 - (N1 * tn / R1) * (D * D / 2
+        - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * D ** 4 / 24
+        + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ep2 - 3 * C1 * C1) * D ** 6 / 720);
+      const lon0 = (zone * 6 - 183) * Math.PI / 180;
+      const lon = lon0 + (D - (1 + 2 * T1 + C1) * D ** 3 / 6
+        + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) * D ** 5 / 120) / c;
+      return [lon * 180 / Math.PI, lat * 180 / Math.PI];
+    }
+
+    // Returns a fn (x,y)->[lon,lat] for the given Esri spatialReference, or null if unknown.
+    function esriReprojector(spatialReference) {
+      const wkid = (spatialReference && (spatialReference.latestWkid || spatialReference.wkid)) || 0;
+      if (!wkid || wkid === 4326) return (x, y) => [x, y];
+      if (wkid === 102100 || wkid === 3857 || wkid === 900913) return webMercatorToWgs84;
+      if (wkid === 25830 || wkid === 23030) return (x, y) => utmToWgs84(x, y, 30);
+      if (wkid === 25829 || wkid === 23029) return (x, y) => utmToWgs84(x, y, 29);
+      if (wkid === 25831 || wkid === 23031) return (x, y) => utmToWgs84(x, y, 31);
+      return null;
+    }
+
+    function closeRing(ring) {
+      const a = ring[0], b = ring[ring.length - 1];
+      if (a && b && (a[0] !== b[0] || a[1] !== b[1])) ring.push([a[0], a[1]]);
+      return ring;
+    }
+    function ringIsClockwise(ring) {
+      let total = 0, p1 = ring[0], p2;
+      for (let i = 0; i < ring.length - 1; i++) { p2 = ring[i + 1]; total += (p2[0] - p1[0]) * (p2[1] + p1[1]); p1 = p2; }
+      return total >= 0;
+    }
+    function pointInRing(pt, ring) {
+      let inside = false; const x = pt[0], y = pt[1];
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+        if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+      }
+      return inside;
+    }
+    // Esri polygon rings (clockwise = outer, counter-clockwise = holes) -> GeoJSON.
+    function esriRingsToGeoJson(rings, reproject) {
+      const outer = [], holes = [];
+      for (const raw of rings) {
+        if (!Array.isArray(raw) || raw.length < 3) continue;
+        const ring = closeRing(raw.map((p) => reproject(p[0], p[1])));
+        if (ring.length < 4) continue;
+        if (ringIsClockwise(ring)) outer.push([ring.slice().reverse()]);
+        else holes.push(ring.slice().reverse());
+      }
+      for (const hole of holes) {
+        let placed = false;
+        for (let j = outer.length - 1; j >= 0; j--) {
+          if (pointInRing(hole[0], outer[j][0])) { outer[j].push(hole); placed = true; break; }
+        }
+        if (!placed) outer.push([hole.slice().reverse()]);
+      }
+      if (outer.length === 0) return null;
+      return outer.length === 1 ? { type: 'Polygon', coordinates: outer[0] } : { type: 'MultiPolygon', coordinates: outer };
+    }
+    function esriGeometryToGeoJson(geom, geometryType, reproject) {
+      if (!geom || typeof geom !== 'object') return null;
+      const t = String(geometryType || '').toLowerCase();
+      if (t.includes('polygon') && Array.isArray(geom.rings)) return esriRingsToGeoJson(geom.rings, reproject);
+      if (t.includes('polyline') && Array.isArray(geom.paths)) {
+        const lines = geom.paths.map((p) => p.map((cc) => reproject(cc[0], cc[1])));
+        return lines.length === 1 ? { type: 'LineString', coordinates: lines[0] } : { type: 'MultiLineString', coordinates: lines };
+      }
+      if (t.includes('multipoint') && Array.isArray(geom.points)) {
+        return { type: 'MultiPoint', coordinates: geom.points.map((cc) => reproject(cc[0], cc[1])) };
+      }
+      if (Number.isFinite(geom.x) && Number.isFinite(geom.y)) return { type: 'Point', coordinates: reproject(geom.x, geom.y) };
+      return null;
+    }
+    function isEsriFeatureSet(parsed) {
+      return parsed && typeof parsed === 'object' && Array.isArray(parsed.features)
+        && (parsed.geometryType || Array.isArray(parsed.fields)
+          || (parsed.features[0] && typeof parsed.features[0] === 'object' && 'attributes' in parsed.features[0]));
+    }
+
     // Pull a GeoJSON geometry out of a tabular record using the conventions real-world
     // open-data portals use, so the result is a *spatial* layer rather than null geometry:
     //  - embedded GeoJSON geometry/Feature: geometry, geo_shape, the_geom, shape, geom
@@ -680,6 +788,22 @@
     function buildGeoJsonFeatureCollection(jsonText) {
       let parsed;
       try { parsed = JSON.parse(jsonText); } catch { return null; }
+
+      // Esri JSON FeatureSet (ArcGIS REST query response) -> GeoJSON, reprojected to WGS84.
+      // Checked before the generic paths because it also exposes a `features` array.
+      if (isEsriFeatureSet(parsed)) {
+        const reproject = esriReprojector(parsed.spatialReference);
+        if (!reproject) {
+          return { unsupported: `spatialReference no soportada (wkid ${parsed.spatialReference && (parsed.spatialReference.latestWkid || parsed.spatialReference.wkid)}). Exporta el origen en WGS84/Web Mercator o UTM (zonas 29-31).` };
+        }
+        let hasGeometry = false;
+        const features = parsed.features.map((f) => {
+          const geometry = esriGeometryToGeoJson(f && f.geometry, parsed.geometryType, reproject);
+          if (geometry) hasGeometry = true;
+          return { type: 'Feature', geometry: geometry || null, properties: (f && f.attributes) || {} };
+        });
+        return { geojson: JSON.stringify({ type: 'FeatureCollection', features }), hasGeometry, featureCount: features.length };
+      }
 
       const GEOJSON_TYPES = ['featurecollection', 'feature', 'geometrycollection', 'point', 'linestring', 'polygon', 'multipoint', 'multilinestring', 'multipolygon'];
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)
@@ -738,6 +862,7 @@
       try { text = await blob.text(); } catch { return null; }
       const built = buildGeoJsonFeatureCollection(text);
       if (!built) return null;
+      if (built.unsupported) return { unsupported: built.unsupported };
       const base = String(filename || 'asset').replace(/\.(geo)?json$/i, '') || 'asset';
       return {
         blob: new Blob([built.geojson], { type: 'application/geo+json' }),
