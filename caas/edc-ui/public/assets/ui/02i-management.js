@@ -699,7 +699,14 @@
       }
 
       if (authType !== 'none' && sourceMode !== 'local-file') {
-        const sourcePreview = await validateSourcePayloadPreview(baseUrl, path, headers);
+        const previewPath = sourceMode === 'arcgis-feature-layer'
+          ? buildArcgisFeatureLayerQueryPath(
+              document.getElementById('assetArcgisExportFormat')?.value || 'geojson',
+              authType === 'arcgis-login' ? authToken : '',
+              { resultRecordCount: 1, returnGeometry: false }
+            )
+          : path;
+        const sourcePreview = await validateSourcePayloadPreview(baseUrl, previewPath, headers);
         if (!sourcePreview.ok) {
           showInfoPopup('Origen con error', {
             message: 'El endpoint origen devuelve una respuesta de error/login. No se publica el asset para evitar transferir errores al destino.',

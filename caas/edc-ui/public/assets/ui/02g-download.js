@@ -29,6 +29,43 @@
       return `${safeAssetId}.${guessFileExtension(contentType)}`;
     }
 
+    function arcgisPointToGeojsonPoint(point) {
+      if (!Array.isArray(point)) return point;
+      return point.slice(0, 2);
+    }
+
+    function arcgisGeometryToGeojson(geometry) {
+      if (!geometry) return null;
+      if (Number.isFinite(geometry.x) && Number.isFinite(geometry.y)) {
+        return { type: 'Point', coordinates: [geometry.x, geometry.y] };
+      }
+      if (Array.isArray(geometry.points)) {
+        return { type: 'MultiPoint', coordinates: geometry.points.map(arcgisPointToGeojsonPoint) };
+      }
+      if (Array.isArray(geometry.paths)) {
+        const paths = geometry.paths.map(path => path.map(arcgisPointToGeojsonPoint));
+        return paths.length === 1
+          ? { type: 'LineString', coordinates: paths[0] }
+          : { type: 'MultiLineString', coordinates: paths };
+      }
+      if (Array.isArray(geometry.rings)) {
+        const rings = geometry.rings.map(ring => ring.map(arcgisPointToGeojsonPoint));
+        return { type: 'Polygon', coordinates: rings };
+      }
+      return null;
+    }
+
+    function arcgisFeatureToGeojsonFeature(feature, objectIdFieldName = '') {
+      const attributes = feature?.attributes || {};
+      const id = objectIdFieldName ? attributes[objectIdFieldName] : undefined;
+      return {
+        type: 'Feature',
+        ...(id !== undefined ? { id } : {}),
+        geometry: arcgisGeometryToGeojson(feature?.geometry),
+        properties: attributes,
+      };
+    }
+
     async function fetchArcgisFeatureLayerBlob(contractId, assetId, asset) {
       const props = asset?.properties || asset?.['edc:properties'] || {};
       const dataAddress = asset?.dataAddress || asset?.['edc:dataAddress'] || {};
@@ -44,6 +81,93 @@
         token = await resolveArcgisTokenForPublish();
         if (!token) {
           return { status: 401, error: 'No se pudo obtener un token ArcGIS válido para la descarga local.', contractId, assetId };
+        }
+      }
+
+      if (String(exportFormat || '').trim().toLowerCase() === 'geojson') {
+        const pageSize = 2000;
+        const allFeatures = [];
+        let sourceUrl = '';
+        try {
+          for (let offset = 0; offset < 1000000; offset += pageSize) {
+            sourceUrl = `${baseUrl.replace(/\/+$/, '')}${buildArcgisFeatureLayerQueryPath('json', token, {
+              resultOffset: offset,
+              resultRecordCount: pageSize,
+              outSR: 4326,
+            })}`;
+            const response = await fetch(sourceUrl, { method: 'GET', credentials: 'include' });
+            const responseContentType = response.headers.get('content-type') || '';
+            const text = await response.text();
+            if (!response.ok) {
+              return {
+                status: response.status,
+                error: 'La exportación ArcGIS paginada devolvió error HTTP.',
+                contractId,
+                assetId,
+                sourceUrl,
+                contentType: responseContentType,
+                detail: text.slice(0, 1000),
+              };
+            }
+            const badPayload = typeof looksLikeSourceErrorPayload === 'function'
+              ? looksLikeSourceErrorPayload(text, responseContentType)
+              : String(responseContentType || '').toLowerCase().includes('text/html');
+            if (badPayload) {
+              return {
+                status: 502,
+                error: 'ArcGIS devolvió HTML/error en vez del formato de exportación solicitado.',
+                contractId,
+                assetId,
+                sourceUrl,
+                contentType: responseContentType,
+                preview: text.slice(0, 500),
+                badPayload: true,
+              };
+            }
+            let page = null;
+            try {
+              page = JSON.parse(text || '{}');
+            } catch {
+              return {
+                status: 502,
+                error: 'ArcGIS devolvió GeoJSON no parseable.',
+                contractId,
+                assetId,
+                sourceUrl,
+                preview: text.slice(0, 500),
+              };
+            }
+            const features = Array.isArray(page.features)
+              ? page.features.map(feature => arcgisFeatureToGeojsonFeature(feature, page.objectIdFieldName || page.objectIdField || ''))
+              : [];
+            allFeatures.push(...features);
+            if (!page.exceededTransferLimit || features.length < pageSize) break;
+          }
+          const contentType = getArcgisExportContentType(exportFormat);
+          const geojson = { type: 'FeatureCollection', features: allFeatures };
+          const blob = new Blob([JSON.stringify(geojson)], { type: contentType });
+          const filename = inferArcgisExportFilename(assetId, exportFormat);
+          return {
+            status: 200,
+            contractId,
+            assetId,
+            sourceUrl,
+            blob,
+            filename,
+            contentType,
+            bytes: blob.size,
+            featureCount: allFeatures.length,
+            via: 'arcgis-feature-layer',
+          };
+        } catch (error) {
+          return {
+            status: 500,
+            error: 'No se pudo exportar el FeatureLayer ArcGIS paginado en el navegador.',
+            contractId,
+            assetId,
+            sourceUrl,
+            detail: String(error),
+          };
         }
       }
 
