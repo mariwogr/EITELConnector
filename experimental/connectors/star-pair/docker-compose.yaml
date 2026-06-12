@@ -2,7 +2,7 @@ services:
   star-coordinator:
     image: eitel/star-coordinator-pair:latest
     build:
-      context: ../../caas/star-coordinator
+      context: ../../../../caas/star-coordinator
       dockerfile: Dockerfile
     container_name: conectorstar-pair-coordinator
     restart: always
@@ -51,7 +51,7 @@ services:
   conectorstar-a:
     image: eitel/eclipse-edc-runtime-star-pair-a:0.16.0
     build:
-      context: ../..
+      context: ../../..
       dockerfile: deploy/Dockerfile
     container_name: conectorstar-a
     restart: always
@@ -84,7 +84,7 @@ services:
       EDC_WEB_REST_CORS_METHODS: "GET,POST,PUT,DELETE,OPTIONS"
       EDC_WEB_REST_CORS_ORIGINS: ${STAR_A_UI_ORIGIN}
     volumes:
-      - ../../dataspaceconnector-configuration.properties:/opt/edc/dataspaceconnector-configuration.properties:ro
+      - ../../../dataspaceconnector-configuration.properties:/opt/edc/dataspaceconnector-configuration.properties:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -101,7 +101,7 @@ services:
   conectorstar-a-ui:
     image: eitel/edc-ui-star-pair-a:latest
     build:
-      context: ../../caas/edc-ui
+      context: ../../../../caas/edc-ui
       dockerfile: Dockerfile
     container_name: conectorstar-a-ui
     restart: always
@@ -132,17 +132,17 @@ services:
       NEXT_PUBLIC_ARCGIS_REQUIRED_ORG_ID: ""
       NEXT_PUBLIC_ARCGIS_REQUIRED_GROUP_ID: ""
     volumes:
-      - ../../caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.final.html:ro
-      - ../../caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.html:ro
-      - ../../caas/edc-ui/public/config.template.js:/usr/share/nginx/html/config.template.js:ro
-      - ../../caas/edc-ui/public/assets:/usr/share/nginx/html/assets:ro
+      - ../../../caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.final.html:ro
+      - ../../../caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.html:ro
+      - ../../../caas/edc-ui/public/config.template.js:/usr/share/nginx/html/config.template.js:ro
+      - ../../../caas/edc-ui/public/assets:/usr/share/nginx/html/assets:ro
     networks:
       conectorstar-a-net:
         ipv4_address: 172.30.11.11
 
   conectorstar-a-local-assets:
     build:
-      context: ../../caas/control-plane
+      context: ../../../../caas/control-plane
       dockerfile: Dockerfile
     container_name: conectorstar-a-local-assets
     restart: always
@@ -158,7 +158,7 @@ services:
 
   conectorstar-a-download-sink:
     build:
-      context: ../../caas/download-sink
+      context: ../../../../caas/download-sink
       dockerfile: Dockerfile
     container_name: conectorstar-a-download-sink
     restart: always
@@ -224,7 +224,7 @@ services:
   conectorstar-b:
     image: eitel/eclipse-edc-runtime-star-pair-b:0.16.0
     build:
-      context: ../..
+      context: ../../..
       dockerfile: deploy/Dockerfile
     container_name: conectorstar-b
     restart: always
@@ -257,7 +257,7 @@ services:
       EDC_WEB_REST_CORS_METHODS: "GET,POST,PUT,DELETE,OPTIONS"
       EDC_WEB_REST_CORS_ORIGINS: ${STAR_B_UI_ORIGIN}
     volumes:
-      - ../../dataspaceconnector-configuration.properties:/opt/edc/dataspaceconnector-configuration.properties:ro
+      - ../../../dataspaceconnector-configuration.properties:/opt/edc/dataspaceconnector-configuration.properties:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -274,7 +274,7 @@ services:
   conectorstar-b-ui:
     image: eitel/edc-ui-star-pair-b:latest
     build:
-      context: ../../caas/edc-ui
+      context: ../../../../caas/edc-ui
       dockerfile: Dockerfile
     container_name: conectorstar-b-ui
     restart: always
@@ -305,17 +305,17 @@ services:
       NEXT_PUBLIC_ARCGIS_REQUIRED_ORG_ID: ""
       NEXT_PUBLIC_ARCGIS_REQUIRED_GROUP_ID: ""
     volumes:
-      - ../../caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.final.html:ro
-      - ../../caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.html:ro
-      - ../../caas/edc-ui/public/config.template.js:/usr/share/nginx/html/config.template.js:ro
-      - ../../caas/edc-ui/public/assets:/usr/share/nginx/html/assets:ro
+      - ../../../caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.final.html:ro
+      - ../../../caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.html:ro
+      - ../../../caas/edc-ui/public/config.template.js:/usr/share/nginx/html/config.template.js:ro
+      - ../../../caas/edc-ui/public/assets:/usr/share/nginx/html/assets:ro
     networks:
       conectorstar-b-net:
         ipv4_address: 172.30.12.11
 
   conectorstar-b-local-assets:
     build:
-      context: ../../caas/control-plane
+      context: ../../../../caas/control-plane
       dockerfile: Dockerfile
     container_name: conectorstar-b-local-assets
     restart: always
@@ -331,7 +331,7 @@ services:
 
   conectorstar-b-download-sink:
     build:
-      context: ../../caas/download-sink
+      context: ../../../../caas/download-sink
       dockerfile: Dockerfile
     container_name: conectorstar-b-download-sink
     restart: always

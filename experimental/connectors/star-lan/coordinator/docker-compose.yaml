@@ -2,7 +2,7 @@ services:
   star-coordinator:
     image: eitel/star-coordinator-pair:latest
     build:
-      context: ../../../caas/star-coordinator
+      context: ../../../../../caas/star-coordinator
       dockerfile: Dockerfile
     container_name: conectorstar-lan-coordinator
     restart: always

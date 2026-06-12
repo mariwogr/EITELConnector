@@ -13,10 +13,10 @@ jobs:
       - name: Validate Docker Compose files
         run: |
           docker compose --env-file .env.example -f docker-compose.yaml config
-          docker compose --env-file .env.production.example -f docker-compose.production.yaml config
-          docker compose --env-file .env.production.example -f docker-compose.fuenlabrada.production.yaml config
-          docker compose --env-file connectors/normal/.env.example -f connectors/normal/docker-compose.yaml config
-          docker compose --env-file connectors/star/.env.example -f connectors/star/docker-compose.yaml config
+          docker compose --env-file .env.production.example -f institutional-profiles/uc3m/docker-compose.production.yaml config
+          docker compose --env-file .env.production.example -f institutional-profiles/fuenlabrada/docker-compose.production.yaml config
+          docker compose --env-file experimental/connectors/normal/.env.example -f experimental/connectors/normal/docker-compose.yaml config
+          docker compose --env-file experimental/connectors/star/.env.example -f experimental/connectors/star/docker-compose.yaml config
 
       - name: Check frontend JavaScript syntax
         run: |

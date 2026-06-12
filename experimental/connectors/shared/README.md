@@ -30,27 +30,27 @@ The current `uc3m` and `fuenlabrada` deployments remain untouched in the root co
 Standalone normal:
 
 ```powershell
-Copy-Item connectors/normal/.env.example connectors/normal/.env
-docker compose --env-file connectors/normal/.env -f connectors/normal/docker-compose.yaml up -d --build
+Copy-Item experimental/connectors/normal/.env.example experimental/connectors/normal/.env
+docker compose --env-file experimental/connectors/normal/.env -f experimental/connectors/normal/docker-compose.yaml up -d --build
 ```
 
 Standalone star:
 
 ```powershell
-Copy-Item connectors/star/.env.example connectors/star/.env
-docker compose --env-file connectors/star/.env -f connectors/star/docker-compose.yaml up -d --build
+Copy-Item experimental/connectors/star/.env.example experimental/connectors/star/.env
+docker compose --env-file experimental/connectors/star/.env -f experimental/connectors/star/docker-compose.yaml up -d --build
 ```
 
 Star pair in separate networks:
 
 ```powershell
-Copy-Item connectors/star-pair/.env.example connectors/star-pair/.env
-docker compose --env-file connectors/star-pair/.env -f connectors/star-pair/docker-compose.yaml up -d --build
+Copy-Item experimental/connectors/star-pair/.env.example experimental/connectors/star-pair/.env
+docker compose --env-file experimental/connectors/star-pair/.env -f experimental/connectors/star-pair/docker-compose.yaml up -d --build
 ```
 
 Dual mode:
 
 ```powershell
-Copy-Item connectors/dual/.env.example connectors/dual/.env
-docker compose --env-file connectors/dual/.env -f connectors/dual/docker-compose.yaml up -d --build
+Copy-Item experimental/connectors/dual/.env.example experimental/connectors/dual/.env
+docker compose --env-file experimental/connectors/dual/.env -f experimental/connectors/dual/docker-compose.yaml up -d --build
 ```

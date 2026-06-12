@@ -13,7 +13,7 @@ This repository contains the software artifact described in:
 Recommended artifact version:
 
 - Repository: https://github.com/krgroup/TOPIC-Connector
-- Release: `v1.0.3`
+- Release: `v1.0.4`
 - License: Apache-2.0
 - Support contact: Mario Garcia Rodriguez, Universidad Carlos III de Madrid
 
@@ -39,15 +39,10 @@ The recommended reproduction path for reviewers is the local Docker Compose stac
 | [caas/control-plane](caas/control-plane) | local-assets API and publication support | Supported |
 | [caas/download-sink](caas/download-sink) | Transfer/download capture service | Supported |
 | [deploy](deploy) | EDC runtime Dockerfile and deployment notes | Supported |
-| [traefik](traefik) | Nginx gateway configuration | Supported, legacy directory name |
-| [connectors/normal](connectors/normal) | Standalone connector profile without ArcGIS | Supported example |
-| [connectors/star](connectors/star) | ArcGIS/trust-oriented connector profile | Experimental |
-| [connectors/dual](connectors/dual) | Two-profile local PoC | Experimental |
-| [connectors/star-pair](connectors/star-pair) | Two STAR connector PoC | Experimental |
-| [connectors/star-lan](connectors/star-lan) | LAN-oriented STAR PoC | Experimental |
-| [docker-compose.production.yaml](docker-compose.production.yaml) | UC3M production-like profile | Institutional profile, not SoftwareX baseline |
-| [docker-compose.fuenlabrada.production.yaml](docker-compose.fuenlabrada.production.yaml) | Fuenlabrada production-like profile | Institutional profile, not SoftwareX baseline |
-| [docker-compose-backup.yaml](docker-compose-backup.yaml) | Legacy backup profile | Deprecated |
+| [gateway](gateway) | Nginx gateway configuration | Supported |
+| [institutional-profiles](institutional-profiles) | UC3M and Fuenlabrada production-like profiles | Institutional profiles, not SoftwareX baseline |
+| [experimental/connectors](experimental/connectors) | Normal, STAR, dual, pair, and LAN connector experiments | Experimental |
+| [legacy](legacy) | Deprecated or historical deployment fragments | Deprecated |
 | [paper](paper) | Manuscript sources | Documentation |
 
 ## Requirements
@@ -113,12 +108,12 @@ Expected checks include:
 | Deployment | Purpose | Use for SoftwareX? |
 | --- | --- | --- |
 | `docker-compose.yaml` | Local UC3M-style reproduction stack | Yes |
-| `connectors/normal/docker-compose.yaml` | Minimal standalone connector | Optional example |
-| `connectors/star/docker-compose.yaml` | ArcGIS/trust-oriented profile | No, experimental |
-| `connectors/dual/docker-compose.yaml` | Local two-profile PoC | No, experimental |
-| `docker-compose.production.yaml` | UC3M production-like deployment | No, institutional |
-| `docker-compose.fuenlabrada.production.yaml` | Fuenlabrada production-like deployment | No, institutional |
-| `docker-compose-backup.yaml` | Legacy backup profile | No, deprecated |
+| `experimental/connectors/normal/docker-compose.yaml` | Minimal standalone connector | Optional example |
+| `experimental/connectors/star/docker-compose.yaml` | ArcGIS/trust-oriented profile | No, experimental |
+| `experimental/connectors/dual/docker-compose.yaml` | Local two-profile PoC | No, experimental |
+| `institutional-profiles/uc3m/docker-compose.production.yaml` | UC3M production-like deployment | No, institutional |
+| `institutional-profiles/fuenlabrada/docker-compose.production.yaml` | Fuenlabrada production-like deployment | No, institutional |
+| `legacy/docker-compose-backup.yaml` | Legacy backup profile | No, deprecated |
 
 ## Configuration And Secrets
 
@@ -126,9 +121,9 @@ Use example files as templates:
 
 - [.env.example](.env.example): local SoftwareX reproduction profile;
 - [.env.production.example](.env.production.example): production-like institutional profile;
-- [connectors/normal/.env.example](connectors/normal/.env.example);
-- [connectors/star/.env.example](connectors/star/.env.example);
-- [connectors/dual/.env.example](connectors/dual/.env.example).
+- [experimental/connectors/normal/.env.example](experimental/connectors/normal/.env.example);
+- [experimental/connectors/star/.env.example](experimental/connectors/star/.env.example);
+- [experimental/connectors/dual/.env.example](experimental/connectors/dual/.env.example).
 
 Never commit real `.env` files, credentials, database dumps, generated local assets, or private Gaia-X credentials.
 
@@ -142,14 +137,14 @@ UC3M:
 
 ```powershell
 Copy-Item .env.production.example .env.production
-docker compose --env-file .env.production -f docker-compose.production.yaml up -d --build
+docker compose --env-file .env.production -f institutional-profiles/uc3m/docker-compose.production.yaml up -d --build
 ```
 
 Fuenlabrada:
 
 ```powershell
 Copy-Item .env.production.example .env.production
-docker compose --env-file .env.production -f docker-compose.fuenlabrada.production.yaml up -d --build
+docker compose --env-file .env.production -f institutional-profiles/fuenlabrada/docker-compose.production.yaml up -d --build
 ```
 
 Notes:

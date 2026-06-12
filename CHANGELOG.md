@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.0.4 - 2026-06-12
+
+SoftwareX repository layout release.
+
+### Changed
+
+- Moved secondary connector profiles under `experimental/`.
+- Moved production-like profiles under `institutional-profiles/`.
+- Renamed the Nginx gateway directory from `traefik/` to `gateway/`.
+- Moved deprecated and historical deployment fragments under `legacy/`.
+- Updated documentation and CI paths for the new artifact layout.
+
 ## v1.0.3 - 2026-06-12
 
 SoftwareX alignment release.

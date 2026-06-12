@@ -8,15 +8,16 @@ __pycache__/
 *.py[cod]
 .env
 .env.production
-connectors/*/.env
+experimental/connectors/*/.env
+experimental/connectors/star-lan/*/.env
 caas/control-plane/.env
 demo_assets_data/
 
 # GAIA-X credentials — archivos sensibles, no subir al repo
 # Los archivos reales van en los servidores directamente
-gaia-x/*.json
-gaia-x/uc3m/*.json
-gaia-x/fuenlabrada/*.json
+institutional-profiles/gaia-x/*.json
+institutional-profiles/gaia-x/uc3m/*.json
+institutional-profiles/gaia-x/fuenlabrada/*.json
 
 # LaTeX build artifacts
 paper/*.aux

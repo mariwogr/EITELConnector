@@ -20,7 +20,7 @@ services:
   runtime:
     image: eitel/eclipse-edc-runtime:0.16.0
     build:
-      context: ../..
+      context: ../../..
       dockerfile: deploy/Dockerfile
     container_name: conectorstar
     restart: always
@@ -53,7 +53,7 @@ services:
       EDC_WEB_REST_CORS_METHODS: "GET,POST,PUT,DELETE,OPTIONS"
       EDC_WEB_REST_CORS_ORIGINS: ${STAR_UI_ORIGIN:-http://localhost:12020}
     volumes:
-      - ../../dataspaceconnector-configuration.properties:/opt/edc/dataspaceconnector-configuration.properties:ro
+      - ../../../dataspaceconnector-configuration.properties:/opt/edc/dataspaceconnector-configuration.properties:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -67,7 +67,7 @@ services:
   ui:
     image: eitel/edc-ui-star:latest
     build:
-      context: ../../caas/edc-ui
+      context: ../../../../caas/edc-ui
       dockerfile: Dockerfile
     container_name: conectorstar-ui
     restart: always
@@ -96,17 +96,17 @@ services:
       NEXT_PUBLIC_ARCGIS_REQUIRED_ORG_ID: ${STAR_ARCGIS_REQUIRED_ORG_ID:-}
       NEXT_PUBLIC_ARCGIS_REQUIRED_GROUP_ID: ${STAR_ARCGIS_REQUIRED_GROUP_ID:-}
     volumes:
-      - ../../caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.final.html:ro
-      - ../../caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.html:ro
-      - ../../caas/edc-ui/public/config.template.js:/usr/share/nginx/html/config.template.js:ro
-      - ../../caas/edc-ui/public/assets:/usr/share/nginx/html/assets:ro
+      - ../../../caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.final.html:ro
+      - ../../../caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.html:ro
+      - ../../../caas/edc-ui/public/config.template.js:/usr/share/nginx/html/config.template.js:ro
+      - ../../../caas/edc-ui/public/assets:/usr/share/nginx/html/assets:ro
     networks:
       - conectorstar-net
 
   star-coordinator:
     image: eitel/star-coordinator:latest
     build:
-      context: ../../caas/star-coordinator
+      context: ../../../../caas/star-coordinator
       dockerfile: Dockerfile
     container_name: conectorstar-coordinator
     restart: always
@@ -134,7 +134,7 @@ services:
 
   local-assets:
     build:
-      context: ../../caas/control-plane
+      context: ../../../../caas/control-plane
       dockerfile: Dockerfile
     container_name: conectorstar-local-assets
     restart: always
@@ -149,7 +149,7 @@ services:
 
   download-sink:
     build:
-      context: ../../caas/download-sink
+      context: ../../../../caas/download-sink
       dockerfile: Dockerfile
     container_name: conectorstar-download-sink
     restart: always

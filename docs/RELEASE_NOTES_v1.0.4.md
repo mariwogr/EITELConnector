@@ -1,6 +1,6 @@
-# TOPIC Connector v1.0.3
+# TOPIC Connector v1.0.4
 
-SoftwareX alignment release for the TOPIC Connector artifact.
+SoftwareX repository layout release for the TOPIC Connector artifact.
 
 ## Highlights
 
@@ -11,13 +11,17 @@ SoftwareX alignment release for the TOPIC Connector artifact.
 - Expands the reproducibility guide with tested environment assumptions, port usage, expected startup behavior, expected validation output, and troubleshooting.
 - Builds the primary local UI image from repository sources instead of using a moving `latest` image tag.
 - Extends CI so the local reproduction stack is built and the functional smoke scripts are executed.
+- Moves secondary connector profiles under `experimental/`.
+- Moves production-like profiles under `institutional-profiles/`.
+- Renames the Nginx gateway directory from `traefik/` to `gateway/`.
+- Moves deprecated and historical deployment fragments under `legacy/`.
 
 ## Review Path
 
 ```bash
 git clone https://github.com/krgroup/TOPIC-Connector.git
 cd TOPIC-Connector
-git checkout v1.0.3
+git checkout v1.0.4
 cp .env.example .env
 docker compose --env-file .env -f docker-compose.yaml up -d --build
 ./scripts/validate_stack.sh

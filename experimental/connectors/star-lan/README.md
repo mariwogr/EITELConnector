@@ -23,18 +23,18 @@ Example LAN IPs:
 Start examples:
 
 ```powershell
-Copy-Item connectors/star-lan/a/.env.example connectors/star-lan/a/.env
-docker compose --env-file connectors/star-lan/a/.env -f connectors/star-lan/a/docker-compose.yaml up -d --build
+Copy-Item experimental/connectors/star-lan/a/.env.example experimental/connectors/star-lan/a/.env
+docker compose --env-file experimental/connectors/star-lan/a/.env -f experimental/connectors/star-lan/a/docker-compose.yaml up -d --build
 ```
 
 ```powershell
-Copy-Item connectors/star-lan/b/.env.example connectors/star-lan/b/.env
-docker compose --env-file connectors/star-lan/b/.env -f connectors/star-lan/b/docker-compose.yaml up -d --build
+Copy-Item experimental/connectors/star-lan/b/.env.example experimental/connectors/star-lan/b/.env
+docker compose --env-file experimental/connectors/star-lan/b/.env -f experimental/connectors/star-lan/b/docker-compose.yaml up -d --build
 ```
 
 ```powershell
-Copy-Item connectors/star-lan/coordinator/.env.example connectors/star-lan/coordinator/.env
-docker compose --env-file connectors/star-lan/coordinator/.env -f connectors/star-lan/coordinator/docker-compose.yaml up -d --build
+Copy-Item experimental/connectors/star-lan/coordinator/.env.example experimental/connectors/star-lan/coordinator/.env
+docker compose --env-file experimental/connectors/star-lan/coordinator/.env -f experimental/connectors/star-lan/coordinator/docker-compose.yaml up -d --build
 ```
 
 Notes:

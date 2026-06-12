@@ -79,7 +79,7 @@ TOPIC Connector is distributed as a public research software artifact. The revie
 \midrule
 Software name & TOPIC Connector \\
 Code repository & \url{https://github.com/krgroup/TOPIC-Connector} \\
-Current code version & \texttt{v1.0.3} \\
+Current code version & \texttt{v1.0.4} \\
 Version control system & Git \\
 Legal code license & Apache License 2.0 \\
 Operating system & Linux-based Docker hosts; Docker Desktop has also been used for local validation \\
@@ -245,7 +245,7 @@ The validation activities reported in this paper were executed on the local TOPI
 \begin{verbatim}
 git clone https://github.com/krgroup/TOPIC-Connector.git
 cd TOPIC-Connector
-git checkout v1.0.3
+git checkout v1.0.4
 cp .env.example .env
 docker compose --env-file .env -f docker-compose.yaml up -d --build
 ./scripts/validate_stack.sh
