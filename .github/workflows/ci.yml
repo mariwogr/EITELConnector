@@ -24,3 +24,23 @@ jobs:
           node --check caas/edc-ui/public/assets/ui/02g-download.js
           node --check caas/edc-ui/public/assets/ui/02h-arcgis.js
           node --check caas/edc-ui/public/assets/ui/02i-management.js
+
+      - name: Start local reproduction stack
+        run: |
+          cp .env.example .env
+          docker compose --env-file .env -f docker-compose.yaml up -d --build
+
+      - name: Run functional smoke checks
+        run: |
+          chmod +x scripts/validate_stack.sh scripts/validate_local_asset_upload.sh scripts/validate_download_capture.sh
+          ./scripts/validate_stack.sh
+          ./scripts/validate_local_asset_upload.sh
+          ./scripts/validate_download_capture.sh
+
+      - name: Show compose logs on failure
+        if: failure()
+        run: docker compose --env-file .env -f docker-compose.yaml logs --no-color --tail=200
+
+      - name: Stop local reproduction stack
+        if: always()
+        run: docker compose --env-file .env -f docker-compose.yaml down

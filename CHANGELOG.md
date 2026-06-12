@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.0.2 - 2026-06-12
+
+SoftwareX hardening release.
+
+### Changed
+
+- Reframed the manuscript around the SoftwareX software artifact structure.
+- Expanded reproducibility documentation with requirements, ports, expected outputs, and troubleshooting.
+- Aligned artifact metadata to a single review version.
+- Removed the `latest` tag from the primary local UI Compose service by building the UI image locally.
+
 ## v1.0.1 - 2026-06-12
 
 SoftwareX repository packaging release.

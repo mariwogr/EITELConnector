@@ -57,7 +57,9 @@ services:
       - edc-net
 
   conectoruc3m-ui:
-    image: eitel/edc-ui:latest
+    build:
+      context: ./caas/edc-ui
+      dockerfile: Dockerfile
     container_name: conectoruc3m-ui
     depends_on:
       conectoruc3m:
