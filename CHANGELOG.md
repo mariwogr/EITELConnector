@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.6 - 2026-06-13
+
+SoftwareX final alignment release.
+
+### Changed
+
+- Aligned the README manuscript title with the current paper title.
+- Strengthened the manuscript impact statement without expanding the validation claims.
+
 ## v1.0.5 - 2026-06-13
 
 SoftwareX manuscript compaction release.

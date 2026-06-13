@@ -1,6 +1,6 @@
-# TOPIC Connector v1.0.5
+# TOPIC Connector v1.0.6
 
-SoftwareX manuscript compaction release for the TOPIC Connector artifact.
+SoftwareX final alignment release for the TOPIC Connector artifact.
 
 ## Highlights
 
@@ -18,13 +18,15 @@ SoftwareX manuscript compaction release for the TOPIC Connector artifact.
 - Rewrites the manuscript as a shorter SoftwareX-style software paper.
 - Adds explicit capability, repository evidence, and validation-status mapping.
 - Narrows ArcGIS, contract-negotiation, and production-operation claims to match current evidence.
+- Aligns the README manuscript title with the current paper title.
+- Strengthens the manuscript impact statement without expanding the validation claims.
 
 ## Review Path
 
 ```bash
 git clone https://github.com/krgroup/TOPIC-Connector.git
 cd TOPIC-Connector
-git checkout v1.0.5
+git checkout v1.0.6
 cp .env.example .env
 docker compose --env-file .env -f docker-compose.yaml up -d --build
 ./scripts/validate_stack.sh

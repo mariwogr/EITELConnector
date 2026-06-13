@@ -10,12 +10,12 @@ The repository was originally developed under the EITELConnector name. EITEL ref
 
 This repository contains the software artifact described in:
 
-> TOPIC Connector: A Toolkit for Engineering and Operating Municipal Data Connectors
+> TOPIC Connector: A Reproducible Toolkit for Early-Stage Municipal Data-Space Connectors
 
 Recommended artifact version:
 
 - Repository: https://github.com/krgroup/TOPIC-Connector
-- Release: `v1.0.5`
+- Release: `v1.0.6`
 - License: Apache-2.0
 - Support contact: Mario Garcia Rodriguez, Universidad Carlos III de Madrid
 

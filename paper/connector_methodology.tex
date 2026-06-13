@@ -53,7 +53,7 @@ EDC is a major open framework for building dataspace services and connectors~\ci
 \midrule
 Software name & TOPIC Connector \\
 Repository & \url{https://github.com/krgroup/TOPIC-Connector} \\
-Current code version & \texttt{v1.0.5} \\
+Current code version & \texttt{v1.0.6} \\
 Version control & Git \\
 License & Apache License 2.0 \\
 Operating systems & Linux-based Docker hosts; Docker Desktop for local validation \\
@@ -103,7 +103,7 @@ The intended reproduction sequence is:
 \begin{verbatim}
 git clone https://github.com/krgroup/TOPIC-Connector.git
 cd TOPIC-Connector
-git checkout v1.0.5
+git checkout v1.0.6
 cp .env.example .env
 docker compose --env-file .env -f docker-compose.yaml up -d --build
 ./scripts/validate_stack.sh
@@ -137,7 +137,7 @@ The smoke tests intentionally focus on reproducibility and operational substrate
 \section{Impact}
 TOPIC Connector is useful as a reproducible research and engineering baseline. It enables experiments on connector packaging, local asset onboarding, gateway routing, UI-mediated publication, and transfer observability without requiring each user to assemble an EDC stack and auxiliary services from scratch. The municipal and GIS framing is the motivating use case, but the same packaging approach can be reused in other public-sector or research pilots where controlled files, APIs, and operator-facing workflows must be connected to a data-space runtime.
 
-The artifact also supports comparative work. Researchers can replace or extend components, compare the packaged workflow with a minimal EDC runtime, or use the repository as a teaching and demonstration environment for connector operation. Its most immediate impact is therefore not production certification, but lowering the barrier to reproducible connector experimentation.
+The artifact also supports comparative work. Researchers can replace or extend components, compare the packaged workflow with a minimal EDC runtime, or use the repository as a teaching and demonstration environment for connector operation. It can support studies of EDC packaging strategies, reproducibility of connector deployments, and the practical separation between implemented connector capabilities and independently validated interoperability evidence. Its most immediate impact is therefore not production certification, but lowering the barrier to reproducible connector experimentation.
 
 \section{Security scope and limitations}
 The local reproduction profile uses placeholder tokens and is intended for local review. Historical and demo profiles may expose management or local-assets tokens to browser-visible variables. This is acceptable only in local demonstrations. Closed pilots should use authenticated gateway access and rotated secrets. Production deployments should hide privileged management operations behind an authenticated backend or gateway layer and should not expose privileged keys to browser clients.
