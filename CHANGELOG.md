@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.8 - 2026-06-13
+
+CI smoke-check release.
+
+### Fixed
+
+- Uses `curl` rather than `wget` inside the EDC runtime container during stack validation.
+
 ## v1.0.7 - 2026-06-13
 
 CI reproducibility release.

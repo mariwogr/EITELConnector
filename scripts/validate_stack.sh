@@ -23,7 +23,7 @@ ok "Gateway reachable"
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps >/dev/null || fail "docker compose stack is not available"
 ok "Docker Compose stack visible"
 
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T conectoruc3m wget -qO- http://localhost:11000/api/check/health >/dev/null \
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T conectoruc3m curl -fsS http://localhost:11000/api/check/health >/dev/null \
   || fail "EDC runtime health endpoint is not reachable"
 ok "EDC runtime healthy"
 
