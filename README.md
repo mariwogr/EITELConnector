@@ -15,7 +15,7 @@ This repository contains the software artifact described in:
 Recommended artifact version:
 
 - Repository: https://github.com/krgroup/TOPIC-Connector
-- Release: `v1.0.6`
+- Release: `v1.0.7`
 - License: Apache-2.0
 - Support contact: Mario Garcia Rodriguez, Universidad Carlos III de Madrid
 

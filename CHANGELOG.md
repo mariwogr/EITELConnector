@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.7 - 2026-06-13
+
+CI reproducibility release.
+
+### Changed
+
+- Builds the local EDC runtime from the repository Dockerfile in the primary Docker Compose stack.
+- Increases the GitHub Actions timeout for the full local reproduction stack build.
+
 ## v1.0.6 - 2026-06-13
 
 SoftwareX final alignment release.

@@ -17,6 +17,9 @@ services:
 
   conectoruc3m:
     image: eitel/eclipse-edc-runtime:0.16.0
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
     container_name: conectoruc3m
     depends_on:
       edc-postgres:
