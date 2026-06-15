@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.10 - 2026-06-15
+
+CI download-capture release.
+
+### Fixed
+
+- Preserves download-capture validation identifiers when ingesting payloads through the download-sink service.
+- Sends validation identifiers as query parameters in the download-capture smoke test while retaining header fallback support.
+
 ## v1.0.9 - 2026-06-13
 
 CI readiness release.

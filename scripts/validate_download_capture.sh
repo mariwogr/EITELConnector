@@ -24,7 +24,7 @@ ingest_once() {
     -H "x-transfer-id: $transfer_id" \
     -H "content-type: application/json" \
     --data "$payload" \
-    "$GATEWAY_URL/conectoruc3m/download-sink/ingest" >/dev/null
+    "$GATEWAY_URL/conectoruc3m/download-sink/ingest?contractId=$contract_id&assetId=$asset_id&transferId=$transfer_id" >/dev/null
 }
 
 command -v curl >/dev/null 2>&1 || fail "curl is not available"

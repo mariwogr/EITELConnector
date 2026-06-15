@@ -254,6 +254,10 @@ async def ingest(request: Request, contractId: str = Query(default=""), assetId:
     if not payload:
         raise HTTPException(status_code=400, detail="Payload vacio")
 
+    contract_id = str(contractId or request.headers.get("x-contract-id", "") or "").strip()
+    asset_id = str(assetId or request.headers.get("x-asset-id", "") or "").strip()
+    transfer_id = str(transferId or request.headers.get("x-transfer-id", "") or "").strip()
+
     record_id = uuid4().hex
     content_disposition = request.headers.get("content-disposition", "")
     filename = _extract_filename(content_disposition)
@@ -263,9 +267,9 @@ async def ingest(request: Request, contractId: str = Query(default=""), assetId:
     record = {
         "id": record_id,
         "received_at": datetime.now(UTC).isoformat(),
-        "contractId": contractId,
-        "assetId": assetId,
-        "transferId": transferId,
+        "contractId": contract_id,
+        "assetId": asset_id,
+        "transferId": transfer_id,
         "filename": filename,
         "contentType": request.headers.get("content-type", "application/octet-stream"),
         "bytes": len(payload),

@@ -7,7 +7,7 @@ This guide describes the recommended local reproduction path for TOPIC Connector
 ```bash
 git clone https://github.com/krgroup/TOPIC-Connector.git
 cd TOPIC-Connector
-git checkout v1.0.9
+git checkout v1.0.10
 ```
 
 If the tag is not available in a local clone, use the `main` branch corresponding to the release.

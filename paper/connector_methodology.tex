@@ -53,7 +53,7 @@ EDC is a major open framework for building dataspace services and connectors~\ci
 \midrule
 Software name & TOPIC Connector \\
 Repository & \url{https://github.com/krgroup/TOPIC-Connector} \\
-Current code version & \texttt{v1.0.9} \\
+Current code version & \texttt{v1.0.10} \\
 Version control & Git \\
 License & Apache License 2.0 \\
 Operating systems & Linux-based Docker hosts; Docker Desktop for local validation \\
@@ -103,7 +103,7 @@ The intended reproduction sequence is:
 \begin{verbatim}
 git clone https://github.com/krgroup/TOPIC-Connector.git
 cd TOPIC-Connector
-git checkout v1.0.9
+git checkout v1.0.10
 cp .env.example .env
 docker compose --env-file .env -f docker-compose.yaml up -d --build
 ./scripts/validate_stack.sh
