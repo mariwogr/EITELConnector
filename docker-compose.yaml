@@ -1,7 +1,6 @@
 services:
   edc-postgres:
     image: postgres:15-alpine
-    container_name: conectoruc3m-postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
@@ -20,7 +19,6 @@ services:
     build:
       context: .
       dockerfile: deploy/Dockerfile
-    container_name: conectoruc3m
     depends_on:
       edc-postgres:
         condition: service_healthy
@@ -63,7 +61,6 @@ services:
     build:
       context: ./caas/edc-ui
       dockerfile: Dockerfile
-    container_name: conectoruc3m-ui
     depends_on:
       conectoruc3m:
         condition: service_healthy
@@ -87,7 +84,6 @@ services:
     build:
       context: ./caas/control-plane
       dockerfile: Dockerfile
-    container_name: conectoruc3m-local-assets
     environment:
       CAAS_LOCAL_ASSETS_INTERNAL_BASE_URL: http://conectoruc3m-local-assets:8081/v1/local-assets/files
       CAAS_LOCAL_ASSETS_PUBLIC_BASE_URL: http://localhost:12000/conectoruc3m/local-assets/files
@@ -107,7 +103,6 @@ services:
     build:
       context: ./caas/download-sink
       dockerfile: Dockerfile
-    container_name: conectoruc3m-download-sink
     environment:
       DOWNLOAD_SINK_AUTH_TOKEN: ${LOCAL_ASSETS_AUTH_TOKEN:-change-me}
     volumes:
@@ -123,7 +118,6 @@ services:
 
   conectoruc3m-gateway:
     image: nginx:1.27-alpine
-    container_name: conectoruc3m-gateway
     depends_on:
       conectoruc3m-ui:
         condition: service_started

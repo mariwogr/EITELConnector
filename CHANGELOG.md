@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.11 - 2026-06-15
+
+CI isolation release.
+
+### Changed
+
+- Removes fixed container names from the primary Docker Compose stack so CI runs use isolated Compose project names.
+- Sets a unique Compose project name in GitHub Actions.
+
 ## v1.0.10 - 2026-06-15
 
 CI download-capture release.

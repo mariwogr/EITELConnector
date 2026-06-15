@@ -8,6 +8,8 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      COMPOSE_PROJECT_NAME: topic_${{ github.run_id }}_${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4
 
