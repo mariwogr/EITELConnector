@@ -42,14 +42,15 @@
       normalized = normalized.replace(/\/home$/i, '');
       return normalized;
     };
+    const arcgisEnabled = arcgisEnabledRaw ? isTruthy(arcgisEnabledRaw) : uiVariant === 'production';
     const arcgis = {
-      enabled: arcgisEnabledRaw ? isTruthy(arcgisEnabledRaw) : uiVariant !== 'star',
+      enabled: arcgisEnabled,
       portalUrl: normalizePortalUrl(cfg.arcgisPortalUrl || 'https://gis.eiteldata.eu/arcgis'),
       clientId: (cfg.arcgisClientId || 'arcgisonline').trim(),
       redirectUri: (cfg.arcgisRedirectUri || window.location.href).trim(),
       requiredOrgId: (cfg.arcgisRequiredOrgId || '').trim(),
       requiredGroupId: (cfg.arcgisRequiredGroupId || '').trim(),
-      requiresLogin: uiVariant === 'production',
+      requiresLogin: arcgisEnabled && uiVariant === 'production',
     };
     const authState = { username: '', orgId: '' };
     const arcgisTokenStorageKey = 'eitel.arcgis.access_token';
@@ -291,6 +292,12 @@
       const gate = document.getElementById('authGate');
       const errorBox = document.getElementById('authError');
       if (!gate || !errorBox) return;
+      if (!arcgis.enabled) {
+        gate.classList.remove('open');
+        errorBox.textContent = '';
+        errorBox.style.display = 'none';
+        return;
+      }
       const help = gate.querySelector('.auth-help');
       if (help) {
         help.textContent = arcgis.requiresLogin

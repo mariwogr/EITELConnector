@@ -644,7 +644,6 @@ function summarizePolicyTerms(policyObj) {
         const normalized = canonicalConnectorPrefix(key);
         if (normalized) values.push(normalized);
       });
-      if (!values.length) values.push('conectoruc3m', 'conectorFuenlabrada');
       return [...new Set(values)];
     }
 

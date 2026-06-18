@@ -430,10 +430,9 @@
     }
 
     function getUiPrefix() {
-      const configured = canonicalConnectorPrefix(cfg.connectorName || '');
-      if (configured) return `/${configured}`;
       const first = (window.location.pathname || '/').split('/').filter(Boolean)[0] || '';
-      return first ? `/${canonicalConnectorPrefix(first) || first}` : '';
+      if (!first) return '';
+      return /^conector/i.test(first) ? `/${canonicalConnectorPrefix(first) || first}` : `/${first}`;
     }
 
     function buildLocalDownloadSinkPublicBaseUrl() {
@@ -442,7 +441,9 @@
 
     function buildLocalDownloadSinkInternalBaseUrl() {
       const connector = String(cfg.connectorName || '').trim().toLowerCase();
-      const normalized = connector ? connector.replace(/[^a-z0-9-]/g, '') : 'conectoruc3m';
+      const normalized = connector && connector.startsWith('conector')
+        ? connector.replace(/[^a-z0-9-]/g, '')
+        : 'conectoruc3m';
       return `http://${normalized}-download-sink:8082`;
     }
 

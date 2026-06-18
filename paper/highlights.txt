@@ -1,0 +1,5 @@
+Reproducible EDC-based connector stack for municipal data-space pilots.
+Management UI for asset publication, policy setup, and transfer tracking.
+Local asset onboarding and download capture through auxiliary services.
+Email-based private-asset access requests and Gaia-X-oriented participant inspection.
+Validation scripts for stack startup, upload, and capture workflows.

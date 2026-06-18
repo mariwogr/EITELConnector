@@ -65,12 +65,14 @@ services:
       conectoruc3m:
         condition: service_healthy
     environment:
-      NEXT_PUBLIC_MANAGEMENT_API_URL: /conectoruc3m/api/management
+      NEXT_PUBLIC_MANAGEMENT_API_URL: /api/management
       # DEMO ONLY: browser-visible credentials are acceptable only for the local reproduction profile.
       NEXT_PUBLIC_MANAGEMENT_API_AUTH_KEY: ${EDC_API_AUTH_KEY:-change-me}
       NEXT_PUBLIC_LOCAL_ASSETS_AUTH_TOKEN: ${LOCAL_ASSETS_AUTH_TOKEN:-change-me}
-      NEXT_PUBLIC_CONNECTOR_NAME: conectoruc3m
-      NEXT_PUBLIC_DSP_URL: http://conectoruc3m:11003/api/v1/dsp/2025-1
+      NEXT_PUBLIC_CONNECTOR_NAME: topic-local
+      NEXT_PUBLIC_DSP_URL: /api/v1/dsp/2025-1
+      NEXT_PUBLIC_UI_VARIANT: local
+      NEXT_PUBLIC_ARCGIS_AUTH_ENABLED: "false"
     volumes:
       - ./caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.final.html:ro
       - ./caas/edc-ui/public/index.final.html:/usr/share/nginx/html/index.html:ro
@@ -86,7 +88,7 @@ services:
       dockerfile: Dockerfile
     environment:
       CAAS_LOCAL_ASSETS_INTERNAL_BASE_URL: http://conectoruc3m-local-assets:8081/v1/local-assets/files
-      CAAS_LOCAL_ASSETS_PUBLIC_BASE_URL: http://localhost:12000/conectoruc3m/local-assets/files
+      CAAS_LOCAL_ASSETS_PUBLIC_BASE_URL: http://localhost:12000/local-assets/files
       CAAS_LOCAL_ASSETS_AUTH_TOKEN: ${LOCAL_ASSETS_AUTH_TOKEN:-change-me}
     volumes:
       - local_assets_data:/app/data/local-assets
@@ -130,7 +132,7 @@ services:
     ports:
       - "12000:80"
     volumes:
-      - ./gateway/nginx-uc3m.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./gateway/nginx-local.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - edc-net
 

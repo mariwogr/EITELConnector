@@ -2,6 +2,7 @@
 set -eu
 
 GATEWAY_URL="${GATEWAY_URL:-http://localhost:12000}"
+CONNECTOR_PATH="${CONNECTOR_PATH:-}"
 if [ -z "${LOCAL_ASSETS_AUTH_TOKEN:-}" ] && [ -f .env ]; then
   LOCAL_ASSETS_AUTH_TOKEN="$(sed -n 's/^LOCAL_ASSETS_AUTH_TOKEN=//p' .env | tail -n 1)"
 fi
@@ -21,7 +22,7 @@ upload_once() {
   curl -fsS \
     -H "x-api-key: $TOKEN" \
     -F "file=@$FILE" \
-    "$GATEWAY_URL/conectoruc3m/local-assets/upload"
+    "$GATEWAY_URL$CONNECTOR_PATH/local-assets/upload"
 }
 
 command -v curl >/dev/null 2>&1 || fail "curl is not available"

@@ -1,0 +1,236 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+
+\title{Memoria de Avance\\Conectores EITEL / TOPIC Connector}
+\author{Mario Garcia Rodriguez}
+\date{Junio 2026}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduccion}
+
+La presente memoria documenta los avances realizados en la evolucion de los conectores EITEL y del artefacto reutilizable \textbf{TOPIC Connector}. El trabajo se ha orientado a consolidar una base operativa sobre Eclipse Dataspace Components (EDC), preparada para despliegues reproducibles, publicacion de datos municipales, gestion de politicas y contratos, trazabilidad de transferencias y evaluacion tecnica mediante scripts de validacion.
+
+El objetivo principal no ha sido presentar un conector certificado para produccion, sino disponer de una plataforma ejecutable, documentada y verificable que permita avanzar desde un runtime EDC base hacia un servicio de conector operable por equipos tecnicos y funcionales. En esta fase se ha reforzado especialmente la empaquetacion del software, la separacion de perfiles de despliegue, la validacion continua y la preparacion del artefacto para revision externa.
+
+TOPIC Connector se mantiene como el artefacto publico y reutilizable extraido del trabajo de ingenieria realizado en EITEL. Los perfiles UC3M y Fuenlabrada se conservan como material institucional, mientras que los perfiles STAR, duales y de experimentacion se mantienen separados del camino principal de reproduccion.
+
+\section{Contexto de evolucion}
+
+La fase anterior se centraba en la implantacion de conectores y en la validacion del paradigma de data spaces mediante EDC y tecnologias relacionadas. La fase actual avanza hacia una solucion mas empaquetada y reproducible, con una estructura de repositorio pensada para distinguir claramente entre:
+
+\begin{itemize}[leftmargin=1.2cm]
+    \item el stack local revisable y reproducible para SoftwareX;
+    \item los perfiles institucionales UC3M y Fuenlabrada;
+    \item los perfiles experimentales de investigacion;
+    \item los fragmentos historicos o legacy que ya no forman parte del camino principal.
+\end{itemize}
+
+Esta separacion mejora la trazabilidad del artefacto y reduce la ambiguedad para revisores, desarrolladores y futuros operadores. El resultado es una base de conector que conserva la flexibilidad necesaria para evolucionar, pero con un camino de instalacion y validacion concreto.
+
+\section{Arquitectura tecnica actual}
+
+La solucion se organiza como un conjunto de servicios orquestados mediante Docker Compose. La version revisada del artefacto es \texttt{v1.0.11}, publicada en el repositorio publico \url{https://github.com/krgroup/TOPIC-Connector}.
+
+\begin{itemize}[leftmargin=1.2cm]
+    \item \textbf{Runtime EDC}: servicio principal para assets, policies, contract definitions, negociaciones y procesos de transferencia.
+    \item \textbf{PostgreSQL}: persistencia del estado operativo del runtime EDC.
+    \item \textbf{UI Web}: consola de operacion para publicacion, catalogos, contratos, transferencias e integraciones GIS.
+    \item \textbf{local-assets}: servicio auxiliar FastAPI para carga de ficheros locales y generacion de URL de recuperacion controlada.
+    \item \textbf{download-sink}: servicio FastAPI para capturar payloads transferidos y registrar eventos con identificadores de contrato, asset y transferencia.
+    \item \textbf{Gateway Nginx}: enrutamiento estable para UI, Management API, DSP, local-assets y download-sink.
+    \item \textbf{Docker Compose}: empaquetacion de los perfiles local, institucionales y experimentales.
+\end{itemize}
+
+En la ultima iteracion se han eliminado nombres de contenedor fijos en el stack local para permitir ejecuciones aisladas en CI, y se ha configurado un nombre de proyecto Compose unico por ejecucion de GitHub Actions.
+
+\section{Avances funcionales implementados}
+
+\subsection{Publicacion de assets}
+
+La consola permite publicar assets a partir de distintos origenes:
+
+\begin{itemize}[leftmargin=1.2cm]
+    \item \textbf{URL remota}: registro de recursos ya expuestos por sistemas externos.
+    \item \textbf{Fichero local}: carga de un archivo al servicio \texttt{local-assets} y posterior uso de la URL generada como fuente del asset.
+    \item \textbf{Integracion ArcGIS}: ruta implementada para trabajar con recursos geoespaciales y flujos orientados a portal GIS.
+\end{itemize}
+
+El flujo distingue entre subir o registrar un recurso y convertirlo en un asset publicable dentro del conector. Para que el recurso sea util en un data space, debe asociarse a metadatos, politica de acceso y definicion contractual.
+
+Tambien se ha incorporado el caso de \textbf{asset privado}. En este modo, el asset conserva metadatos de visibilidad y correo del propietario, de forma que el acceso no se trata como una descarga publica directa. La publicacion de un asset privado exige disponer de un correo de owner para poder gestionar solicitudes, notificaciones y trazabilidad de permisos.
+
+\subsection{Gestion de politicas de acceso, politicas de uso y contratos}
+
+La interfaz incorpora vistas para crear y listar policies y contract definitions. Esto reduce la dependencia de llamadas manuales a la Management API y permite que el operador mantenga una vision unificada del ciclo de publicacion.
+
+En el flujo actual se diferencia entre dos niveles de politica:
+
+\begin{itemize}[leftmargin=1.2cm]
+    \item \textbf{Politicas de acceso}: condiciones que determinan si un consumidor puede recibir una oferta contractual para un asset publicado.
+    \item \textbf{Politicas de uso}: condiciones asociadas al uso posterior del dato, incluyendo finalidad, duracion, obligaciones y prohibiciones.
+\end{itemize}
+
+Esta separacion permite representar de forma mas clara el paso desde la publicacion tecnica de un recurso hasta su exposicion como oferta gobernada dentro del conector. El operador puede preparar el asset, definir las condiciones de acceso, expresar restricciones de uso y asociar todo ello a una contract definition.
+
+La validacion actual comprueba el funcionamiento del stack y de los servicios auxiliares, pero no pretende demostrar enforcement completo de politicas ni interoperabilidad contractual entre organizaciones independientes. Esa distincion se ha documentado explicitamente en el paper y en la tabla de evidencias.
+
+\subsection{Solicitudes de acceso a assets privados}
+
+Se ha implementado un flujo especifico para gestionar solicitudes de acceso a assets privados. El consumidor puede descubrir un asset restringido en el catalogo y enviar una solicitud de acceso al proveedor, incluyendo datos de solicitante, organizacion, finalidad de uso, duracion solicitada y mensaje justificativo.
+
+El servicio \texttt{local-assets} registra estas solicitudes bajo el recurso \texttt{access-requests} y mantiene un indice operativo con estado de cada solicitud. Los estados contemplados permiten cubrir el ciclo funcional completo:
+
+\begin{itemize}[leftmargin=1.2cm]
+    \item \textbf{pending}: solicitud enviada y pendiente de decision del propietario.
+    \item \textbf{approved}: solicitud aprobada; el consumidor queda habilitado para continuar con negociacion y transferencia.
+    \item \textbf{rejected}: solicitud rechazada por el propietario.
+    \item \textbf{withdrawn}: solicitud retirada por el solicitante.
+    \item \textbf{revoked}: permiso revocado tras haber sido concedido.
+\end{itemize}
+
+El flujo esta integrado con notificaciones por correo electronico. Cuando se crea una solicitud, el propietario del asset recibe un email con la informacion del solicitante, el asset, la finalidad y el identificador de solicitud. Cuando la solicitud se aprueba o rechaza, el solicitante recibe un email de decision. Esta funcionalidad facilita que el conector no dependa solo de operaciones tecnicas de API, sino que soporte una interaccion operativa entre responsables de datos y consumidores.
+
+En la interfaz, las solicitudes se muestran junto al catalogo y se usan para enriquecer el estado de acceso del asset. Para assets privados, la UI comprueba si existe una solicitud aprobada antes de permitir continuar con el flujo de contratacion o transferencia. De esta forma, el ciclo queda expresado como: publicacion privada, solicitud de acceso, decision del propietario, negociacion contractual y transferencia.
+
+\subsection{Transferencias y trazabilidad}
+
+Se ha reforzado la gestion de transferencias con un servicio \texttt{download-sink} capaz de recibir payloads y registrar eventos asociados a:
+
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{contractId};
+    \item \texttt{assetId};
+    \item \texttt{transferId}.
+\end{itemize}
+
+El script de validacion \texttt{validate\_download\_capture.sh} envia estos identificadores y comprueba que el registro resultante queda disponible para consulta. Este avance permite tratar las descargas como objetos operativos trazables, no como efectos externos opacos.
+
+\subsection{Autenticacion e integracion GIS}
+
+La UI conserva rutas de integracion orientadas a ArcGIS, incluyendo login y subida de items. Estas capacidades estan implementadas como hooks de integracion para escenarios GIS municipales. La validacion en vivo contra un portal institucional ArcGIS queda identificada como trabajo futuro, evitando sobreafirmar resultados que aun no han sido medidos externamente.
+
+\section{Avances de infraestructura y repositorio}
+
+El repositorio se ha reorganizado para diferenciar claramente los materiales revisables de los perfiles secundarios:
+
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{docker-compose.yaml}: camino principal de reproduccion local.
+    \item \texttt{gateway/}: configuracion Nginx del gateway.
+    \item \texttt{caas/edc-ui}: interfaz de operacion.
+    \item \texttt{caas/control-plane}: servicio \texttt{local-assets}.
+    \item \texttt{caas/download-sink}: servicio de captura de descargas.
+    \item \texttt{institutional-profiles/}: perfiles UC3M y Fuenlabrada.
+    \item \texttt{experimental/}: perfiles STAR, normal, duales y de experimentacion.
+    \item \texttt{legacy/}: configuraciones historicas o deprecated.
+    \item \texttt{docs/REPRODUCIBILITY.md}: guia de reproduccion del artefacto.
+\end{itemize}
+
+Tambien se han actualizado \texttt{README.md}, \texttt{CITATION.cff}, \texttt{CHANGELOG.md}, notas de release y documentacion de reproducibilidad para alinear el repositorio con la version \texttt{v1.0.11}.
+
+\section{Validacion continua}
+
+La CI publica del repositorio ejecuta las comprobaciones principales del artefacto. En la version \texttt{v1.0.11}, los runs de \texttt{main} y del tag \texttt{v1.0.11} han finalizado correctamente.
+
+El flujo de CI incluye:
+
+\begin{itemize}[leftmargin=1.2cm]
+    \item validacion de ficheros Docker Compose;
+    \item comprobacion de sintaxis JavaScript de modulos seleccionados de la UI;
+    \item construccion y arranque del stack local;
+    \item validacion de salud del gateway y runtime;
+    \item validacion de subida de asset local;
+    \item validacion de captura de descarga.
+\end{itemize}
+
+La secuencia de reproduccion recomendada es:
+
+\begin{verbatim}
+git clone https://github.com/krgroup/TOPIC-Connector.git
+cd TOPIC-Connector
+git checkout v1.0.11
+cp .env.example .env
+docker compose --env-file .env -f docker-compose.yaml up -d --build
+./scripts/validate_stack.sh
+./scripts/validate_local_asset_upload.sh
+./scripts/validate_download_capture.sh
+\end{verbatim}
+
+\section{Evidencia actual}
+
+\begin{longtable}{|p{4.2cm}|p{5.2cm}|p{5.2cm}|}
+\hline
+\textbf{Capacidad} & \textbf{Evidencia en repositorio} & \textbf{Estado de validacion} \\
+\hline
+Despliegue local reproducible & \texttt{docker-compose.yaml}, \texttt{.env.example}, CI & Validado por Compose, arranque del stack y health checks \\
+\hline
+Subida de asset local & Servicio \texttt{local-assets}, ejemplos y script de validacion & Validado por \texttt{validate\_local\_asset\_upload.sh} \\
+\hline
+Captura de descargas & Servicio \texttt{download-sink} & Validado por \texttt{validate\_download\_capture.sh} \\
+\hline
+Flujo de UI & \texttt{caas/edc-ui} & Implementado y comprobado mediante sintaxis JavaScript; no hay browser test completo \\
+\hline
+Politicas de acceso, politicas de uso y contract definitions & Runtime EDC e integracion UI & Implementado; sin validacion de enforcement completa \\
+\hline
+Solicitudes de acceso a assets privados & Servicio \texttt{local-assets}, endpoints \texttt{access-requests}, UI de catalogo y notificaciones email & Implementado; no incluido en los smoke tests principales \\
+\hline
+Negociacion entre conectores & Perfiles experimentales & Experimental; no reclamado como evidencia principal \\
+\hline
+Integracion ArcGIS & Hooks de UI e integracion auxiliar & Implementado; validacion institucional en vivo pendiente \\
+\hline
+\end{longtable}
+
+\section{Comparativa de enfoque}
+
+\begin{longtable}{|p{4.5cm}|p{4.5cm}|p{5.5cm}|}
+\hline
+\textbf{Aspecto} & \textbf{Runtime EDC base} & \textbf{TOPIC Connector / EITEL} \\
+\hline
+Orientacion & Framework tecnico de conector & Toolkit reproducible para operacion temprana municipal \\
+\hline
+Publicacion de assets & API de gestion & UI, URL remota, fichero local e integracion GIS \\
+\hline
+Assets privados y solicitudes & No incluido como flujo operativo especifico & Solicitud de acceso, email al owner, decision aprobada/rechazada y estado visible en catalogo \\
+\hline
+Persistencia & Configurable por despliegue & PostgreSQL incluido en el stack local \\
+\hline
+Gateway & Depende de la instalacion & Nginx integrado con rutas estables \\
+\hline
+Transferencias & Procesos EDC & Captura local y registro con identificadores operativos \\
+\hline
+Validacion & Manual o dependiente del usuario & Scripts reproducibles y CI publica \\
+\hline
+Perfiles & Ad hoc & Local, institucionales, experimentales y legacy separados \\
+\hline
+\end{longtable}
+
+\section{Limitaciones y siguientes pasos}
+
+La version actual proporciona una base reproducible y defendible para experimentacion y revision, pero no debe interpretarse como certificacion de produccion. Las principales limitaciones pendientes son:
+
+\begin{itemize}[leftmargin=1.2cm]
+    \item pruebas de interoperabilidad completas entre conectores independientes;
+    \item validacion de enforcement de politicas en escenarios complejos;
+    \item pruebas de rendimiento y carga;
+    \item validacion institucional en vivo de los flujos ArcGIS;
+    \item evaluacion longitudinal con operadores municipales;
+    \item publicacion de una release visible \texttt{v1.0.11} en GitHub marcada como \textit{Latest}, si se mantiene esta version como version de envio.
+\end{itemize}
+
+\section{Conclusion}
+
+La fase actual consolida TOPIC Connector como un toolkit reproducible para avanzar desde un runtime EDC base hacia una plataforma operativa de conector municipal. Los avances principales se concentran en publicacion de assets, gestion de politicas de acceso, politicas de uso y contratos, solicitudes de acceso a assets privados, captura de transferencias, gateway Nginx, separacion ordenada de perfiles, documentacion de reproducibilidad y CI publica.
+
+El resultado es un artefacto mas limpio, trazable y defendible para revision externa. La evidencia actual sostiene los claims de despliegue local reproducible, subida de asset local y captura de descargas, mientras que las afirmaciones mas fuertes sobre produccion, interoperabilidad completa y ArcGIS institucional quedan correctamente identificadas como trabajo futuro.
+
+\end{document}

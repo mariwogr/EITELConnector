@@ -3,6 +3,12 @@
     return window.EITEL_UI_CONFIG || {};
   }
 
+  function arcgisEnabled() {
+    var raw = String(getConfig().arcgisAuthEnabled || '').trim().toLowerCase();
+    if (raw) return ['1', 'true', 'yes', 'on'].indexOf(raw) >= 0;
+    return String(getConfig().uiVariant || '').trim().toLowerCase() === 'production';
+  }
+
   function portalUrl() {
     var cfg = getConfig();
     return String(cfg.arcgisPortalUrl || 'https://gis.eiteldata.eu/arcgis').replace(/\/+$/, '');
@@ -14,6 +20,7 @@
   }
 
   function startLogin() {
+    if (!arcgisEnabled()) return;
     var cfg = getConfig();
     var clientId = String(cfg.arcgisClientId || 'arcgisonline');
     var url = portalUrl() + '/sharing/oauth2/authorize'
@@ -26,7 +33,17 @@
 
   function ensureButton() {
     var gate = document.getElementById('authGate');
-    if (!gate || !gate.classList.contains('open')) return;
+    if (!gate) return;
+    if (!arcgisEnabled()) {
+      gate.classList.remove('open');
+      var disabledError = document.getElementById('authError');
+      if (disabledError) {
+        disabledError.textContent = '';
+        disabledError.style.display = 'none';
+      }
+      return;
+    }
+    if (!gate.classList.contains('open')) return;
 
     var error = document.getElementById('authError');
     if (error && /Acceso no disponible|Contacte con el administrador/i.test(error.textContent || '')) {

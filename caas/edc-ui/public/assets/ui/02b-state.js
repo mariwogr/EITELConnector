@@ -264,10 +264,6 @@
       const first = String(parts[0] || '').trim();
       if (first.toLowerCase().startsWith('conector')) return `/${first}/`;
 
-      const fromConfig = canonicalConnectorPrefix(cfg?.connectorName || '');
-      if (fromConfig) return `/${fromConfig}/`;
-
-      const fallback = canonicalConnectorPrefix(PROD_CONNECTOR_ID || 'conectoruc3m') || 'conectoruc3m';
-      return `/${fallback}/`;
+      return '/';
     }
 

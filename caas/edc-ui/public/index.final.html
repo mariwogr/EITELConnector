@@ -879,27 +879,33 @@
     </div>
   </div>
 
-  <script src="config.js?v=20260519d"></script>
-  <script src="assets/ui/01-runtime.js?v=20260605a"></script>
-  <script src="assets/ui/02a-utils.js?v=20260603d"></script>
-  <script src="assets/ui/02b-state.js?v=20260603d"></script>
-  <script src="assets/ui/02c-api.js?v=20260603d"></script>
+  <script src="config.js?v=20260618a"></script>
+  <script src="assets/ui/01-runtime.js?v=20260618a"></script>
+  <script src="assets/ui/02a-utils.js?v=20260618a"></script>
+  <script src="assets/ui/02b-state.js?v=20260618a"></script>
+  <script src="assets/ui/02c-api.js?v=20260618a"></script>
   <script src="assets/ui/02d-ui.js?v=20260605a"></script>
   <script src="assets/ui/02e-catalog-ui.js?v=20260605d"></script>
   <script src="assets/ui/02f-star.js?v=20260609b"></script>
-  <script src="assets/ui/02g-download.js?v=20260609b"></script>
+  <script src="assets/ui/02g-download.js?v=20260618a"></script>
   <script src="assets/ui/02h-arcgis.js?v=20260609b"></script>
   <script src="assets/ui/02i-management.js?v=20260609b"></script>
-  <script src="assets/ui/02j-catalog-data.js?v=20260603d"></script>
+  <script src="assets/ui/02j-catalog-data.js?v=20260618a"></script>
   <script src="assets/ui/02k-negotiation.js?v=20260604h"></script>
   <script src="assets/ui/02l-transfer.js?v=20260603d"></script>
   <script src="assets/ui/02m-gaiax.js?v=20260603d"></script>
   <script src="assets/ui/03-secrets.js?v=20260519d"></script>
-  <script src="assets/ui/04-bootstrap.js?v=20260605f"></script>
+  <script src="assets/ui/04-bootstrap.js?v=20260618a"></script>
   <script>
     (function () {
       function cfg() {
         return window.EITEL_UI_CONFIG || {};
+      }
+
+      function arcgisEnabled() {
+        var raw = String(cfg().arcgisAuthEnabled || '').trim().toLowerCase();
+        if (raw) return ['1', 'true', 'yes', 'on'].indexOf(raw) >= 0;
+        return String(cfg().uiVariant || '').trim().toLowerCase() === 'production';
       }
 
       function arcgisPortalUrl() {
@@ -912,6 +918,7 @@
 
       function startArcgisEnterpriseLogin(event) {
         if (event && event.preventDefault) event.preventDefault();
+        if (!arcgisEnabled()) return false;
         var clientId = String(cfg().arcgisClientId || 'arcgisonline');
         var url = arcgisPortalUrl() + '/sharing/oauth2/authorize'
           + '?client_id=' + encodeURIComponent(clientId)
@@ -925,6 +932,15 @@
       function ensureArcgisGateButton() {
         var gate = document.getElementById('authGate');
         if (!gate) return;
+        if (!arcgisEnabled()) {
+          gate.classList.remove('open');
+          var disabledError = document.getElementById('authError');
+          if (disabledError) {
+            disabledError.textContent = '';
+            disabledError.style.display = 'none';
+          }
+          return;
+        }
 
         var help = gate.querySelector('.auth-help');
         if (help) {

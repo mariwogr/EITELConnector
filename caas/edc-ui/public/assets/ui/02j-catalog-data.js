@@ -68,6 +68,8 @@
 
     function buildManagementApiBaseUrlForConnector(connectorId) {
       const raw = String(connectorId || '').trim();
+      if (!raw) return getApiBaseUrl();
+      if (raw === String(cfg.connectorName || '').trim()) return getApiBaseUrl();
       const absolute = raw.startsWith('http://') || raw.startsWith('https://');
       if (absolute) {
         try {
@@ -853,7 +855,7 @@
         .split(/[\n,;]+/g)
         .map(v => String(v || '').trim())
         .filter(Boolean);
-      return candidates[0] || 'conectoruc3m';
+      return candidates[0] || '';
     }
 
     function normalizeRemoteConnectorId(connectorId) {
@@ -868,7 +870,7 @@
     // Construir URL DSP absoluta en base al conector remoto indicado por el usuario.
     function buildDspUrl(connectorId) {
       const raw = String(connectorId || getDefaultRemoteConnector()).trim();
-      if (!raw) return ensureDspVersion(`${window.location.origin}/${canonicalConnectorPrefix(getDefaultRemoteConnector())}/api/v1/dsp`);
+      if (!raw) return ensureDspVersion(cfg.dspUrl || `${window.location.origin}/api/v1/dsp`);
 
       const currentConnectorRaw = String(cfg?.connectorName || '').trim();
       const currentCanonical = canonicalConnectorPrefix(currentConnectorRaw).toLowerCase();
@@ -912,6 +914,7 @@
 
       const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname.startsWith('127.');
       if (isLocalHost) {
+        if (raw === currentConnectorRaw) return ensureDspVersion(cfg.dspUrl || `${window.location.origin}/api/v1/dsp`);
         return ensureDspVersion(`http://${raw}-connector:19103/api/v1/dsp`);
       }
 

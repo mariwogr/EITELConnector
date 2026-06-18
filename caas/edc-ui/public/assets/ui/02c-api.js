@@ -117,7 +117,8 @@
         pushIfValid(`${window.location.origin}/${fromApiBase}/local-assets`);
       }
 
-      const configuredPrefix = canonicalConnectorPrefix(cfg?.connectorName || '');
+      const configuredName = String(cfg?.connectorName || '').trim();
+      const configuredPrefix = /^conector/i.test(configuredName) ? canonicalConnectorPrefix(configuredName) : '';
       if (configuredPrefix) {
         pushIfValid(`${window.location.origin}/${configuredPrefix}/local-assets`);
         pushIfValid(`${window.location.origin}/${configuredPrefix.toLowerCase()}/local-assets`);
@@ -128,14 +129,6 @@
       // porque en producción suele devolver páginas 404/ArcGIS engañosas.
       if (isLocalHost || !hasConnectorPrefixInPath) {
         pushIfValid(`${window.location.origin}/local-assets`);
-      }
-
-      // Fallbacks explícitos para entornos mixtos UC3M/Fuenlabrada.
-      // Priorizar estos fallbacks solo en entorno local/dev.
-      if (isLocalHost) {
-        pushIfValid(`${window.location.origin}/conectoruc3m/local-assets`);
-        pushIfValid(`${window.location.origin}/conectorFuenlabrada/local-assets`);
-        pushIfValid(`${window.location.origin}/conectorfuenlabrada/local-assets`);
       }
 
       return candidates;

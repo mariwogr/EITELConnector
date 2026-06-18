@@ -2,6 +2,7 @@
 set -eu
 
 GATEWAY_URL="${GATEWAY_URL:-http://localhost:12000}"
+CONNECTOR_PATH="${CONNECTOR_PATH:-}"
 if [ -z "${LOCAL_ASSETS_AUTH_TOKEN:-}" ] && [ -f .env ]; then
   LOCAL_ASSETS_AUTH_TOKEN="$(sed -n 's/^LOCAL_ASSETS_AUTH_TOKEN=//p' .env | tail -n 1)"
 fi
@@ -24,7 +25,7 @@ ingest_once() {
     -H "x-transfer-id: $transfer_id" \
     -H "content-type: application/json" \
     --data "$payload" \
-    "$GATEWAY_URL/conectoruc3m/download-sink/ingest?contractId=$contract_id&assetId=$asset_id&transferId=$transfer_id" >/dev/null
+    "$GATEWAY_URL$CONNECTOR_PATH/download-sink/ingest?contractId=$contract_id&assetId=$asset_id&transferId=$transfer_id" >/dev/null
 }
 
 command -v curl >/dev/null 2>&1 || fail "curl is not available"
@@ -50,7 +51,7 @@ done
 records=""
 i=1
 while [ "$i" -le "$attempts" ]; do
-  if records="$(curl -fsS -H "x-api-key: $TOKEN" "$GATEWAY_URL/conectoruc3m/download-sink/records")"; then
+  if records="$(curl -fsS -H "x-api-key: $TOKEN" "$GATEWAY_URL$CONNECTOR_PATH/download-sink/records")"; then
     break
   fi
   sleep "$delay"

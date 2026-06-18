@@ -391,7 +391,7 @@ function openSettings() { settingsModal.classList.add('open'); }
       document.getElementById('searchConnectorId').value = configuredRemoteConnector || getDefaultRemoteConnector();
       document.getElementById('transferAddress').value = '';
       if (document.getElementById('catalogConnectorsList')) {
-        document.getElementById('catalogConnectorsList').value = (cfg.connectorCatalogList || 'conectoruc3m, conectorFuenlabrada').trim();
+        document.getElementById('catalogConnectorsList').value = (cfg.connectorCatalogList || '').trim();
       }
       if (document.getElementById('catalogFilterConnector')) {
         document.getElementById('catalogFilterConnector').value = '';
