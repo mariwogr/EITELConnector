@@ -23,15 +23,15 @@
 
 \begin{frontmatter}
 
-\title{TOPIC Connector: A Reproducible Toolkit for EDC-Based Municipal Data-Space Connectors}
+\title{TOPIC Connector: Territorial Open Platform for Institutional Collaboration in EDC-Based Municipal Data Spaces}
 
-\author[uc3m]{Mario Garcia Rodriguez}
+\author[uc3m]{Mario García Rodríguez}
 \affiliation[uc3m]{organization={Universidad Carlos III de Madrid},
 city={Madrid},
 country={Spain}}
 
 \begin{abstract}
-TOPIC Connector (Territorial Open Platform for Institutional Collaboration) is an Apache-2.0-licensed toolkit for reproducing and inspecting Eclipse Dataspace Components (EDC)-based connector deployments in municipal and geospatial data-sharing scenarios. It packages an EDC runtime with persistence, gateway routing, a participant-facing web interface, local asset onboarding, policy and contract-definition workflows, private-asset access requests, Gaia-X-oriented credential inspection, download capture, examples, and validation scripts. The toolkit addresses the gap between a minimal connector runtime and a usable experimental deployment by providing a ready-to-run baseline for researchers, engineers, and institutional public-sector participants. Its current evidence supports reproducible local deployment, asset publication, and transfer-capture workflows, while live ArcGIS validation and full interoperability benchmarking remain future work.
+TOPIC Connector, the Territorial Open Platform for Institutional Collaboration connector, is an Apache-2.0-licensed software artifact for reproducing and inspecting Eclipse Dataspace Components (EDC)-based connector deployments in municipal and geospatial data-sharing scenarios. It packages an EDC runtime with persistence, gateway routing, a participant-facing web interface, local asset onboarding, policy and contract-definition workflows, private-asset access requests, Gaia-X-oriented credential inspection, download capture, examples, and validation scripts. The platform-oriented name reflects its intended role: supporting territorial institutions that need a shared, inspectable connector baseline for controlled data collaboration. The released toolkit addresses the gap between a minimal connector runtime and a usable experimental deployment by providing a ready-to-run baseline for researchers, engineers, and institutional public-sector participants. Its current evidence supports reproducible local deployment, asset publication, and transfer-capture workflows, while live ArcGIS validation and full interoperability benchmarking remain future work.
 \end{abstract}
 
 \begin{keyword}
@@ -56,7 +56,7 @@ C4 & Code versioning system used & Git \\
 C5 & Software code languages, tools and services used & Java/EDC configuration, Python/FastAPI, HTML/CSS/JavaScript, Docker Compose, Nginx \\
 C6 & Compilation requirements, operating environments and dependencies & Docker Engine or Docker Desktop with Compose v2; \code{curl}; POSIX-compatible shell for validation scripts; Eclipse Dataspace Components runtime; PostgreSQL; Nginx; FastAPI auxiliary services \\
 C7 & If available, link to developer documentation/manual & \url{https://github.com/krgroup/TOPIC-Connector/blob/main/docs/REPRODUCIBILITY.md} \\
-C8 & Support email for questions & \url{mgarciar@inf.uc3m.es} \\
+C8 & Support email for questions & mgarciar@inf.uc3m.es \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -65,7 +65,7 @@ C8 & Support email for questions & \url{mgarciar@inf.uc3m.es} \\
 \section{Motivation and significance}
 Data-space participation requires more than running a connector runtime. A participant must configure routes, persistence, management access, publication workflows, policies, contract definitions, and transfer handling before data exchange can be operated by non-framework specialists. This gap is relevant in municipal settings, where data may appear as local files, geospatial services, or GIS-managed resources, and where the same technical baseline may need to be replicated across several organizations.
 
-TOPIC Connector addresses this practical gap by packaging a reproducible EDC-based connector stack with the auxiliary services needed for publication, access governance, participant inspection, and transfer experiments. Its scope is experimental and reproducibility-oriented: it provides a public, inspectable, and executable baseline for researchers and engineers studying connector deployment, local asset publication, participant-facing management, and municipal-oriented GIS integration hooks.
+TOPIC Connector is named after its broader purpose: a Territorial Open Platform for Institutional Collaboration. In this article, the term refers to the connector implementation of that platform idea: a reproducible EDC-based stack with the auxiliary services needed for publication, access governance, participant inspection, and transfer experiments. Its scope is experimental and reproducibility-oriented, but the motivation is institutional: to give territorial public-sector participants a shared technical baseline for studying connector deployment, local asset publication, participant-facing management, and municipal-oriented GIS integration hooks.
 
 The scientific and engineering problem addressed by the software is reproducibility of connector experimentation. Without a packaged environment, researchers and institutional participants must repeatedly assemble a connector runtime, gateway, persistence layer, publication interface, policy configuration, request handling, and transfer observation tools before they can study data-space workflows. TOPIC Connector makes this substrate reproducible, which supports experiments on connector packaging, local asset onboarding, access and usage policy modelling, participant identity inspection, and transfer traceability.
 
@@ -75,7 +75,9 @@ The experimental setting is a local or institutional connector deployment starte
 
 The toolkit is aligned with the European data-space context, where trusted and sovereign data sharing is framed by initiatives and instruments such as the European strategy for data, the Data Governance Act, the Data Act, IDS-RAM, and Gaia-X~\cite{b1,b2,b3,b4,b5,b6}. These references define the setting in which connectors operate, but they do not by themselves provide a complete deployment package for institutional pilots.
 
-EDC is a major open framework for building dataspace services and connectors~\cite{b7}. Existing connector implementations differ in architecture, identity handling, and policy-language choices, as shown by surveys and implementation reports covering DSC, EDC, TRUE Connector, and Trusted Connector~\cite{b12,b13}. Urban and geospatial data-space literature further shows that governance, standardized ICT architectures, and spatial-data tooling affect adoption in public-sector environments~\cite{b14,b15,b16}. Recent smart-city federation work also identifies unified access to heterogeneous repositories, dataset catalogues, authentication and authorization, API gateways, download services, and technical and semantic interoperability as relevant platform capabilities~\cite{b19}. Other recent work explores service-oriented interaction models on top of EDC~\cite{b17}. TOPIC Connector complements these works by providing an executable software baseline rather than a conceptual architecture, survey, or policy analysis.
+EDC is a major open framework for building dataspace services and connectors~\cite{b7}. Existing connector implementations differ in architecture, identity handling, and policy-language choices, as shown by surveys and implementation reports covering DSC, EDC, TRUE Connector, and Trusted Connector~\cite{b12,b13}. Urban and geospatial data-space literature further shows that governance, standardized ICT architectures, and spatial-data tooling affect adoption in public-sector environments~\cite{b14,b15,b16}. Recent smart-city federation work also identifies unified access to heterogeneous repositories, dataset catalogues, authentication and authorization, API gateways, download services, and technical and semantic interoperability as relevant platform capabilities~\cite{b19}. Other recent work explores service-oriented interaction models on top of EDC~\cite{b17}.
+
+TOPIC Connector also differs from existing EDC packaging and onboarding material. The official EDC samples are useful for learning the framework and exercising individual connector concepts, but they are not intended as a municipal operational toolkit with gateway routing, local-file publication, private-access requests, download capture, and institutional GIS-oriented hooks~\cite{b20}. Tractus-X provides pre-built EDC control-plane and data-plane images and Helm charts for Catena-X-style deployments~\cite{b21}. TOPIC Connector is positioned at a different level: it packages a Docker Compose-based research and pilot environment around EDC, with participant-facing workflows for local asset onboarding, access governance, Gaia-X credential inspection, and municipal geospatial integration experiments.
 
 The repository root contains the local stack and software metadata described in this article. Secondary connector profiles are stored under \code{experimental/}; production-like UC3M and Fuenlabrada profiles are stored under \code{institutional-profiles/}; deprecated deployment fragments are stored under \code{legacy/}. This organization separates the reusable local toolkit from institutional deployments and historical configuration fragments.
 \FloatBarrier
@@ -239,7 +241,7 @@ The source code is publicly available at \url{https://github.com/krgroup/TOPIC-C
 No additional research data were generated for this article. Example files and reproducibility material are included in the public software release.
 
 \section*{CRediT authorship contribution statement}
-Mario Garcia Rodriguez: Conceptualization, Software, Methodology, Validation, Writing -- original draft, Writing -- review and editing.
+Mario García Rodríguez: Conceptualization, Software, Methodology, Validation, Writing -- original draft, Writing -- review and editing.
 
 \section*{Declaration of competing interest}
 The author declares that there are no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
@@ -263,6 +265,8 @@ During the preparation of this work, the author used AI-assisted tools to suppor
 \bibitem{b17} B. T. Arnold, C. Lange, C. Gillmann, and S. Decker, ``A service architecture for dataspaces,'' arXiv preprint arXiv:2507.07979, 2025.
 \bibitem{b18} EITEL, ``Energía Inteligente para Todos,'' [Online]. Available: https://www.eiteldata.eu
 \bibitem{b19} P. M. Lopes, P. Guimarães, T. F. Pereira, and R. J. Machado, ``Gaia-X and Fiware: Implementation of a federated data platform in smart cities,'' \textit{Procedia Computer Science}, vol. 239, pp. 1506--1515, 2024, doi: 10.1016/j.procs.2024.06.325.
+\bibitem{b20} Eclipse Foundation, ``Eclipse EDC Samples,'' [Online]. Available: https://github.com/eclipse-edc/Samples
+\bibitem{b21} Eclipse Tractus-X, ``Tractus-X EDC,'' [Online]. Available: https://github.com/eclipse-tractusx/tractusx-edc
 \end{thebibliography}
 
 \end{document}

@@ -2,7 +2,9 @@
 
 [![CI](https://github.com/krgroup/TOPIC-Connector/actions/workflows/ci.yml/badge.svg)](https://github.com/krgroup/TOPIC-Connector/actions/workflows/ci.yml)
 
-TOPIC Connector is a municipal-oriented toolkit for deploying and operating Eclipse Dataspace Components (EDC)-based data connectors. It packages a connector runtime, operator UI, local asset ingestion service, download-capture service, PostgreSQL persistence, and Nginx gateway profiles into reproducible deployment artifacts.
+TOPIC Connector stands for **Territorial Open Platform for Institutional Collaboration Connector**. It is a municipal-oriented software artifact for deploying and operating Eclipse Dataspace Components (EDC)-based data connectors in territorial and public-sector data-sharing scenarios. The released toolkit packages a connector runtime, participant-facing management UI, local asset ingestion service, download-capture service, PostgreSQL persistence, and Nginx gateway profiles into reproducible deployment artifacts.
+
+The TOPIC name reflects the goal of supporting institutional collaboration around territorial data: municipalities, universities, and public-sector participants can use the same connector baseline to publish assets, configure access governance, inspect participant identity material, and capture transfers during controlled data-space experiments.
 
 The repository was originally developed under the EITELConnector name. EITEL refers to the broader research and engineering ecosystem; TOPIC Connector is the bounded software artifact released for review, citation, and reuse.
 
@@ -10,14 +12,14 @@ The repository was originally developed under the EITELConnector name. EITEL ref
 
 This repository contains the software artifact described in:
 
-> TOPIC Connector: A Reproducible Toolkit for Early-Stage Municipal Data-Space Connectors
+> TOPIC Connector: Territorial Open Platform for Institutional Collaboration in EDC-Based Municipal Data Spaces
 
 Recommended artifact version:
 
 - Repository: https://github.com/krgroup/TOPIC-Connector
 - Release: `v1.0.11`
 - License: Apache-2.0
-- Support contact: Mario Garcia Rodriguez, Universidad Carlos III de Madrid
+- Support contact: Mario García Rodríguez, Universidad Carlos III de Madrid
 
 The recommended reproduction path for reviewers is the local Docker Compose stack in [docker-compose.yaml](docker-compose.yaml). Production profiles and experimental profiles are kept for traceability, but they are not the primary SoftwareX reproduction path.
 
@@ -26,7 +28,7 @@ The recommended reproduction path for reviewers is the local Docker Compose stac
 | Component | Technology | Purpose |
 | --- | --- | --- |
 | EDC runtime | Java / Eclipse EDC | Connector core for assets, policies, contracts, negotiations, and transfers |
-| Management UI | HTML / CSS / JavaScript, served by Nginx | Operator interface for publication, catalog, contracts, transfers, and ArcGIS-oriented workflows |
+| Management UI | HTML / CSS / JavaScript, served by Nginx | Participant-facing interface for publication, catalog, contracts, transfers, and ArcGIS-oriented workflows |
 | local-assets | Python / FastAPI | Local file upload and controlled publication support |
 | download-sink | Python / FastAPI | Transfer/download capture and traceable record listing |
 | PostgreSQL | PostgreSQL | Runtime persistence for connector state |
