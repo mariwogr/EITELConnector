@@ -1,5 +1,5 @@
-title: EITEL Public Catalog
-subtitle: Metadata-only view of assets published by EITEL connectors.
+title: EITEL Data Catalog
+subtitle: Published assets from EITEL connectors.
 defaultAccessFormUrl: https://www.eiteldata.eu/
 connectors:
   - id: conectoruc3m
@@ -8,7 +8,9 @@ connectors:
     publicUrl: https://gis.eiteldata.eu/conectoruc3m/
     catalogUrl: https://gis.eiteldata.eu/conectoruc3m/local-assets/asset-bundles/public
     healthUrl: https://gis.eiteldata.eu/conectoruc3m/health
-    authTokenEnv: LOCAL_ASSETS_AUTH_TOKEN
+    credentialUrl: https://eiteldata.uc3m.es/.well-known/vp-UC3Mcompliance.json
+    authTokenEnv: UC3M_LOCAL_ASSETS_AUTH_TOKEN
+    fallbackAuthTokenEnv: LOCAL_ASSETS_AUTH_TOKEN
     accessFormUrl: https://www.eiteldata.eu/
     enabled: true
   - id: conectorFuenlabrada
@@ -17,6 +19,8 @@ connectors:
     publicUrl: https://gis.eiteldata.eu/conectorFuenlabrada/
     catalogUrl: https://gis.eiteldata.eu/conectorFuenlabrada/local-assets/asset-bundles/public
     healthUrl: https://gis.eiteldata.eu/conectorFuenlabrada/health
-    authTokenEnv: LOCAL_ASSETS_AUTH_TOKEN
+    credentialUrl: https://eiteldata.uc3m.es/.well-known/vp-FUENLAcompliance.json
+    authTokenEnv: FUENLABRADA_LOCAL_ASSETS_AUTH_TOKEN
+    fallbackAuthTokenEnv: LOCAL_ASSETS_AUTH_TOKEN
     accessFormUrl: https://www.eiteldata.eu/
     enabled: true

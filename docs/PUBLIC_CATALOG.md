@@ -89,10 +89,23 @@ https://gis.eiteldata.eu/conectoruc3m/local-assets/asset-bundles/public
 https://gis.eiteldata.eu/conectorFuenlabrada/local-assets/asset-bundles/public
 ```
 
-If the connector protects `local-assets` with `LOCAL_ASSETS_AUTH_TOKEN`, keep the token as an environment variable on the catalog container and reference it from the connector entry:
+If the connector protects `local-assets`, keep the API key as an environment variable on the catalog container and reference it from the connector entry:
 
 ```yaml
-authTokenEnv: LOCAL_ASSETS_AUTH_TOKEN
+authTokenEnv: UC3M_LOCAL_ASSETS_AUTH_TOKEN
+fallbackAuthTokenEnv: LOCAL_ASSETS_AUTH_TOKEN
 ```
 
-The token is only used server-side when the catalog polls `gis.eiteldata.eu`; it is not returned to the browser.
+The production Docker Compose file reads these values from the same `.env.production` file used by the connector deployment:
+
+```bash
+docker compose --env-file ../../.env.production up -d --build
+```
+
+Use `UC3M_LOCAL_ASSETS_AUTH_TOKEN` and `FUENLABRADA_LOCAL_ASSETS_AUTH_TOKEN` when each connector has a different key. If they are empty, the catalog falls back to `LOCAL_ASSETS_AUTH_TOKEN`. The token is only used server-side when the catalog polls `gis.eiteldata.eu`; it is not returned to the browser.
+
+Each connector entry can also define a public Gaia-X credential link:
+
+```yaml
+credentialUrl: https://eiteldata.uc3m.es/.well-known/vp-UC3Mcompliance.json
+```

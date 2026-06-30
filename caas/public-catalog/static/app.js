@@ -86,7 +86,11 @@ function renderConnectors() {
         <span class="meta">${escapeHtml(connector.organization || connector.id)}</span>
       </div>
       <span class="pill ${connector.online ? 'online' : 'offline'}">${connector.online ? 'Online' : 'Offline'}</span>
-      <p class="meta">${Number(connector.assetCount || 0)} assets from local-assets metadata</p>
+      <p class="meta">${Number(connector.assetCount || 0)} published assets</p>
+      <div class="connector-links">
+        ${connector.connectorUrl ? `<a href="${escapeHtml(connector.connectorUrl)}" target="_blank" rel="noopener">Open connector</a>` : ''}
+        ${connector.credentialUrl ? `<a href="${escapeHtml(connector.credentialUrl)}" target="_blank" rel="noopener">Gaia-X credential</a>` : ''}
+      </div>
       ${connector.catalogError ? `<p class="connector-error">${escapeHtml(connector.catalogError)}</p>` : ''}
     </article>
   `).join('');
@@ -126,11 +130,12 @@ function renderAssetCard(asset, idx, state) {
           <summary>Details</summary>
           <div class="asset-card-desc">${escapeHtml(asset.description || 'No description provided.')}</div>
           ${tags ? `<div class="tags">${tags}</div>` : '<div class="asset-card-meta">No keywords</div>'}
-          <div class="asset-card-meta">Source: provider local-assets metadata</div>
+          <div class="asset-card-meta">Published by ${escapeHtml(asset.providerName || asset.providerId || 'provider connector')}</div>
         </details>
         <div class="actions">
           ${asset.accessFormUrl ? `<a class="primary" href="${escapeHtml(asset.accessFormUrl)}" target="_blank" rel="noopener">Request access</a>` : ''}
           ${asset.connectorUrl ? `<a href="${escapeHtml(asset.connectorUrl)}" target="_blank" rel="noopener">Open connector</a>` : ''}
+          ${asset.credentialUrl ? `<a href="${escapeHtml(asset.credentialUrl)}" target="_blank" rel="noopener">Gaia-X credential</a>` : ''}
         </div>
       </div>
     </article>

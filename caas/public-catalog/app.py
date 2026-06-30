@@ -50,8 +50,15 @@ def _load_config() -> dict[str, Any]:
 
 
 def _connector_auth_headers(connector: dict[str, Any]) -> dict[str, str]:
-    token_env = str(connector.get("authTokenEnv") or "").strip()
-    token = os.getenv(token_env, "").strip() if token_env else ""
+    token_envs = [
+        str(connector.get("authTokenEnv") or "").strip(),
+        str(connector.get("fallbackAuthTokenEnv") or "").strip(),
+    ]
+    token = ""
+    for token_env in token_envs:
+        token = os.getenv(token_env, "").strip() if token_env else ""
+        if token:
+            break
     if not token:
         return {}
     return {
@@ -111,6 +118,7 @@ def _sanitize_asset(raw: dict[str, Any], connector: dict[str, Any], access_form:
     safe["providerName"] = connector.get("name", connector.get("id", ""))
     safe["providerOrganization"] = connector.get("organization", "")
     safe["connectorUrl"] = connector.get("publicUrl", "")
+    safe["credentialUrl"] = connector.get("credentialUrl", "")
     safe["accessFormUrl"] = connector.get("accessFormUrl") or access_form
     safe["visibility"] = str(safe.get("visibility") or "unknown").lower()
     return safe
@@ -152,6 +160,7 @@ def _build_catalog(refresh: bool = False) -> dict[str, Any]:
                 "healthError": health_error,
                 "catalogError": catalog_error,
                 "connectorUrl": connector.get("publicUrl", ""),
+                "credentialUrl": connector.get("credentialUrl", ""),
             }
         )
 
