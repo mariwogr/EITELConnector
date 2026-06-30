@@ -3,15 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>EITEL Public Catalog</title>
+  <title>EITEL Data Catalog</title>
   <link rel="stylesheet" href="static/styles.css">
 </head>
 <body>
   <header class="topbar">
-    <div>
-      <p class="eyebrow">EITEL data space</p>
-      <h1 id="catalog-title">Public Catalog</h1>
-      <p id="catalog-subtitle" class="subtitle">Metadata-only view of connector assets.</p>
+    <div class="brand-block">
+      <img class="brand-logo" src="static/eitel-logo-brand.png" alt="EITEL">
+      <div>
+        <p class="eyebrow">EITEL data space</p>
+        <h1 id="catalog-title">EITEL Data Catalog</h1>
+        <p id="catalog-subtitle" class="subtitle">Published assets from EITEL connectors.</p>
+      </div>
     </div>
     <div class="status-box">
       <span id="last-check">Checking connectors...</span>
@@ -20,19 +23,67 @@
   </header>
 
   <main>
-    <section id="connectors" class="connectors" aria-label="Connector status"></section>
-
-    <section class="toolbar">
-      <input id="search" type="search" placeholder="Search by title, provider, keyword or description">
-      <select id="visibility">
-        <option value="">All visibility states</option>
-        <option value="public">Public</option>
-        <option value="private">Private</option>
-        <option value="available">Available</option>
-      </select>
+    <section class="metrics" aria-label="Catalog summary">
+      <article class="metric">
+        <span class="metric-label">Published assets</span>
+        <strong id="metric-assets">0</strong>
+      </article>
+      <article class="metric">
+        <span class="metric-label">Public</span>
+        <strong id="metric-public">0</strong>
+      </article>
+      <article class="metric">
+        <span class="metric-label">Restricted</span>
+        <strong id="metric-private">0</strong>
+      </article>
+      <article class="metric">
+        <span class="metric-label">Connectors online</span>
+        <strong id="metric-connectors">0/0</strong>
+      </article>
     </section>
 
-    <section id="assets" class="asset-showcase" aria-label="Published asset metadata"></section>
+    <section class="catalog-layout">
+      <aside class="side-panel">
+        <div class="panel-head">
+          <h2>Connectors</h2>
+          <span id="connector-count" class="soft-label">0 sources</span>
+        </div>
+        <div id="connectors" class="connectors" aria-label="Connector status"></div>
+      </aside>
+
+      <section class="catalog-main">
+        <section class="toolbar" aria-label="Catalog filters">
+          <div class="search-wrap">
+            <label for="search">Search assets</label>
+            <input id="search" type="search" placeholder="Title, provider, keyword or description">
+          </div>
+          <div>
+            <label for="connector-filter">Connector</label>
+            <select id="connector-filter">
+              <option value="">All connectors</option>
+            </select>
+          </div>
+          <div>
+            <label for="visibility">Visibility</label>
+            <select id="visibility">
+              <option value="">All states</option>
+              <option value="public">Public</option>
+              <option value="private">Private</option>
+              <option value="available">Available</option>
+              <option value="pending">Pending</option>
+            </select>
+          </div>
+          <button id="clear-filters" type="button" class="secondary">Clear</button>
+        </section>
+
+        <div class="result-bar">
+          <strong id="result-count">0 assets</strong>
+          <span id="active-filter-label">Showing all published assets</span>
+        </div>
+
+        <section id="assets" class="asset-showcase" aria-label="Published asset metadata"></section>
+      </section>
+    </section>
   </main>
 
   <script src="static/app.js"></script>
