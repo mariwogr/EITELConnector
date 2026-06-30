@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EITEL Public Catalog</title>
+  <link rel="stylesheet" href="static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">EITEL data space</p>
+      <h1 id="catalog-title">Public Catalog</h1>
+      <p id="catalog-subtitle" class="subtitle">Metadata-only view of connector assets.</p>
+    </div>
+    <div class="status-box">
+      <span id="last-check">Checking connectors...</span>
+      <button id="refresh" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="notice">
+      This portal displays asset metadata and connector availability only. It does not expose payload URLs, negotiate contracts, or transfer data.
+    </section>
+
+    <section id="connectors" class="connectors"></section>
+
+    <section class="toolbar">
+      <input id="search" type="search" placeholder="Search by title, provider, keyword or description">
+      <select id="visibility">
+        <option value="">All visibility states</option>
+        <option value="public">Public</option>
+        <option value="private">Private</option>
+        <option value="available">Available</option>
+      </select>
+    </section>
+
+    <section id="assets" class="asset-grid"></section>
+  </main>
+
+  <script src="static/app.js"></script>
+</body>
+</html>

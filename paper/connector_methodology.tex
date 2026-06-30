@@ -1,14 +1,14 @@
-\documentclass[preprint,12pt,a4paper]{elsarticle}
+\documentclass[a4paper,fleqn]{cas-dc}
 
-\usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage[english]{babel}
-\usepackage{graphicx}
-\usepackage{booktabs}
-\usepackage{array}
+\usepackage[numbers]{natbib}
 \usepackage{tabularx}
 \usepackage{ragged2e}
 \usepackage{placeins}
+\usepackage{float}
+\usepackage{stfloats}
+\usepackage{capt-of}
 \usepackage{xurl}
 
 \newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
@@ -17,33 +17,46 @@
 \renewcommand{\arraystretch}{1.15}
 \emergencystretch=2em
 
-\journal{SoftwareX}
-
 \begin{document}
+\let\WriteBookmarks\relax
+\def\floatpagepagefraction{1}
+\def\textpagefraction{.001}
 
-\begin{frontmatter}
+\shorttitle{TOPIC Connector}
+\shortauthors{M. García Rodríguez et~al.}
 
-\title{TOPIC Connector: Territorial Open Platform for Institutional Collaboration in EDC-Based Municipal Data Spaces}
+\title[mode=title]{TOPIC Connector: Territorial Open Platform for Institutional Collaboration in EDC-Based Municipal Data Spaces}
 
-\author[uc3m]{Mario García Rodríguez}
-\affiliation[uc3m]{organization={Universidad Carlos III de Madrid},
+\author[1]{Mario García Rodríguez}
+\cormark[1]
+\ead{mgarciar@inf.uc3m.es}
+\credit{Conceptualization, Software, Methodology, Validation, Writing -- original draft, Writing -- review and editing}
+
+\author[1]{José María Álvarez-Rodríguez}
+\credit{Supervision, Project administration, Software supervision, Writing -- review and editing}
+
+
+\affiliation[1]{organization={Universidad Carlos III de Madrid},
 city={Madrid},
 country={Spain}}
+
+\cortext[cor1]{Corresponding author}
 
 \begin{abstract}
 TOPIC Connector, the Territorial Open Platform for Institutional Collaboration connector, is an Apache-2.0-licensed software artifact for reproducing and inspecting Eclipse Dataspace Components (EDC)-based connector deployments in municipal and geospatial data-sharing scenarios. It packages an EDC runtime with persistence, gateway routing, a participant-facing web interface, local asset onboarding, policy and contract-definition workflows, private-asset access requests, Gaia-X-oriented credential inspection, download capture, examples, and validation scripts. The platform-oriented name reflects its intended role: supporting territorial institutions that need a shared, inspectable connector baseline for controlled data collaboration. The released toolkit addresses the gap between a minimal connector runtime and a usable experimental deployment by providing a ready-to-run baseline for researchers, engineers, and institutional public-sector participants. Its current evidence supports reproducible local deployment, asset publication, and transfer-capture workflows, while live ArcGIS validation and full interoperability benchmarking remain future work.
 \end{abstract}
 
-\begin{keyword}
+
+\begin{keywords}
 data spaces \sep Eclipse EDC \sep data connector \sep municipal data \sep research software \sep reproducibility
-\end{keyword}
+\end{keywords}
 
-\end{frontmatter}
+\maketitle
 
-\begin{table}[htbp]
+\begin{table*}[!t]
+\centering
 \caption{Code metadata}
 \label{tab:metadata}
-\centering
 \small
 \begin{tabularx}{\textwidth}{>{\RaggedRight\arraybackslash}p{0.7cm} >{\RaggedRight\arraybackslash}p{4.2cm} Y}
 \toprule
@@ -59,13 +72,12 @@ C7 & If available, link to developer documentation/manual & \url{https://github.
 C8 & Support email for questions & mgarciar@inf.uc3m.es \\
 \bottomrule
 \end{tabularx}
-\end{table}
-\FloatBarrier
+\end{table*}
 
 \section{Motivation and significance}
-Data-space participation requires more than running a connector runtime. A participant must configure routes, persistence, management access, publication workflows, policies, contract definitions, and transfer handling before data exchange can be operated by non-framework specialists. This gap is relevant in municipal settings, where data may appear as local files, geospatial services, or GIS-managed resources, and where the same technical baseline may need to be replicated across several organizations.
+Data-space participation requires more than running a connector runtime. A participant must configure routes, persistence, management access, publication workflows, policies, contract definitions, and transfer handling before data exchange can be operated by participants without deep EDC expertise. This gap is relevant in municipal settings, where data may appear as local files, geospatial services, or GIS-managed resources, and where the same technical baseline may need to be replicated across several organizations.
 
-TOPIC Connector is named after its broader purpose: a Territorial Open Platform for Institutional Collaboration. In this article, the term refers to the connector implementation of that platform idea: a reproducible EDC-based stack with the auxiliary services needed for publication, access governance, participant inspection, and transfer experiments. Its scope is experimental and reproducibility-oriented, but the motivation is institutional: to give territorial public-sector participants a shared technical baseline for studying connector deployment, local asset publication, participant-facing management, and municipal-oriented GIS integration hooks.
+The TOPIC Connector is named after its broader purpose: a Territorial Open Platform for Institutional Collaboration. In this article, the term refers to the implementation of connectors of that platform idea: a reproducible EDC-based stack with the auxiliary services needed for publication, access governance, participant inspection, and transfer experiments. Its scope is experimental and reproducibility-oriented, but the motivation is institutional: to give territorial public-sector participants a shared technical baseline to study connector deployment, local asset publication, participant-facing management, and municipal-oriented GIS integration hooks.
 
 The scientific and engineering problem addressed by the software is reproducibility of connector experimentation. Without a packaged environment, researchers and institutional participants must repeatedly assemble a connector runtime, gateway, persistence layer, publication interface, policy configuration, request handling, and transfer observation tools before they can study data-space workflows. TOPIC Connector makes this substrate reproducible, which supports experiments on connector packaging, local asset onboarding, access and usage policy modelling, participant identity inspection, and transfer traceability.
 
@@ -75,12 +87,11 @@ The experimental setting is a local or institutional connector deployment starte
 
 The toolkit is aligned with the European data-space context, where trusted and sovereign data sharing is framed by initiatives and instruments such as the European strategy for data, the Data Governance Act, the Data Act, IDS-RAM, and Gaia-X~\cite{b1,b2,b3,b4,b5,b6}. These references define the setting in which connectors operate, but they do not by themselves provide a complete deployment package for institutional pilots.
 
-EDC is a major open framework for building dataspace services and connectors~\cite{b7}. Existing connector implementations differ in architecture, identity handling, and policy-language choices, as shown by surveys and implementation reports covering DSC, EDC, TRUE Connector, and Trusted Connector~\cite{b12,b13}. Urban and geospatial data-space literature further shows that governance, standardized ICT architectures, and spatial-data tooling affect adoption in public-sector environments~\cite{b14,b15,b16}. Recent smart-city federation work also identifies unified access to heterogeneous repositories, dataset catalogues, authentication and authorization, API gateways, download services, and technical and semantic interoperability as relevant platform capabilities~\cite{b19}. Other recent work explores service-oriented interaction models on top of EDC~\cite{b17}.
+EDC is a widely used open framework for building dataspace services and connectors~\cite{b7}. Existing connector implementations differ in architecture, identity handling, and policy-language choices, as shown by surveys and implementation reports covering DSC, EDC, TRUE Connector, and Trusted Connector~\cite{b12,b13}. Urban and geospatial data-space literature further shows that governance, standardized ICT architectures, and spatial-data tooling affect adoption in public-sector environments~\cite{b14,b15,b16}. Recent smart-city federation work also identifies unified access to heterogeneous repositories, dataset catalogues, authentication and authorization, API gateways, download services, and technical and semantic interoperability as relevant platform capabilities~\cite{b19}. Other recent work explores service-oriented interaction models on top of EDC~\cite{b17}.
 
 TOPIC Connector also differs from existing EDC packaging and onboarding material. The official EDC samples are useful for learning the framework and exercising individual connector concepts, but they are not intended as a municipal operational toolkit with gateway routing, local-file publication, private-access requests, download capture, and institutional GIS-oriented hooks~\cite{b20}. Tractus-X provides pre-built EDC control-plane and data-plane images and Helm charts for Catena-X-style deployments~\cite{b21}. TOPIC Connector is positioned at a different level: it packages a Docker Compose-based research and pilot environment around EDC, with participant-facing workflows for local asset onboarding, access governance, Gaia-X credential inspection, and municipal geospatial integration experiments.
 
 The repository root contains the local stack and software metadata described in this article. Secondary connector profiles are stored under \code{experimental/}; production-like UC3M and Fuenlabrada profiles are stored under \code{institutional-profiles/}; deprecated deployment fragments are stored under \code{legacy/}. This organization separates the reusable local toolkit from institutional deployments and historical configuration fragments.
-\FloatBarrier
 
 \section{Software description}
 TOPIC Connector combines the components listed in Table~\ref{tab:components}. Throughout the paper, the reference baseline is a minimal EDC runtime exposing Management and DSP services. TOPIC Connector extends this baseline with a management UI, local asset onboarding, download capture, gateway routing, examples, and validation scripts.
@@ -89,21 +100,21 @@ TOPIC Connector combines the components listed in Table~\ref{tab:components}. Th
 
 \IfFileExists{figures/architecture.png}{The architecture, summarized in Figure~\ref{fig:architecture}, follows a small service-oriented deployment model.}{The architecture follows a small service-oriented deployment model.} The EDC runtime remains responsible for the data-space control plane: asset registration, policy definition, contract-definition exposure, contract negotiation, agreement state, and transfer-process state. TOPIC Connector adds the surrounding operational services required to use that runtime as a municipal connector baseline. The Nginx gateway provides the external entry point and routes browser, management, DSP, local-asset, and download-capture traffic to the appropriate internal service. PostgreSQL persists EDC state so that assets, policies, negotiations, agreements, and transfers survive container restarts.
 
-The auxiliary services extend the connector beyond a runtime-only installation. The local-assets service receives files prepared by a data-providing participant, stores them under connector control, returns a retrieval URL that can be used as an EDC asset source, and records access requests for private assets. The download-sink service receives transferred payloads and records them with connector-specific identifiers. The management UI coordinates these services with EDC Management API calls, so institutional participants can move through publication, policy definition, private-access decision, contract exposure, catalog inspection, negotiation, and transfer follow-up from a single interface. In practice, the providing participant publishes a resource through the UI, the local-assets service exposes it as an EDC-readable source, the EDC runtime registers the corresponding asset and policies, and the download-sink records transferred payloads during receiving-participant experiments.
+The auxiliary services extend the connector beyond a runtime-only installation. The local-assets service receives files prepared by a data-providing participant, stores them under connector control, returns a retrieval URL that can be used as an EDC asset source, and records access requests for private assets. The download-sink service receives transferred payloads and records them with connector-specific identifiers. The management UI coordinates these services with EDC Management API calls, so institutional participants can move through publication, policy definition, private-access decision, contract exposure, catalog inspection, negotiation, and transfer follow-up from a single interface. In practice, the providing participant publishes a resource through the UI, the local-assets service exposes it as an EDC-readable source, the EDC runtime registers the corresponding asset and policies, and the download-sink records transferred payloads.
 
 \IfFileExists{figures/architecture.png}{%
-\begin{figure}[htbp]
+\begin{figure*}[!t]
 \centering
-\includegraphics[width=\linewidth]{figures/architecture.png}
+\includegraphics[width=\textwidth]{figures/architecture.png}
 \caption{TOPIC Connector functional architecture, showing the provider/asset-owner and consumer roles, the gateway, the main connector services, storage and integration points, asset visibility states, and the typical sequence from publication to transfer capture.}
 \label{fig:architecture}
-\end{figure}
+\end{figure*}
 }{}
 
-\begin{table}[htbp]
+\begin{table*}[!t]
+\centering
 \caption{Main software components}
 \label{tab:components}
-\centering
 \small
 \begin{tabularx}{\textwidth}{>{\RaggedRight\arraybackslash}p{2.7cm} >{\RaggedRight\arraybackslash}p{2.8cm} Y}
 \toprule
@@ -118,7 +129,7 @@ Gateway & Nginx & Stable routing for UI, management, DSP, local-assets, and down
 Deployment profiles & Docker Compose & Local reproduction plus institutional and experimental profiles \\
 \bottomrule
 \end{tabularx}
-\end{table}
+\end{table*}
 
 \subsection{Software functionalities}
 
@@ -135,62 +146,84 @@ The current UI workflow is organized around the following participant-facing fun
 \item \textbf{Gaia-X-oriented participant inspection}: retrieval and display of Verifiable Presentation material for configured connectors, including participant identity fields and connector endpoint checks used in the EITEL demonstrator.
 \end{itemize}
 
-Private-access handling is implemented through access-request endpoints in the auxiliary service and UI views for both requesting-participant and owner roles. Each request stores requester, organization, connector, intended-purpose, duration, owner-contact, decision, and lifecycle metadata. SMTP hooks notify the asset owner when a new request is submitted and notify the requesting participant when the owner approves or rejects the request. This gives institutional participants a practical governance step between public catalog visibility and actual contract negotiation.
+Private-access handling is implemented through access-request endpoints in the auxiliary service along with UI views for both requesting-participant and the owner. Each request stores the requester, organization, connector, intended purpose, duration, owner-contact, decision, and lifecycle metadata. SMTP hooks notify the asset owner when a new request is submitted and notify the requesting participant when the owner approves or rejects the request. This gives institutional participants a practical governance step between public catalog visibility and actual contract negotiation.
+
+The software also implements ArcGIS-oriented authentication and item-upload hooks. These hooks are included because municipal geospatial data is often curated or consumed in GIS platforms. Live institutional ArcGIS Portal validation is left as future work.
+
+\subsection{Connector identity and credential handling}
+
+Identity handling in TOPIC Connector is implemented as a participant and connector inspection layer around the EDC runtime. The goal is to make identity material visible during publication, catalog inspection, access requests, negotiation, and transfer follow-up, without turning the toolkit into a credential issuer or a formal trust-framework certification service.
+
+\subsubsection{Connector identity model}
+
+Each configured connector can be associated with a participant identity, connector identifier, public DSP endpoint, organization metadata, and optional credential-inspection endpoint. This identity information is used by the UI to relate catalog offers, access requests, and negotiation actions to the institutional participant that operates the connector. In this sense, connector identity is treated as operational metadata that helps users understand who is publishing or requesting an asset and which technical endpoint represents that participant in the data space.
+
+\subsubsection{Gaia-X credential inspection}
 
 The Gaia-X-oriented part is implemented as an inspection and alignment layer rather than as a certification claim. The UI can open a Gaia-X identity view for configured connectors, retrieve Verifiable Presentation JSON through a server-side proxy, extract Legal Participant information, compare published connector identifiers with configured DSP endpoints, and display DID/VC state in the Star participant view. This supports the EITEL use case of showing participant identity and trust material alongside EDC catalog and contract operations, while formal Gaia-X compliance assessment remains outside the scope of this article.
 
-The software also implements ArcGIS-oriented authentication and item-upload hooks. These hooks are included because municipal geospatial data is often curated or consumed in GIS platforms. Live institutional ArcGIS Portal validation is left as future work.
-\FloatBarrier
+\subsubsection{Pseudo-wallet role}
+
+For the EITEL demonstrator, the connector includes a lightweight pseudo-wallet role: it stores or references the configured credential material needed to inspect participant identity and presents the resulting state to the user. This component should be understood as a credential-view and inspection helper, not as a production wallet, credential issuer, or private-key management system. Its purpose is to make Gaia-X-oriented Verifiable Presentation material available next to connector operations, so that institutional users can inspect identity evidence while evaluating catalog offers and access decisions.
 
 \section{Illustrative examples}
-A typical local experiment has three stages. \IfFileExists{figures/upload_asset.png}{The publication stage is shown in Figure~\ref{fig:asset-upload}. }{}\IfFileExists{figures/policy-management.png}{The policy configuration stage is shown in Figure~\ref{fig:policy-management}. }{}\IfFileExists{figures/transfer-tracking.png}{The transfer follow-up stage is shown in Figure~\ref{fig:transfer-tracking}. }{}First, a providing participant starts the Docker Compose stack, opens the UI through the Nginx gateway, uploads a GeoJSON file to the local-assets service, and registers the resulting retrieval URL as an EDC asset with access and usage policies. Second, if the asset is private, a requesting participant submits an access request with organizational and purpose metadata; the owner reviews the request in the UI and approves or rejects it. Third, once access is available, the requesting participant inspects the catalog, optionally checks Gaia-X participant information, initiates contract negotiation, starts a transfer, and verifies the captured payload through the download-sink service. This workflow demonstrates the operational path that the toolkit is designed to support, while full cross-connector negotiation remains experimental material.
+A typical local experiment has three stages.
+
+First, a providing participant starts the Docker Compose stack, opens the UI through the Nginx gateway, uploads a GeoJSON file to the local-assets service, and registers the resulting retrieval URL as an EDC asset with access and usage policies. \IfFileExists{figures/upload_asset.png}{The publication stage is shown in Figure~\ref{fig:asset-upload}.}{}
+
+
+% PONER EN CLARITO
 
 \IfFileExists{figures/upload_asset.png}{%
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\linewidth]{figures/upload_asset.png}
-\caption{Provider workflow for publishing an asset from the TOPIC Connector management interface.}
+\begin{center}
+\includegraphics[width=\columnwidth]{figures/upload_asset.png}
+\captionof{figure}{Provider workflow for publishing an asset from the TOPIC Connector management interface.}
 \label{fig:asset-upload}
-\end{figure}
+\end{center}
 }{}
+
+Second, if the asset is private, a requesting participant submits an access request with organizational and purpose metadata; the owner reviews the request in the UI and approves or rejects it. \IfFileExists{figures/policy-management.png}{The policy configuration stage is shown in Figure~\ref{fig:policy-management}.}{}
 
 \IfFileExists{figures/policy-management.png}{%
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\linewidth]{figures/policy-management.png}
-\caption{Policy configuration view used to associate access and usage conditions with a published asset.}
+\begin{center}
+\includegraphics[width=\columnwidth]{figures/policy-management.png}
+\captionof{figure}{Policy configuration view used to associate access and usage conditions with a published asset.}
 \label{fig:policy-management}
-\end{figure}
+\end{center}
 }{}
 
+Third, once access is available, the requesting participant inspects the catalog, optionally checks Gaia-X participant information, initiates contract negotiation, starts a transfer, and verifies the captured payload through the download-sink service. \IfFileExists{figures/transfer-tracking.png}{The transfer follow-up stage is shown in Figure~\ref{fig:transfer-tracking}.}{}
+
 \IfFileExists{figures/transfer-tracking.png}{%
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\linewidth]{figures/transfer-tracking.png}
-\caption{Transfer view showing connector-side transfer execution and traceability information.}
+\begin{center}
+\includegraphics[width=\columnwidth]{figures/transfer-tracking.png}
+\captionof{figure}{Transfer view showing connector-side transfer execution and traceability information.}
 \label{fig:transfer-tracking}
-\end{figure}
+\end{center}
 }{}
+
+This workflow demonstrates the operational path that the toolkit is designed to support, while full cross-connector negotiation remains experimental material.
 
 The intended reproduction sequence is:
 
 \begin{verbatim}
-git clone https://github.com/krgroup/TOPIC-Connector.git
-cd TOPIC-Connector
-git checkout v1.0.11
-cp .env.example .env
-docker compose --env-file .env -f docker-compose.yaml up -d --build
-./scripts/validate_stack.sh
-./scripts/validate_local_asset_upload.sh
-./scripts/validate_download_capture.sh
+$git clone https://github.com/krgroup/TOPIC-Connector.git
+$cd TOPIC-Connector
+$git checkout v1.0.11
+$cp .env.example .env
+$docker compose --env-file .env -f 
+docker-compose.yaml up -d --build
+$./scripts/validate_stack.sh
+$./scripts/validate_local_asset_upload.sh
+$./scripts/validate_download_capture.sh
 \end{verbatim}
 
-The repository CI checks Docker Compose configuration, selected frontend JavaScript files, local stack startup, local file upload, and download-capture registration. These checks make the artifact repeatable and complement later interoperability, policy-enforcement, and production-security evaluation. Table~\ref{tab:evidence} separates implemented capabilities from independently exercised checks.
+The repository CI checks Docker Compose configuration, selected frontend JavaScript files, local stack startup, local file upload, and download-capture registration. These checks make the artifact repeatable and complement later interoperability, policy enforcement, and production-security evaluation. Table~\ref{tab:evidence} separates implemented capabilities from independently exercised checks.
 
-\begin{table}[htbp]
+\begin{table*}[!t]
+\centering
 \caption{Capability, repository evidence, and implementation status}
 \label{tab:evidence}
-\centering
 \footnotesize
 \begin{tabularx}{\textwidth}{>{\RaggedRight\arraybackslash}p{3.0cm} >{\RaggedRight\arraybackslash}p{4.2cm} Y}
 \toprule
@@ -207,15 +240,14 @@ Cross-connector negotiation & Experimental connector profiles & Experimental pro
 ArcGIS integration & UI and auxiliary-service hooks & Implemented hooks; live institutional ArcGIS validation remains future work \\
 \bottomrule
 \end{tabularx}
-\end{table}
+\end{table*}
 
-The automated checks focus on the reproducible substrate: whether the stack starts, whether local files can become connector publication inputs, and whether transferred payloads can be captured with traceable identifiers. The more domain-specific workflows--email-mediated private access, Gaia-X credential inspection, ArcGIS publication hooks, and cross-connector negotiation--are implemented capabilities and planned validation dimensions.
-\FloatBarrier
+The automated checks focus on the reproducible substrate: whether the stack starts, whether local files can be ingested as connector publication inputs, and whether transferred payloads can be captured with traceable identifiers. The more domain-specific workflows, including email-mediated private access, Gaia-X credential inspection, ArcGIS publication hooks, and cross-connector negotiation, are implemented capabilities and planned validation dimensions.
 
 \section{Impact}
-The impact of TOPIC Connector is practical rather than algorithmic. It reduces the effort required to reproduce an EDC-based connector environment with the operational services needed for publication, policy configuration, access-request handling, participant inspection, and transfer observability. In terms used by recent federated smart-city platform work~\cite{b19}, the toolkit addresses the connector-side part of a broader platform stack: making assets discoverable, exposing them through governed access workflows, routing requests through stable gateway endpoints, and capturing transferred payloads for later inspection. Its use in the EITEL project provides project-level evidence of operational relevance, while the public repository makes the same connector baseline inspectable and reusable by researchers and public-sector participants.
+The impact of TOPIC Connector is practical rather than algorithmic. It reduces the effort required to reproduce an EDC-based connector environment with the operational services needed for publication, policy configuration, access-request handling, participant inspection, and transfer observability. In terms used by recent federated smart-city platform work~\cite{b19}, the toolkit addresses the connector side part of a broader platform stack: making assets discoverable, exposing them through governed access workflows, routing requests through stable gateway endpoints, and capturing transferred payloads for later inspection. Its use in the EITEL project provides project-level evidence of operational relevance, while the public repository makes the same connector baseline inspectable and reusable by researchers and public-sector participants.
 
-The artifact supports several research and engineering questions that are difficult to study from a runtime-only connector. First, it allows researchers to examine how connector deployments can be made reproducible across organizations while keeping local configuration bounded to environment variables, Docker Compose profiles, and gateway routing. Second, it provides a concrete basis for studying the transition from raw resources to data-space-ready assets: local file upload, metadata entry, access-policy definition, usage-policy definition, private-access request, contract exposure, and transfer capture. Third, it allows researchers to inspect how Gaia-X-style participant identity material can be surfaced next to EDC catalog and negotiation workflows. Fourth, it separates implemented operational capabilities from independently exercised checks, making it possible to design later interoperability, policy-enforcement, or usability studies on top of a known software baseline.
+The artifact supports several research and engineering questions that are difficult to study from a runtime-only connector. First, it allows researchers to examine how connector deployments can be made reproducible across organizations while keeping local configuration bounded to environment variables, Docker Compose profiles, and gateway routing. Second, it provides a concrete basis for studying the transition from raw resources to data-space-ready assets: local file upload, metadata entry, access-policy definition, usage-policy definition, private-access request, contract exposure, and transfer capture. Third, it allows researchers to inspect how Gaia-X participant identity material can be surfaced next to EDC catalog and negotiation workflows. Fourth, it separates implemented operational capabilities from independently exercised checks, making it possible to design later interoperability, policy-enforcement, or usability studies on top of a known software baseline.
 
 Researchers and maintainers can replace or extend components, compare the packaged workflow with a minimal EDC runtime, or use the repository as a teaching environment for connector operation. Its most immediate contribution is lowering the barrier to reproducible experimentation with data-space connector operation.
 
@@ -223,13 +255,11 @@ Researchers and maintainers can replace or extend components, compare the packag
 Local demonstration profiles are scoped to isolated evaluation environments. Closed pilots and production deployments should protect privileged management operations behind authenticated gateway or backend controls, restrict network exposure, and use rotated deployment secrets.
 
 The current validation focuses on reproducibility and core local workflows: stack startup, local asset upload, and download-capture registration. The EITEL deployment demonstrates operational use in the motivating project, but this article does not report a longitudinal institutional evaluation.
-\FloatBarrier
 
 \section{Future work}
 Future work will extend the current reproducibility evidence toward multi-participant and production-oriented validation. The first priority is full cross-connector interoperability testing, including contract negotiation and transfer execution between independently deployed institutional connectors. A second line of work is formal assessment of policy behaviour, covering the relationship between access policies, usage policies, private-access approval decisions, and the actual conditions under which assets become transferable.
 
-Further work will validate the ArcGIS-oriented integration paths against live institutional GIS deployments, since municipal geospatial resources are often curated outside the connector itself. The Gaia-X-oriented inspection layer will also be extended from credential display and endpoint-alignment checks toward a more systematic assessment of participant identity material and trust-framework compatibility. Finally, the toolkit will support longitudinal evaluation with municipal participants, including usability studies, operational feedback, performance measurements, and deployment-hardening guidance for closed pilots and production environments.
-\FloatBarrier
+Further work will validate the ArcGIS-oriented integration paths against live institutional GIS deployments, since municipal geospatial resources are often curated outside the connector itself. The Gaia-X oriented inspection layer will also be extended from credential display and endpoint-alignment checks toward a more systematic assessment of participant identity material and trust-framework compatibility. Finally, the toolkit will support longitudinal evaluation with municipal participants, including usability studies, operational feedback, performance measurements, and deployment-hardening guidance for closed pilots and production environments.
 
 \section{Conclusions}
 TOPIC Connector provides a public, Apache-2.0-licensed toolkit for reproducing and inspecting an EDC-based connector stack with UI, local upload, access and usage policy workflows, private-asset access requests with email notification, Gaia-X-oriented credential inspection, download capture, gateway routing, examples, and reproducibility scripts. By combining an EDC runtime with the surrounding operational services needed for publication, access governance, participant inspection, and transfer capture, TOPIC Connector turns a runtime-level connector into a reproducible experimentation environment for municipal data-space scenarios.
@@ -240,14 +270,13 @@ The source code is publicly available at \url{https://github.com/krgroup/TOPIC-C
 \section*{Data availability}
 No additional research data were generated for this article. Example files and reproducibility material are included in the public software release.
 
-\section*{CRediT authorship contribution statement}
-Mario García Rodríguez: Conceptualization, Software, Methodology, Validation, Writing -- original draft, Writing -- review and editing.
+\printcredits
 
 \section*{Declaration of competing interest}
-The author declares that there are no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+The authors declare that there are no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
 
 \section*{Declaration of generative AI and AI-assisted technologies in the writing process}
-During the preparation of this work, the author used AI-assisted tools to support language editing, restructuring, and consistency checks. The author reviewed and edited the content and takes full responsibility for the content of the article.
+During the preparation of this work, the authors used AI-assisted tools to support language editing, restructuring, and consistency checks. The authors reviewed and edited the content and take full responsibility for the content of the article.
 
 \begin{thebibliography}{00}
 \bibitem{b1} European Commission, ``A European strategy for data,'' 2020. [Online]. Available: https://digital-strategy.ec.europa.eu/en/policies/strategy-data
@@ -257,7 +286,7 @@ During the preparation of this work, the author used AI-assisted tools to suppor
 \bibitem{b5} International Data Spaces Association, ``IDS Reference Architecture Model, Version 4.0,'' 2019.
 \bibitem{b6} Gaia-X European Association for Data and Cloud AISBL, ``Gaia-X Architecture Document,'' 2025. [Online]. Available: https://docs.gaia-x.eu/technical-committee/architecture-document/latest/
 \bibitem{b7} Eclipse Foundation, ``Eclipse Dataspace Components,'' [Online]. Available: https://projects.eclipse.org/projects/technology.edc
-\bibitem{b12} T. Dam, L. D. Klausner, S. Neumaier, and T. Priebe, ``A survey of dataspace connector implementations,'' arXiv preprint arXiv:2309.11282, 2023.
+\bibitem{b12} Dam, T., Klausner, L. D., Neumaier, S., & Priebe, T. (2023). A survey of dataspace connector implementations. arXiv preprint arXiv:2309.11282.
 \bibitem{b13} J. Pampus, B.-F. Jahnke, and R. Quensel, ``Evolving data space technologies: Lessons learned from an IDS connector reference implementation,'' in \textit{Proceedings of the 11th International Symposium on Leveraging Applications of Formal Methods, Verification and Validation}, 2022, pp. 366--381.
 \bibitem{b14} A. Kotsev, M. Minghini, R. Tomas, V. Cetl, and M. Lutz, ``From spatial data infrastructures to data spaces -- a technological perspective on the evolution of European SDIs,'' \textit{ISPRS International Journal of Geo-Information}, vol. 9, 2020.
 \bibitem{b15} S. Cuno, L. Bruns, N. Tcholtchev, P. Lammel, and I. Schieferdecker, ``Data governance and sovereignty in urban data spaces based on standardized ICT reference architectures,'' \textit{Data}, vol. 4, 2019.

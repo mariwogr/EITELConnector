@@ -75,7 +75,7 @@ class Settings(BaseSettings):
     smtp_password: str = ''
     smtp_from: str = ''
     smtp_use_tls: bool = True
-    connector_public_url: str = ''  # ej: https://gis.eiteldata.eu/conectoruc3m/edc-ui
+    connector_public_url: str = ''  # ej: https://gis.eiteldata.eu/conectoruc3m/
 
 
 settings = Settings()

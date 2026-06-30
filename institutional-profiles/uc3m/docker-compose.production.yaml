@@ -113,7 +113,7 @@ services:
       CAAS_ARCGIS_PORTAL_URL: ${ARCGIS_PORTAL_URL:-https://gis.eiteldata.eu/arcgis}
       CAAS_ARCGIS_REQUIRED_ORG_ID: ${ARCGIS_REQUIRED_ORG_ID:-}
       CAAS_ARCGIS_REQUIRED_GROUP_ID: ${ARCGIS_UC3M_GROUP_ID:-}
-      CAAS_CONNECTOR_PUBLIC_URL: https://gis.eiteldata.eu/conectoruc3m/edc-ui
+      CAAS_CONNECTOR_PUBLIC_URL: https://gis.eiteldata.eu/conectoruc3m/
       CAAS_SMTP_HOST: ${CAAS_SMTP_HOST:-}
       CAAS_SMTP_PORT: ${CAAS_SMTP_PORT:-587}
       CAAS_SMTP_USER: ${CAAS_SMTP_USER:-}

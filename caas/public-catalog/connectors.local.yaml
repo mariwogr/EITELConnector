@@ -1,0 +1,12 @@
+title: EITEL Public Catalog
+subtitle: Local metadata-only view of the connector assets in this Docker Compose stack.
+defaultAccessFormUrl: https://www.eiteldata.eu/
+connectors:
+  - id: conectoruc3m
+    name: Local UC3M Connector
+    organization: Universidad Carlos III de Madrid
+    publicUrl: http://localhost:12000/
+    catalogUrl: http://conectoruc3m-local-assets:8081/v1/local-assets/asset-bundles/public
+    healthUrl: http://conectoruc3m-local-assets:8081/health
+    accessFormUrl: https://www.eiteldata.eu/
+    enabled: true

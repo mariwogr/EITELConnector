@@ -1,0 +1,22 @@
+services:
+  eitel-public-catalog:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eitel-public-catalog
+    restart: unless-stopped
+    environment:
+      EITEL_CATALOG_CONFIG: /app/config/connectors.yaml
+      EITEL_CATALOG_TIMEOUT_SECONDS: 8
+      EITEL_CATALOG_CACHE_SECONDS: 60
+      LOCAL_ASSETS_AUTH_TOKEN: ${LOCAL_ASSETS_AUTH_TOKEN:?LOCAL_ASSETS_AUTH_TOKEN is required}
+    ports:
+      - "18080:8080"
+    volumes:
+      - ./connectors.example.yaml:/app/config/connectors.yaml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3).read()\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
