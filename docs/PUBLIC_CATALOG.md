@@ -82,6 +82,13 @@ https://gis.eiteldata.eu/<connector>/local-assets/asset-bundles/public
 
 This endpoint returns metadata prepared by the connector-side local-assets service. The public catalog sanitizes the result and only exposes safe fields such as title, description, visibility, keywords, provider, and access links.
 
+This is the same metadata source used by the connector UI catalog when it derives a provider `local-assets` endpoint from a DSP address. For the production connectors, the public catalog polls:
+
+```text
+https://gis.eiteldata.eu/conectoruc3m/local-assets/asset-bundles/public
+https://gis.eiteldata.eu/conectorFuenlabrada/local-assets/asset-bundles/public
+```
+
 If the connector protects `local-assets` with `LOCAL_ASSETS_AUTH_TOKEN`, keep the token as an environment variable on the catalog container and reference it from the connector entry:
 
 ```yaml

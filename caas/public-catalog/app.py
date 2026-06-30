@@ -22,7 +22,6 @@ SAFE_ASSET_FIELDS = {
     "assetId",
     "assetName",
     "description",
-    "imageUrl",
     "keywords",
     "visibility",
     "ownerName",
