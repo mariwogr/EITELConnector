@@ -39,7 +39,7 @@ function prettyConnectorLabel(value) {
   const lower = text.toLowerCase();
   if (lower.includes('fuenlabrada') || lower.includes('fuenla')) return 'Fuenlabrada';
   if (lower.includes('uc3m')) return 'UC3M';
-  return text || 'Connector';
+  return text || 'Conector';
 }
 
 function visibilityState(asset) {
@@ -52,19 +52,19 @@ function visibilityState(asset) {
 
 function stateLabel(state) {
   return {
-    public: 'Public',
-    available: 'Available',
-    pending: 'Pending',
-    private: 'Restricted',
-  }[state] || 'Public';
+    public: 'Público',
+    available: 'Disponible',
+    pending: 'Pendiente',
+    private: 'Restringido',
+  }[state] || 'Público';
 }
 
 function stateDescription(state) {
   return {
-    public: 'Openly visible assets published by provider connectors.',
-    available: 'Assets currently reported as available by their provider.',
-    pending: 'Assets with a pending access status.',
-    private: 'Restricted assets. Use the access form or contact the provider connector.',
+    public: 'Activos visibles publicados por los conectores proveedores.',
+    available: 'Activos indicados como disponibles por su proveedor.',
+    pending: 'Activos con estado de acceso pendiente.',
+    private: 'Activos restringidos. Solicita acceso mediante el formulario o desde el conector proveedor.',
   }[state] || '';
 }
 
@@ -94,11 +94,11 @@ function sortedAssets() {
 }
 
 async function loadCatalog() {
-  els.lastCheck.textContent = 'Checking connectors...';
+  els.lastCheck.textContent = 'Comprobando conectores...';
   els.refresh.disabled = true;
   try {
     const response = await fetch('api/catalog?refresh=true', { headers: { Accept: 'application/json' } });
-    if (!response.ok) throw new Error(`Catalog request failed: ${response.status}`);
+    if (!response.ok) throw new Error(`No se pudo cargar el catálogo: ${response.status}`);
     catalog = await response.json();
     render();
   } finally {
@@ -121,7 +121,7 @@ function renderMetrics() {
 function renderConnectorFilter() {
   const connectors = catalog?.connectors || [];
   const current = els.connectorFilter.value;
-  els.connectorFilter.innerHTML = '<option value="">All connectors</option>' + connectors.map((connector) => {
+  els.connectorFilter.innerHTML = '<option value="">Todos los conectores</option>' + connectors.map((connector) => {
     const id = String(connector.id || '').trim();
     const label = connector.name || prettyConnectorLabel(id);
     return `<option value="${escapeHtml(id)}">${escapeHtml(label)}</option>`;
@@ -131,7 +131,7 @@ function renderConnectorFilter() {
 
 function renderConnectors() {
   const connectors = catalog?.connectors || [];
-  els.connectorCount.textContent = `${connectors.length} sources`;
+  els.connectorCount.textContent = `${connectors.length} ${connectors.length === 1 ? 'fuente' : 'fuentes'}`;
   els.connectors.innerHTML = connectors.map((connector) => {
     const id = String(connector.id || '').trim();
     const selected = id && id === els.connectorFilter.value;
@@ -142,12 +142,12 @@ function renderConnectors() {
             <strong>${escapeHtml(connector.name)}</strong>
             <span class="meta">${escapeHtml(connector.organization || id)}</span>
           </div>
-          <span class="pill ${connector.online ? 'online' : 'offline'}">${connector.online ? 'Online' : 'Offline'}</span>
+          <span class="pill ${connector.online ? 'online' : 'offline'}">${connector.online ? 'En línea' : 'No disponible'}</span>
         </div>
-        <p class="connector-count">${Number(connector.assetCount || 0)} published assets</p>
+        <p class="connector-count">${Number(connector.assetCount || 0)} activos publicados</p>
         <div class="connector-links">
-          ${connector.connectorUrl ? `<a href="${escapeHtml(connector.connectorUrl)}" target="_blank" rel="noopener">Open connector</a>` : ''}
-          ${connector.credentialUrl ? `<a href="${escapeHtml(connector.credentialUrl)}" target="_blank" rel="noopener">Gaia-X credential</a>` : ''}
+          ${connector.connectorUrl ? `<a href="${escapeHtml(connector.connectorUrl)}" target="_blank" rel="noopener">Abrir conector</a>` : ''}
+          ${connector.credentialUrl ? `<a href="${escapeHtml(connector.credentialUrl)}" target="_blank" rel="noopener">Credencial Gaia-X</a>` : ''}
         </div>
         ${connector.catalogError ? `<p class="connector-error">${escapeHtml(connector.catalogError)}</p>` : ''}
       </article>
@@ -186,15 +186,15 @@ function assetMatches(asset) {
 
 function activeFilterText(count) {
   const parts = [];
-  if (els.search.value.trim()) parts.push(`search "${els.search.value.trim()}"`);
+  if (els.search.value.trim()) parts.push(`búsqueda "${els.search.value.trim()}"`);
   if (els.connectorFilter.value) parts.push(prettyConnectorLabel(els.connectorFilter.value));
   if (els.visibility.value) parts.push(stateLabel(els.visibility.value));
-  if (!parts.length) return 'Showing all published assets';
-  return `Filtered by ${parts.join(', ')} (${count} results)`;
+  if (!parts.length) return 'Mostrando todos los activos publicados';
+  return `Filtrado por ${parts.join(', ')} (${count} resultados)`;
 }
 
 function renderAssetCard(asset, idx, state) {
-  const title = asset.assetName || asset.assetId || 'Untitled asset';
+  const title = asset.assetName || asset.assetId || 'Activo sin título';
   const tags = (asset.keywords || []).slice(0, 7).map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join('');
   const connector = prettyConnectorLabel(asset.providerId || asset.providerName);
   const delayMs = Math.min(idx * 35, 420);
@@ -210,18 +210,18 @@ function renderAssetCard(asset, idx, state) {
       </div>
       <div class="asset-body">
         <div class="asset-card-title">${escapeHtml(title)}</div>
-        <div class="asset-card-meta">${escapeHtml(asset.providerName)} &middot; ${escapeHtml(asset.visibility || 'unknown')}</div>
-        <p class="asset-card-desc">${escapeHtml(asset.description || 'No description provided.')}</p>
-        ${tags ? `<div class="tags">${tags}</div>` : '<div class="asset-card-meta">No keywords published</div>'}
+        <div class="asset-card-meta">${escapeHtml(asset.providerName)} &middot; ${escapeHtml(asset.visibility || 'desconocida')}</div>
+        <p class="asset-card-desc">${escapeHtml(asset.description || 'Sin descripción publicada.')}</p>
+        ${tags ? `<div class="tags">${tags}</div>` : '<div class="asset-card-meta">Sin palabras clave publicadas</div>'}
         <dl class="asset-facts">
-          ${owner ? `<div><dt>Owner</dt><dd>${escapeHtml(owner)}</dd></div>` : ''}
-          ${updated ? `<div><dt>Updated</dt><dd>${escapeHtml(updated)}</dd></div>` : ''}
-          ${asset.contractDefId ? `<div><dt>Contract</dt><dd>${escapeHtml(asset.contractDefId)}</dd></div>` : ''}
+          ${owner ? `<div><dt>Propietario</dt><dd>${escapeHtml(owner)}</dd></div>` : ''}
+          ${updated ? `<div><dt>Actualizado</dt><dd>${escapeHtml(updated)}</dd></div>` : ''}
+          ${asset.contractDefId ? `<div><dt>Contrato</dt><dd>${escapeHtml(asset.contractDefId)}</dd></div>` : ''}
         </dl>
         <div class="actions">
-          ${asset.accessFormUrl ? `<a class="primary" href="${escapeHtml(asset.accessFormUrl)}" target="_blank" rel="noopener">Request access</a>` : ''}
-          ${asset.connectorUrl ? `<a href="${escapeHtml(asset.connectorUrl)}" target="_blank" rel="noopener">Open connector</a>` : ''}
-          ${asset.credentialUrl ? `<a href="${escapeHtml(asset.credentialUrl)}" target="_blank" rel="noopener">Credential</a>` : ''}
+          ${asset.accessFormUrl ? `<a class="primary" href="${escapeHtml(asset.accessFormUrl)}" target="_blank" rel="noopener">Solicitar acceso</a>` : ''}
+          ${asset.connectorUrl ? `<a href="${escapeHtml(asset.connectorUrl)}" target="_blank" rel="noopener">Abrir conector</a>` : ''}
+          ${asset.credentialUrl ? `<a href="${escapeHtml(asset.credentialUrl)}" target="_blank" rel="noopener">Credencial</a>` : ''}
         </div>
       </div>
     </article>
@@ -230,18 +230,18 @@ function renderAssetCard(asset, idx, state) {
 
 function renderAssets() {
   const assets = sortedAssets().filter(assetMatches);
-  els.resultCount.textContent = `${assets.length} ${assets.length === 1 ? 'asset' : 'assets'}`;
+  els.resultCount.textContent = `${assets.length} ${assets.length === 1 ? 'activo' : 'activos'}`;
   els.activeFilterLabel.textContent = activeFilterText(assets.length);
   if (!assets.length) {
-    els.assets.innerHTML = '<div class="empty"><strong>No assets found</strong><span>Try clearing filters or selecting another connector.</span></div>';
+    els.assets.innerHTML = '<div class="empty"><strong>No se encontraron activos</strong><span>Prueba a limpiar filtros o seleccionar otro conector.</span></div>';
     return;
   }
 
   const groups = [
-    { key: 'public', title: 'Public', rows: [] },
-    { key: 'available', title: 'Available', rows: [] },
-    { key: 'pending', title: 'Pending', rows: [] },
-    { key: 'private', title: 'Restricted', rows: [] },
+    { key: 'public', title: 'Públicos', rows: [] },
+    { key: 'available', title: 'Disponibles', rows: [] },
+    { key: 'pending', title: 'Pendientes', rows: [] },
+    { key: 'private', title: 'Restringidos', rows: [] },
   ];
   const groupMap = new Map(groups.map((group) => [group.key, group]));
   assets.forEach((asset) => {
@@ -268,9 +268,9 @@ function renderAssets() {
 }
 
 function render() {
-  els.title.textContent = catalog?.title || 'EITEL Data Catalog';
-  els.subtitle.textContent = catalog?.subtitle || 'Published assets from EITEL connectors.';
-  els.lastCheck.textContent = catalog?.generatedAt ? `Updated ${new Date(catalog.generatedAt).toLocaleString()}` : '';
+  els.title.textContent = catalog?.title || 'Catálogo de datos EITEL';
+  els.subtitle.textContent = catalog?.subtitle || 'Activos publicados por los conectores EITEL.';
+  els.lastCheck.textContent = catalog?.generatedAt ? `Actualizado ${new Date(catalog.generatedAt).toLocaleString()}` : '';
   renderMetrics();
   renderConnectorFilter();
   renderConnectors();

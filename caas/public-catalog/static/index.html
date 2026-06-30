@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>EITEL Data Catalog</title>
+  <title>Catálogo de datos EITEL</title>
   <link rel="stylesheet" href="static/styles.css">
 </head>
 <body>
@@ -11,33 +11,33 @@
     <div class="brand-block">
       <img class="brand-logo" src="static/eitel-logo-brand.png" alt="EITEL">
       <div>
-        <p class="eyebrow">EITEL data space</p>
-        <h1 id="catalog-title">EITEL Data Catalog</h1>
-        <p id="catalog-subtitle" class="subtitle">Published assets from EITEL connectors.</p>
+        <p class="eyebrow">Espacio de datos EITEL</p>
+        <h1 id="catalog-title">Catálogo de datos EITEL</h1>
+        <p id="catalog-subtitle" class="subtitle">Activos publicados por los conectores EITEL.</p>
       </div>
     </div>
     <div class="status-box">
-      <span id="last-check">Checking connectors...</span>
-      <button id="refresh" type="button">Refresh</button>
+      <span id="last-check">Comprobando conectores...</span>
+      <button id="refresh" type="button">Actualizar</button>
     </div>
   </header>
 
   <main>
-    <section class="metrics" aria-label="Catalog summary">
+    <section class="metrics" aria-label="Resumen del catálogo">
       <article class="metric">
-        <span class="metric-label">Published assets</span>
+        <span class="metric-label">Activos publicados</span>
         <strong id="metric-assets">0</strong>
       </article>
       <article class="metric">
-        <span class="metric-label">Public</span>
+        <span class="metric-label">Públicos</span>
         <strong id="metric-public">0</strong>
       </article>
       <article class="metric">
-        <span class="metric-label">Restricted</span>
+        <span class="metric-label">Restringidos</span>
         <strong id="metric-private">0</strong>
       </article>
       <article class="metric">
-        <span class="metric-label">Connectors online</span>
+        <span class="metric-label">Conectores online</span>
         <strong id="metric-connectors">0/0</strong>
       </article>
     </section>
@@ -45,43 +45,43 @@
     <section class="catalog-layout">
       <aside class="side-panel">
         <div class="panel-head">
-          <h2>Connectors</h2>
-          <span id="connector-count" class="soft-label">0 sources</span>
+          <h2>Conectores</h2>
+          <span id="connector-count" class="soft-label">0 fuentes</span>
         </div>
-        <div id="connectors" class="connectors" aria-label="Connector status"></div>
+        <div id="connectors" class="connectors" aria-label="Estado de conectores"></div>
       </aside>
 
       <section class="catalog-main">
-        <section class="toolbar" aria-label="Catalog filters">
+        <section class="toolbar" aria-label="Filtros del catálogo">
           <div class="search-wrap">
-            <label for="search">Search assets</label>
-            <input id="search" type="search" placeholder="Title, provider, keyword or description">
+            <label for="search">Buscar activos</label>
+            <input id="search" type="search" placeholder="Título, proveedor, palabra clave o descripción">
           </div>
           <div>
-            <label for="connector-filter">Connector</label>
+            <label for="connector-filter">Conector</label>
             <select id="connector-filter">
-              <option value="">All connectors</option>
+              <option value="">Todos los conectores</option>
             </select>
           </div>
           <div>
-            <label for="visibility">Visibility</label>
+            <label for="visibility">Visibilidad</label>
             <select id="visibility">
-              <option value="">All states</option>
-              <option value="public">Public</option>
-              <option value="private">Private</option>
-              <option value="available">Available</option>
-              <option value="pending">Pending</option>
+              <option value="">Todos los estados</option>
+              <option value="public">Público</option>
+              <option value="private">Restringido</option>
+              <option value="available">Disponible</option>
+              <option value="pending">Pendiente</option>
             </select>
           </div>
-          <button id="clear-filters" type="button" class="secondary">Clear</button>
+          <button id="clear-filters" type="button" class="secondary">Limpiar</button>
         </section>
 
         <div class="result-bar">
-          <strong id="result-count">0 assets</strong>
-          <span id="active-filter-label">Showing all published assets</span>
+          <strong id="result-count">0 activos</strong>
+          <span id="active-filter-label">Mostrando todos los activos publicados</span>
         </div>
 
-        <section id="assets" class="asset-showcase" aria-label="Published asset metadata"></section>
+        <section id="assets" class="asset-showcase" aria-label="Metadatos de activos publicados"></section>
       </section>
     </section>
   </main>
