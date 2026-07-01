@@ -438,7 +438,7 @@ select:focus {
 
 .asset-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, 300px);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 340px));
   justify-content: center;
   gap: 16px;
 }
