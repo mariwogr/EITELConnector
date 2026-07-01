@@ -18,6 +18,8 @@ const els = {
   metricPublic: document.getElementById('metric-public'),
   metricPrivate: document.getElementById('metric-private'),
   metricConnectors: document.getElementById('metric-connectors'),
+  mobileSummary: document.getElementById('mobile-summary'),
+  mobileSummaryValue: document.getElementById('mobile-summary-value'),
   modal: document.getElementById('asset-modal'),
   modalEyebrow: document.getElementById('asset-modal-eyebrow'),
   modalTitle: document.getElementById('asset-modal-title'),
@@ -281,6 +283,17 @@ function renderMetrics() {
   els.metricPublic.textContent = String(publicCount);
   els.metricPrivate.textContent = String(restrictedCount);
   els.metricConnectors.textContent = `${onlineCount}/${connectors.length}`;
+  els.mobileSummaryValue.textContent = `${assets.length} activos · ${onlineCount}/${connectors.length} conectores`;
+}
+
+function openMetricsModal() {
+  const cards = [...document.querySelectorAll('.metric')].map((metric) => metric.outerHTML).join('');
+  openSharedModal({
+    eyebrow: 'Resumen del catálogo',
+    title: 'Estado del catálogo EITEL',
+    mode: 'metrics',
+    body: `<div class="metrics-modal-grid">${cards}</div>`,
+  });
 }
 
 function renderConnectorFilter() {
@@ -474,6 +487,7 @@ els.clearFilters.addEventListener('click', () => {
   renderAssets();
   renderConnectors();
 });
+els.mobileSummary.addEventListener('click', openMetricsModal);
 els.modalClose.addEventListener('click', closeAssetModal);
 els.modal.addEventListener('click', (event) => {
   if (event.target === els.modal) closeAssetModal();

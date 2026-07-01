@@ -183,6 +183,32 @@ main {
   line-height: 1;
 }
 
+.mobile-summary {
+  display: none;
+  min-height: 54px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: left;
+}
+
+.mobile-summary span {
+  display: block;
+  color: var(--muted);
+  font-size: .76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.mobile-summary strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--primary);
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
 .catalog-layout {
   display: grid;
   grid-template-columns: minmax(280px, 330px) minmax(0, 1fr);
@@ -848,6 +874,16 @@ button.asset-card-badge:focus-visible {
   margin: 0;
 }
 
+.metrics-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metrics-modal-grid .metric {
+  min-height: 92px;
+}
+
 .detail-item {
   min-width: 0;
   padding: 13px;
@@ -999,6 +1035,15 @@ button.asset-card-badge:focus-visible {
     padding: 18px 14px;
   }
 
+  .metrics {
+    display: none;
+  }
+
+  .mobile-summary {
+    display: block;
+    width: 100%;
+  }
+
   .brand-block,
   .status-box {
     align-items: flex-start;
@@ -1064,5 +1109,9 @@ button.asset-card-badge:focus-visible {
 
   .asset-card-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .metrics-modal-grid {
+    grid-template-columns: 1fr;
   }
 }
