@@ -26,6 +26,9 @@ SAFE_ASSET_FIELDS = {
     "visibility",
     "ownerName",
     "ownerEmail",
+    "publisherName",
+    "publisherEmail",
+    "createdBy",
     "policyId",
     "contractDefId",
     "updatedAt",
@@ -118,7 +121,6 @@ def _sanitize_asset(raw: dict[str, Any], connector: dict[str, Any], access_form:
     safe["providerId"] = connector.get("id", "")
     safe["providerName"] = connector.get("name", connector.get("id", ""))
     safe["providerOrganization"] = connector.get("organization", "")
-    safe["connectorUrl"] = connector.get("publicUrl", "")
     safe["credentialUrl"] = connector.get("credentialUrl", "")
     safe["accessFormUrl"] = connector.get("accessFormUrl") or access_form
     safe["visibility"] = str(safe.get("visibility") or "unknown").lower()
@@ -160,7 +162,6 @@ def _build_catalog(refresh: bool = False) -> dict[str, Any]:
                 "lastChecked": _utc_now(),
                 "healthError": health_error,
                 "catalogError": catalog_error,
-                "connectorUrl": connector.get("publicUrl", ""),
                 "credentialUrl": connector.get("credentialUrl", ""),
             }
         )
@@ -175,6 +176,7 @@ def _build_catalog(refresh: bool = False) -> dict[str, Any]:
         "generatedAt": _utc_now(),
         "metadataOnly": True,
         "description": "This catalog exposes connector metadata only. It does not proxy data, negotiate contracts, or execute transfers.",
+        "defaultAccessFormUrl": access_form,
         "connectors": connector_status,
         "assets": assets,
     }

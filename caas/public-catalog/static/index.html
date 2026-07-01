@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Catálogo de datos EITEL</title>
+  <link rel="icon" type="image/png" href="static/eitel-logo-brand.png">
   <link rel="stylesheet" href="static/styles.css">
 </head>
 <body>
@@ -16,13 +17,6 @@
         <p id="catalog-subtitle" class="subtitle">Activos publicados por los conectores EITEL.</p>
       </div>
     </div>
-    <div class="status-box">
-      <span id="last-check">Comprobando conectores...</span>
-      <button id="refresh" type="button">Actualizar</button>
-    </div>
-  </header>
-
-  <main>
     <section class="metrics" aria-label="Resumen del catálogo">
       <article class="metric">
         <span class="metric-label">Activos publicados</span>
@@ -41,7 +35,13 @@
         <strong id="metric-connectors">0/0</strong>
       </article>
     </section>
+    <div class="status-box">
+      <a id="join-eitel" class="join-cta" href="https://www.eiteldata.eu/" target="_blank" rel="noopener">ÚNETE A EITEL</a>
+      <span id="last-check">Comprobando conectores...</span>
+    </div>
+  </header>
 
+  <main>
     <section class="catalog-layout">
       <aside class="side-panel">
         <div class="panel-head">
@@ -70,7 +70,6 @@
               <option value="public">Público</option>
               <option value="private">Restringido</option>
               <option value="available">Disponible</option>
-              <option value="pending">Pendiente</option>
             </select>
           </div>
           <button id="clear-filters" type="button" class="secondary">Limpiar</button>
@@ -85,6 +84,19 @@
       </section>
     </section>
   </main>
+
+  <div id="asset-modal" class="modal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="asset-modal-title">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Detalle del activo</p>
+          <h2 id="asset-modal-title">Activo</h2>
+        </div>
+        <button id="asset-modal-close" type="button" class="icon-button" aria-label="Cerrar">×</button>
+      </div>
+      <div id="asset-modal-body" class="modal-body"></div>
+    </div>
+  </div>
 
   <script src="static/app.js"></script>
 </body>

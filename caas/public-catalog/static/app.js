@@ -4,7 +4,7 @@ const els = {
   title: document.getElementById('catalog-title'),
   subtitle: document.getElementById('catalog-subtitle'),
   lastCheck: document.getElementById('last-check'),
-  refresh: document.getElementById('refresh'),
+  joinEitel: document.getElementById('join-eitel'),
   connectors: document.getElementById('connectors'),
   connectorCount: document.getElementById('connector-count'),
   assets: document.getElementById('assets'),
@@ -18,7 +18,13 @@ const els = {
   metricPublic: document.getElementById('metric-public'),
   metricPrivate: document.getElementById('metric-private'),
   metricConnectors: document.getElementById('metric-connectors'),
+  modal: document.getElementById('asset-modal'),
+  modalTitle: document.getElementById('asset-modal-title'),
+  modalBody: document.getElementById('asset-modal-body'),
+  modalClose: document.getElementById('asset-modal-close'),
 };
+
+let visibleAssets = [];
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -45,7 +51,7 @@ function prettyConnectorLabel(value) {
 function visibilityState(asset) {
   const visibility = normalize(asset.visibility);
   if (visibility.includes('private') || visibility.includes('restricted') || visibility.includes('limit')) return 'private';
-  if (visibility.includes('pending')) return 'pending';
+  if (visibility.includes('pending')) return 'private';
   if (visibility.includes('approved') || visibility.includes('available')) return 'available';
   return 'public';
 }
@@ -54,7 +60,6 @@ function stateLabel(state) {
   return {
     public: 'Público',
     available: 'Disponible',
-    pending: 'Pendiente',
     private: 'Restringido',
   }[state] || 'Público';
 }
@@ -63,8 +68,7 @@ function stateDescription(state) {
   return {
     public: 'Activos visibles publicados por los conectores proveedores.',
     available: 'Activos indicados como disponibles por su proveedor.',
-    pending: 'Activos con estado de acceso pendiente.',
-    private: 'Activos restringidos. Solicita acceso mediante el formulario o desde el conector proveedor.',
+    private: 'Activos restringidos. Solicita acceso mediante el formulario de EITEL.',
   }[state] || '';
 }
 
@@ -85,6 +89,62 @@ function formatDate(value) {
   return date.toLocaleString();
 }
 
+function publishedBy(asset) {
+  return asset.publisherName
+    || asset.publisherEmail
+    || asset.createdBy
+    || asset.ownerName
+    || asset.ownerEmail
+    || asset.providerOrganization
+    || '';
+}
+
+function detailRows(asset) {
+  return [
+    ['Nombre', asset.assetName || asset.assetId, true],
+    ['Descripción', asset.description, true],
+    ['Conector proveedor', asset.providerName || prettyConnectorLabel(asset.providerId)],
+    ['Organización', asset.providerOrganization],
+    ['Visibilidad', stateLabel(visibilityState(asset))],
+    ['Publicado por', publishedBy(asset)],
+    ['Contacto responsable', asset.ownerName || asset.ownerEmail],
+    ['Identificador del activo', asset.assetId],
+    ['Contrato', asset.contractDefId],
+    ['Política', asset.policyId],
+    ['Actualizado', formatDate(asset.updatedAt)],
+  ].filter(([, value]) => value);
+}
+
+function openAssetModal(index) {
+  const asset = visibleAssets[Number(index)];
+  if (!asset) return;
+  const title = asset.assetName || asset.assetId || 'Activo';
+  const tags = (asset.keywords || [])
+    .filter(Boolean)
+    .map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`)
+    .join('');
+  els.modalTitle.textContent = title;
+  els.modalBody.innerHTML = `
+    <dl class="detail-grid">
+      ${detailRows(asset).map(([label, value, wide]) => `
+        <div class="detail-item${wide ? ' wide' : ''}">
+          <dt>${escapeHtml(label)}</dt>
+          <dd>${escapeHtml(value)}</dd>
+        </div>
+      `).join('')}
+    </dl>
+    ${tags ? `<div class="detail-keywords"><strong>Palabras clave</strong><div class="tags">${tags}</div></div>` : ''}
+  `;
+  els.modal.classList.add('open');
+  els.modal.setAttribute('aria-hidden', 'false');
+  els.modalClose.focus();
+}
+
+function closeAssetModal() {
+  els.modal.classList.remove('open');
+  els.modal.setAttribute('aria-hidden', 'true');
+}
+
 function sortedAssets() {
   return [...(catalog?.assets || [])].sort((a, b) => {
     const pa = prettyConnectorLabel(a.providerId || a.providerName);
@@ -95,14 +155,13 @@ function sortedAssets() {
 
 async function loadCatalog() {
   els.lastCheck.textContent = 'Comprobando conectores...';
-  els.refresh.disabled = true;
   try {
     const response = await fetch('api/catalog?refresh=true', { headers: { Accept: 'application/json' } });
     if (!response.ok) throw new Error(`No se pudo cargar el catálogo: ${response.status}`);
     catalog = await response.json();
     render();
-  } finally {
-    els.refresh.disabled = false;
+  } catch (err) {
+    els.lastCheck.textContent = err.message;
   }
 }
 
@@ -146,8 +205,7 @@ function renderConnectors() {
         </div>
         <p class="connector-count">${Number(connector.assetCount || 0)} activos publicados</p>
         <div class="connector-links">
-          ${connector.connectorUrl ? `<a href="${escapeHtml(connector.connectorUrl)}" target="_blank" rel="noopener">Abrir conector</a>` : ''}
-          ${connector.credentialUrl ? `<a href="${escapeHtml(connector.credentialUrl)}" target="_blank" rel="noopener">Credencial Gaia-X</a>` : ''}
+          ${connector.credentialUrl ? `<a class="credential-link" href="${escapeHtml(connector.credentialUrl)}" target="_blank" rel="noopener">Ver credencial Gaia-X</a>` : ''}
         </div>
         ${connector.catalogError ? `<p class="connector-error">${escapeHtml(connector.catalogError)}</p>` : ''}
       </article>
@@ -198,7 +256,7 @@ function renderAssetCard(asset, idx, state) {
   const tags = (asset.keywords || []).slice(0, 7).map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join('');
   const connector = prettyConnectorLabel(asset.providerId || asset.providerName);
   const delayMs = Math.min(idx * 35, 420);
-  const owner = asset.ownerName || asset.ownerEmail || asset.providerOrganization || '';
+  const owner = publishedBy(asset);
   const updated = formatDate(asset.updatedAt);
   return `
     <article class="asset catalog-state-${escapeHtml(state)}" style="--delay:${delayMs}ms">
@@ -210,18 +268,17 @@ function renderAssetCard(asset, idx, state) {
       </div>
       <div class="asset-body">
         <div class="asset-card-title">${escapeHtml(title)}</div>
-        <div class="asset-card-meta">${escapeHtml(asset.providerName)} &middot; ${escapeHtml(asset.visibility || 'desconocida')}</div>
         <p class="asset-card-desc">${escapeHtml(asset.description || 'Sin descripción publicada.')}</p>
         ${tags ? `<div class="tags">${tags}</div>` : '<div class="asset-card-meta">Sin palabras clave publicadas</div>'}
         <dl class="asset-facts">
-          ${owner ? `<div><dt>Propietario</dt><dd>${escapeHtml(owner)}</dd></div>` : ''}
+          ${owner ? `<div><dt>Publicado por</dt><dd>${escapeHtml(owner)}</dd></div>` : ''}
           ${updated ? `<div><dt>Actualizado</dt><dd>${escapeHtml(updated)}</dd></div>` : ''}
           ${asset.contractDefId ? `<div><dt>Contrato</dt><dd>${escapeHtml(asset.contractDefId)}</dd></div>` : ''}
         </dl>
         <div class="actions">
+          <button type="button" class="details-button" data-asset-index="${idx}">Ver detalles</button>
           ${asset.accessFormUrl ? `<a class="primary" href="${escapeHtml(asset.accessFormUrl)}" target="_blank" rel="noopener">Solicitar acceso</a>` : ''}
-          ${asset.connectorUrl ? `<a href="${escapeHtml(asset.connectorUrl)}" target="_blank" rel="noopener">Abrir conector</a>` : ''}
-          ${asset.credentialUrl ? `<a href="${escapeHtml(asset.credentialUrl)}" target="_blank" rel="noopener">Credencial</a>` : ''}
+          ${asset.credentialUrl ? `<a class="credential-link" href="${escapeHtml(asset.credentialUrl)}" target="_blank" rel="noopener">Ver credencial</a>` : ''}
         </div>
       </div>
     </article>
@@ -230,6 +287,7 @@ function renderAssetCard(asset, idx, state) {
 
 function renderAssets() {
   const assets = sortedAssets().filter(assetMatches);
+  visibleAssets = assets;
   els.resultCount.textContent = `${assets.length} ${assets.length === 1 ? 'activo' : 'activos'}`;
   els.activeFilterLabel.textContent = activeFilterText(assets.length);
   if (!assets.length) {
@@ -240,13 +298,12 @@ function renderAssets() {
   const groups = [
     { key: 'public', title: 'Públicos', rows: [] },
     { key: 'available', title: 'Disponibles', rows: [] },
-    { key: 'pending', title: 'Pendientes', rows: [] },
     { key: 'private', title: 'Restringidos', rows: [] },
   ];
   const groupMap = new Map(groups.map((group) => [group.key, group]));
-  assets.forEach((asset) => {
+  assets.forEach((asset, idx) => {
     const state = visibilityState(asset);
-    (groupMap.get(state) || groupMap.get('public')).rows.push(asset);
+    (groupMap.get(state) || groupMap.get('public')).rows.push({ asset, idx });
   });
 
   els.assets.innerHTML = groups
@@ -261,25 +318,27 @@ function renderAssets() {
           <span class="group-count">${group.rows.length}</span>
         </div>
         <div class="asset-card-grid">
-          ${group.rows.map((asset, idx) => renderAssetCard(asset, idx, group.key)).join('')}
+          ${group.rows.map((row) => renderAssetCard(row.asset, row.idx, group.key)).join('')}
         </div>
       </section>
     `).join('');
+
+  els.assets.querySelectorAll('.details-button[data-asset-index]').forEach((button) => {
+    button.addEventListener('click', () => openAssetModal(button.dataset.assetIndex));
+  });
 }
 
 function render() {
   els.title.textContent = catalog?.title || 'Catálogo de datos EITEL';
   els.subtitle.textContent = catalog?.subtitle || 'Activos publicados por los conectores EITEL.';
   els.lastCheck.textContent = catalog?.generatedAt ? `Actualizado ${new Date(catalog.generatedAt).toLocaleString()}` : '';
+  if (catalog?.defaultAccessFormUrl) els.joinEitel.href = catalog.defaultAccessFormUrl;
   renderMetrics();
   renderConnectorFilter();
   renderConnectors();
   renderAssets();
 }
 
-els.refresh.addEventListener('click', () => loadCatalog().catch((err) => {
-  els.lastCheck.textContent = err.message;
-}));
 els.search.addEventListener('input', renderAssets);
 els.visibility.addEventListener('change', renderAssets);
 els.connectorFilter.addEventListener('change', () => {
@@ -293,7 +352,12 @@ els.clearFilters.addEventListener('click', () => {
   renderAssets();
   renderConnectors();
 });
-
-loadCatalog().catch((err) => {
-  els.lastCheck.textContent = err.message;
+els.modalClose.addEventListener('click', closeAssetModal);
+els.modal.addEventListener('click', (event) => {
+  if (event.target === els.modal) closeAssetModal();
 });
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && els.modal.classList.contains('open')) closeAssetModal();
+});
+
+loadCatalog();
