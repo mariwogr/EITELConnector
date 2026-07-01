@@ -148,9 +148,12 @@ main {
 
 .metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  grid-template-columns: repeat(4, 174px);
   gap: 10px;
   align-self: stretch;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 2px;
 }
 
 .metric {
