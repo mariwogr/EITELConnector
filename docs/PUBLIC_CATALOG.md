@@ -42,24 +42,16 @@ http://localhost:18080/
 
 ## Publishing at `/catalog`
 
-Run the standalone catalog container on the host and add the Nginx location from:
+Run the standalone catalog container on the host. The infrastructure team publishes:
 
 ```text
-caas/public-catalog/nginx-catalog-location.conf
+https://gis.eiteldata.eu/catalog/
 ```
 
-to the external `gis.eiteldata.eu` reverse proxy.
+to the container port exposed on the host:
 
-The route is:
-
-```nginx
-location = /catalog {
-    return 301 /catalog/;
-}
-
-location ^~ /catalog/ {
-    proxy_pass http://127.0.0.1:18080/;
-}
+```text
+http://127.0.0.1:18080/
 ```
 
 ## Connector configuration
