@@ -236,8 +236,8 @@ main {
 .connector {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  min-height: 154px;
+  gap: 12px;
+  min-height: 132px;
   padding: 14px;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -259,8 +259,18 @@ main {
   font-size: .96rem;
 }
 
+.connector-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.connector-top > div {
+  min-width: 0;
+}
+
 .participant-name {
-  display: inline;
+  display: block;
   max-width: 100%;
   margin: 0;
   padding: 0;
@@ -272,6 +282,8 @@ main {
   line-height: 1.25;
   text-align: left;
   cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .participant-name:hover,
@@ -283,7 +295,7 @@ main {
 }
 
 .connector-count {
-  margin: 0;
+  margin: auto 0 0;
   color: var(--text);
   font-weight: 800;
 }
@@ -628,8 +640,10 @@ button.asset-card-badge:focus-visible {
 
 .asset-facts div {
   display: grid;
-  grid-template-columns: 70px minmax(0, 1fr);
+  grid-template-columns: max-content minmax(0, 1fr);
   gap: 8px;
+  align-items: baseline;
+  min-width: 0;
 }
 
 .asset-facts dt,
@@ -642,6 +656,7 @@ button.asset-card-badge:focus-visible {
 .asset-facts dt {
   color: var(--muted);
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .asset-facts dd {
@@ -780,6 +795,17 @@ button.asset-card-badge:focus-visible {
   color: #fff;
   font-weight: 900;
   letter-spacing: .03em;
+}
+
+.asset-detail-mark {
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.asset-detail-mark img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
 }
 
 .credential-seal {

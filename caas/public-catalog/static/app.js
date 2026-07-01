@@ -144,7 +144,7 @@ function openAssetModal(index) {
   const connector = asset.providerName || prettyConnectorLabel(asset.providerId);
   const body = `
     <div class="asset-detail-hero">
-      <span class="asset-detail-mark">${escapeHtml(assetInitials(asset))}</span>
+      <span class="asset-detail-mark"><img src="static/eitel-logo-brand.png" alt="EITEL"></span>
       <div>
         <strong>${escapeHtml(title)}</strong>
         <span>${escapeHtml(connector)} · ${escapeHtml(stateLabel(visibilityState(asset)))}</span>
@@ -185,9 +185,18 @@ async function openCredentialModal(connectorId, connectorLabel, credentialUrl = 
     body: '<div class="credential-loading">Obteniendo credencial Gaia-X…</div>',
   });
   try {
-    const response = await fetch(apiPath(`credential/${encodeURIComponent(connectorId)}`), { headers: { Accept: 'application/json' } });
-    const vpData = await response.json();
-    if (!response.ok) throw new Error(vpData?.error || `HTTP ${response.status}`);
+    let response;
+    let vpData;
+    try {
+      response = await fetch(apiPath(`credential/${encodeURIComponent(connectorId)}`), { headers: { Accept: 'application/json' } });
+      vpData = await response.json();
+      if (!response.ok) throw new Error(vpData?.error || `HTTP ${response.status}`);
+    } catch (proxyErr) {
+      if (!credentialUrl) throw proxyErr;
+      response = await fetch(credentialUrl, { headers: { Accept: 'application/json' } });
+      vpData = await response.json();
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    }
     const subject = credentialSubject(vpData);
     const participant = credentialParticipant(subject, connectorLabel);
     const rawJson = JSON.stringify(vpData, null, 2);
