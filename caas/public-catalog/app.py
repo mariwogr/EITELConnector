@@ -115,6 +115,53 @@ def _as_keywords(value: Any) -> list[str]:
     return [part.strip() for part in str(value).replace(";", ",").split(",") if part.strip()]
 
 
+def _credential_subject(vp_data: dict[str, Any] | None) -> dict[str, Any]:
+    vcs = vp_data.get("verifiableCredential", []) if isinstance(vp_data, dict) else []
+    if not isinstance(vcs, list):
+        return {}
+    for vc in vcs:
+        subject = vc.get("credentialSubject") if isinstance(vc, dict) else None
+        if not isinstance(subject, dict):
+            continue
+        if subject.get("type") == "gx:LegalParticipant" or subject.get("gx:legalName") or subject.get("legalName"):
+            return subject
+    return {}
+
+
+def _as_list(value: Any) -> list[str]:
+    if isinstance(value, list):
+        return [str(item) for item in value if item]
+    return [str(value)] if value else []
+
+
+def _credential_summary(connector: dict[str, Any]) -> dict[str, Any]:
+    credential_url = str(connector.get("credentialUrl") or "").strip()
+    summary = {
+        "participant": connector.get("name", connector.get("id", "")),
+        "identifier": "",
+        "declaredConnector": "",
+        "type": "",
+    }
+    if not credential_url:
+        return summary
+    data, error = _fetch_json(credential_url)
+    if error or data is None:
+        return summary
+    subject = _credential_subject(data)
+    summary["participant"] = (
+        subject.get("gx:legalName")
+        or subject.get("legalName")
+        or subject.get("name")
+        or subject.get("id")
+        or subject.get("@id")
+        or summary["participant"]
+    )
+    summary["identifier"] = subject.get("id") or subject.get("@id") or ""
+    summary["declaredConnector"] = ", ".join(_as_list(subject.get("conector:id")))
+    summary["type"] = subject.get("type") or ""
+    return summary
+
+
 def _sanitize_asset(raw: dict[str, Any], connector: dict[str, Any], access_form: str) -> dict[str, Any]:
     safe = {field: raw.get(field, "") for field in SAFE_ASSET_FIELDS}
     safe["keywords"] = _as_keywords(safe.get("keywords"))
@@ -122,6 +169,7 @@ def _sanitize_asset(raw: dict[str, Any], connector: dict[str, Any], access_form:
     safe["providerName"] = connector.get("name", connector.get("id", ""))
     safe["providerOrganization"] = connector.get("organization", "")
     safe["credentialUrl"] = connector.get("credentialUrl", "")
+    safe["credentialSummary"] = connector.get("_credentialSummary", {})
     safe["accessFormUrl"] = connector.get("accessFormUrl") or access_form
     safe["visibility"] = str(safe.get("visibility") or "unknown").lower()
     return safe
@@ -144,6 +192,8 @@ def _build_catalog(refresh: bool = False) -> dict[str, Any]:
     connector_status: list[dict[str, Any]] = []
 
     for connector in connectors:
+        credential_summary = _credential_summary(connector)
+        connector_with_summary = {**connector, "_credentialSummary": credential_summary}
         catalog_url = str(connector.get("catalogUrl") or "").strip()
         health_url = str(connector.get("healthUrl") or "").strip()
         online, health_error = _check_health(health_url, connector)
@@ -163,12 +213,13 @@ def _build_catalog(refresh: bool = False) -> dict[str, Any]:
                 "healthError": health_error,
                 "catalogError": catalog_error,
                 "credentialUrl": connector.get("credentialUrl", ""),
+                "credentialSummary": credential_summary,
             }
         )
 
         for raw in raw_items:
             if isinstance(raw, dict):
-                assets.append(_sanitize_asset(raw, connector, access_form))
+                assets.append(_sanitize_asset(raw, connector_with_summary, access_form))
 
     payload = {
         "title": config.get("title", "EITEL Public Catalog"),

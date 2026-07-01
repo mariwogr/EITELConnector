@@ -163,21 +163,59 @@ function openAssetModal(index) {
   openSharedModal({ eyebrow: 'Detalle del activo', title, body, mode: 'details' });
 }
 
-async function openCredentialModal(connectorId, connectorLabel, credentialUrl = '') {
+function renderCredentialSummary(rows, connectorLabel, displayUrl) {
+  return `
+    <div class="credential-panel">
+      <div class="credential-seal">GX</div>
+      <div>
+        <strong>${escapeHtml(rows[0]?.[1] || connectorLabel)}</strong>
+        <a href="${escapeHtml(displayUrl)}" target="_blank" rel="noopener">Abrir credencial original</a>
+      </div>
+    </div>
+    ${rows.length ? `
+      <dl class="detail-grid credential-grid">
+        ${rows.map(([label, value, wide]) => `
+          <div class="detail-item${wide ? ' wide' : ''}">
+            <dt>${escapeHtml(label)}</dt>
+            <dd>${escapeHtml(value)}</dd>
+          </div>
+        `).join('')}
+      </dl>
+    ` : ''}
+  `;
+}
+
+function summaryRowsFromPayload(summary, connectorLabel) {
+  return [
+    ['Participante', summary?.participant || connectorLabel, true],
+    ['Identificador', summary?.identifier, true],
+    ['Conector declarado', summary?.declaredConnector, true],
+    ['Tipo', summary?.type],
+  ].filter(([, value]) => value);
+}
+
+function credentialDataAttributes({ id, label, url, summary }) {
+  return [
+    `data-credential-id="${escapeHtml(id || '')}"`,
+    `data-credential-label="${escapeHtml(label || prettyConnectorLabel(id))}"`,
+    `data-credential-url="${escapeHtml(url || '')}"`,
+    `data-credential-participant="${escapeHtml(summary?.participant || '')}"`,
+    `data-credential-identifier="${escapeHtml(summary?.identifier || '')}"`,
+    `data-credential-declared-connector="${escapeHtml(summary?.declaredConnector || '')}"`,
+    `data-credential-type="${escapeHtml(summary?.type || '')}"`,
+  ].join(' ');
+}
+
+async function openCredentialModal(connectorId, connectorLabel, credentialUrl = '', summary = {}) {
   const title = `Credencial Gaia-X · ${connectorLabel}`;
   const displayUrl = credentialUrl || apiPath(`credential/${encodeURIComponent(connectorId)}`);
+  const rows = summaryRowsFromPayload(summary, connectorLabel);
   openSharedModal({
     eyebrow: 'Identidad del conector',
     title,
     mode: 'credential',
     body: `
-      <div class="credential-panel">
-        <div class="credential-seal">GX</div>
-        <div>
-          <strong>${escapeHtml(connectorLabel)}</strong>
-          <a href="${escapeHtml(displayUrl)}" target="_blank" rel="noopener">Abrir credencial original</a>
-        </div>
-      </div>
+      <div id="credential-summary">${renderCredentialSummary(rows, connectorLabel, displayUrl)}</div>
       <iframe class="credential-frame" src="${escapeHtml(displayUrl)}" title="Credencial Gaia-X ${escapeHtml(connectorLabel)}"></iframe>
     `,
   });
@@ -188,6 +226,12 @@ function credentialPayloadFromElement(element) {
     id: element.dataset.credentialId || '',
     label: element.dataset.credentialLabel || prettyConnectorLabel(element.dataset.credentialId),
     url: element.dataset.credentialUrl || '',
+    summary: {
+      participant: element.dataset.credentialParticipant || '',
+      identifier: element.dataset.credentialIdentifier || '',
+      declaredConnector: element.dataset.credentialDeclaredConnector || '',
+      type: element.dataset.credentialType || '',
+    },
   };
 }
 
@@ -196,13 +240,13 @@ function bindCredentialTriggers(root) {
     trigger.addEventListener('click', (event) => {
       event.stopPropagation();
       const payload = credentialPayloadFromElement(trigger);
-      openCredentialModal(payload.id, payload.label, payload.url);
+      openCredentialModal(payload.id, payload.label, payload.url, payload.summary);
     });
     trigger.addEventListener('mouseenter', () => {
       window.clearTimeout(credentialHoverTimer);
       credentialHoverTimer = window.setTimeout(() => {
         const payload = credentialPayloadFromElement(trigger);
-        openCredentialModal(payload.id, payload.label, payload.url);
+        openCredentialModal(payload.id, payload.label, payload.url, payload.summary);
       }, 520);
     });
     trigger.addEventListener('mouseleave', () => {
@@ -267,12 +311,19 @@ function renderConnectors() {
   els.connectors.innerHTML = connectors.map((connector) => {
     const id = String(connector.id || '').trim();
     const selected = id && id === els.connectorFilter.value;
+    const label = connector.name || prettyConnectorLabel(id);
+    const credentialAttrs = credentialDataAttributes({
+      id,
+      label,
+      url: connector.credentialUrl,
+      summary: connector.credentialSummary,
+    });
     return `
       <article class="connector${selected ? ' selected' : ''}" data-connector-id="${escapeHtml(id)}">
         <div class="connector-top">
           <div>
             ${connector.credentialUrl
-              ? `<button type="button" class="participant-name credential-trigger" data-credential-id="${escapeHtml(id)}" data-credential-label="${escapeHtml(connector.name || prettyConnectorLabel(id))}" data-credential-url="${escapeHtml(connector.credentialUrl)}" title="Ver credencial Gaia-X">${escapeHtml(connector.name)}</button>`
+              ? `<button type="button" class="participant-name credential-trigger" ${credentialAttrs} title="Ver credencial Gaia-X">${escapeHtml(connector.name)}</button>`
               : `<strong>${escapeHtml(connector.name)}</strong>`}
             <span class="meta">${escapeHtml(connector.organization || id)}</span>
           </div>
@@ -332,12 +383,18 @@ function renderAssetCard(asset, idx, state) {
   const delayMs = Math.min(idx * 35, 420);
   const owner = publishedBy(asset);
   const updated = formatDate(asset.updatedAt);
+  const credentialAttrs = credentialDataAttributes({
+    id: asset.providerId || asset.providerName || '',
+    label: connector,
+    url: asset.credentialUrl,
+    summary: asset.credentialSummary,
+  });
   return `
     <article class="asset catalog-state-${escapeHtml(state)}" style="--delay:${delayMs}ms">
       <div class="asset-card-media">
         <span class="asset-state-badge">${escapeHtml(stateLabel(state))}</span>
         ${asset.credentialUrl
-          ? `<button type="button" class="asset-card-badge credential-trigger" data-credential-id="${escapeHtml(asset.providerId || asset.providerName || '')}" data-credential-label="${escapeHtml(connector)}" data-credential-url="${escapeHtml(asset.credentialUrl)}" title="Ver credencial Gaia-X">${escapeHtml(connector)}</button>`
+          ? `<button type="button" class="asset-card-badge credential-trigger" ${credentialAttrs} title="Ver credencial Gaia-X">${escapeHtml(connector)}</button>`
           : `<span class="asset-card-badge">${escapeHtml(connector)}</span>`}
         <span class="asset-initials">${escapeHtml(assetInitials(asset))}</span>
         <div class="asset-card-media-overlay"><span class="asset-card-media-title">${escapeHtml(title)}</span></div>
