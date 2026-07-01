@@ -163,61 +163,24 @@ function openAssetModal(index) {
   openSharedModal({ eyebrow: 'Detalle del activo', title, body, mode: 'details' });
 }
 
-function credentialSubject(vpData) {
-  const vcs = Array.isArray(vpData?.verifiableCredential) ? vpData.verifiableCredential : [];
-  const participantVc = vcs.find((vc) => {
-    const subject = vc?.credentialSubject;
-    return subject && (subject.type === 'gx:LegalParticipant' || subject['gx:legalName'] || subject.legalName);
-  });
-  return participantVc?.credentialSubject || {};
-}
-
-function credentialParticipant(subject, connectorLabel) {
-  return subject['gx:legalName'] || subject.legalName || subject.name || subject.id || subject['@id'] || connectorLabel;
-}
-
 async function openCredentialModal(connectorId, connectorLabel, credentialUrl = '') {
   const title = `Credencial Gaia-X · ${connectorLabel}`;
+  const displayUrl = credentialUrl || apiPath(`credential/${encodeURIComponent(connectorId)}`);
   openSharedModal({
     eyebrow: 'Identidad del conector',
     title,
     mode: 'credential',
-    body: '<div class="credential-loading">Obteniendo credencial Gaia-X…</div>',
-  });
-  try {
-    let response;
-    let vpData;
-    try {
-      response = await fetch(apiPath(`credential/${encodeURIComponent(connectorId)}`), { headers: { Accept: 'application/json' } });
-      vpData = await response.json();
-      if (!response.ok) throw new Error(vpData?.error || `HTTP ${response.status}`);
-    } catch (proxyErr) {
-      if (!credentialUrl) throw proxyErr;
-      response = await fetch(credentialUrl, { headers: { Accept: 'application/json' } });
-      vpData = await response.json();
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    }
-    const subject = credentialSubject(vpData);
-    const participant = credentialParticipant(subject, connectorLabel);
-    const rawJson = JSON.stringify(vpData, null, 2);
-    els.modalBody.innerHTML = `
+    body: `
       <div class="credential-panel">
         <div class="credential-seal">GX</div>
         <div>
-          <strong>${escapeHtml(participant)}</strong>
-          ${credentialUrl ? `<a href="${escapeHtml(credentialUrl)}" target="_blank" rel="noopener">Abrir credencial original</a>` : ''}
+          <strong>${escapeHtml(connectorLabel)}</strong>
+          <a href="${escapeHtml(displayUrl)}" target="_blank" rel="noopener">Abrir credencial original</a>
         </div>
       </div>
-      <div class="credential-json">
-        <pre>${escapeHtml(rawJson)}</pre>
-      </div>
-    `;
-  } catch (err) {
-    els.modalBody.innerHTML = `
-      <div class="modal-error">No se pudo cargar la credencial: ${escapeHtml(err.message || String(err))}</div>
-      ${credentialUrl ? `<p class="credential-fallback"><a href="${escapeHtml(credentialUrl)}" target="_blank" rel="noopener">Abrir credencial original</a></p>` : ''}
-    `;
-  }
+      <iframe class="credential-frame" src="${escapeHtml(displayUrl)}" title="Credencial Gaia-X ${escapeHtml(connectorLabel)}"></iframe>
+    `,
+  });
 }
 
 function credentialPayloadFromElement(element) {

@@ -902,6 +902,14 @@ button.asset-card-badge:focus-visible {
   white-space: pre-wrap;
 }
 
+.credential-frame {
+  width: 100%;
+  min-height: 430px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
 .credential-loading,
 .modal-error {
   padding: 18px;
