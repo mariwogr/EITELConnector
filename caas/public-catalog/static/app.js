@@ -26,6 +26,7 @@ const els = {
 };
 
 let visibleAssets = [];
+let credentialHoverTimer = null;
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -210,6 +211,34 @@ async function openCredentialModal(connectorId, connectorLabel, credentialUrl = 
   }
 }
 
+function credentialPayloadFromElement(element) {
+  return {
+    id: element.dataset.credentialId || '',
+    label: element.dataset.credentialLabel || prettyConnectorLabel(element.dataset.credentialId),
+    url: element.dataset.credentialUrl || '',
+  };
+}
+
+function bindCredentialTriggers(root) {
+  root.querySelectorAll('.credential-trigger[data-credential-id]').forEach((trigger) => {
+    trigger.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const payload = credentialPayloadFromElement(trigger);
+      openCredentialModal(payload.id, payload.label, payload.url);
+    });
+    trigger.addEventListener('mouseenter', () => {
+      window.clearTimeout(credentialHoverTimer);
+      credentialHoverTimer = window.setTimeout(() => {
+        const payload = credentialPayloadFromElement(trigger);
+        openCredentialModal(payload.id, payload.label, payload.url);
+      }, 520);
+    });
+    trigger.addEventListener('mouseleave', () => {
+      window.clearTimeout(credentialHoverTimer);
+    });
+  });
+}
+
 function closeAssetModal() {
   els.modal.classList.remove('open');
   els.modal.setAttribute('aria-hidden', 'true');
@@ -270,15 +299,14 @@ function renderConnectors() {
       <article class="connector${selected ? ' selected' : ''}" data-connector-id="${escapeHtml(id)}">
         <div class="connector-top">
           <div>
-            <strong>${escapeHtml(connector.name)}</strong>
+            ${connector.credentialUrl
+              ? `<button type="button" class="participant-name credential-trigger" data-credential-id="${escapeHtml(id)}" data-credential-label="${escapeHtml(connector.name || prettyConnectorLabel(id))}" data-credential-url="${escapeHtml(connector.credentialUrl)}" title="Ver credencial Gaia-X">${escapeHtml(connector.name)}</button>`
+              : `<strong>${escapeHtml(connector.name)}</strong>`}
             <span class="meta">${escapeHtml(connector.organization || id)}</span>
           </div>
           <span class="pill ${connector.online ? 'online' : 'offline'}">${connector.online ? 'En línea' : 'No disponible'}</span>
         </div>
         <p class="connector-count">${Number(connector.assetCount || 0)} activos publicados</p>
-        <div class="connector-links">
-          ${connector.credentialUrl ? `<button type="button" class="credential-link" data-credential-id="${escapeHtml(id)}" data-credential-label="${escapeHtml(connector.name || prettyConnectorLabel(id))}" data-credential-url="${escapeHtml(connector.credentialUrl)}">Ver credencial Gaia-X</button>` : ''}
-        </div>
         ${connector.catalogError ? `<p class="connector-error">${escapeHtml(connector.catalogError)}</p>` : ''}
       </article>
     `;
@@ -293,12 +321,7 @@ function renderConnectors() {
       renderConnectors();
     });
   });
-
-  els.connectors.querySelectorAll('.credential-link[data-credential-id]').forEach((button) => {
-    button.addEventListener('click', () => {
-      openCredentialModal(button.dataset.credentialId, button.dataset.credentialLabel || prettyConnectorLabel(button.dataset.credentialId), button.dataset.credentialUrl || '');
-    });
-  });
+  bindCredentialTriggers(els.connectors);
 }
 
 function assetMatches(asset) {
@@ -341,7 +364,9 @@ function renderAssetCard(asset, idx, state) {
     <article class="asset catalog-state-${escapeHtml(state)}" style="--delay:${delayMs}ms">
       <div class="asset-card-media">
         <span class="asset-state-badge">${escapeHtml(stateLabel(state))}</span>
-        <span class="asset-card-badge">${escapeHtml(connector)}</span>
+        ${asset.credentialUrl
+          ? `<button type="button" class="asset-card-badge credential-trigger" data-credential-id="${escapeHtml(asset.providerId || asset.providerName || '')}" data-credential-label="${escapeHtml(connector)}" data-credential-url="${escapeHtml(asset.credentialUrl)}" title="Ver credencial Gaia-X">${escapeHtml(connector)}</button>`
+          : `<span class="asset-card-badge">${escapeHtml(connector)}</span>`}
         <span class="asset-initials">${escapeHtml(assetInitials(asset))}</span>
         <div class="asset-card-media-overlay"><span class="asset-card-media-title">${escapeHtml(title)}</span></div>
       </div>
@@ -357,7 +382,6 @@ function renderAssetCard(asset, idx, state) {
         <div class="actions">
           <button type="button" class="details-button" data-asset-index="${idx}">Ver detalles</button>
           ${asset.accessFormUrl ? `<a class="primary" href="${escapeHtml(asset.accessFormUrl)}" target="_blank" rel="noopener">Solicitar acceso</a>` : ''}
-          ${asset.credentialUrl ? `<button type="button" class="credential-link" data-credential-id="${escapeHtml(asset.providerId || asset.providerName || '')}" data-credential-label="${escapeHtml(connector)}" data-credential-url="${escapeHtml(asset.credentialUrl)}">Ver credencial</button>` : ''}
         </div>
       </div>
     </article>
@@ -405,11 +429,7 @@ function renderAssets() {
   els.assets.querySelectorAll('.details-button[data-asset-index]').forEach((button) => {
     button.addEventListener('click', () => openAssetModal(button.dataset.assetIndex));
   });
-  els.assets.querySelectorAll('.credential-link[data-credential-id]').forEach((button) => {
-    button.addEventListener('click', () => {
-      openCredentialModal(button.dataset.credentialId, button.dataset.credentialLabel || prettyConnectorLabel(button.dataset.credentialId), button.dataset.credentialUrl || '');
-    });
-  });
+  bindCredentialTriggers(els.assets);
 }
 
 function render() {

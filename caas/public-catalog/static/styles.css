@@ -259,6 +259,29 @@ main {
   font-size: .96rem;
 }
 
+.participant-name {
+  display: inline;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: .96rem;
+  font-weight: 900;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+}
+
+.participant-name:hover,
+.participant-name:focus-visible {
+  color: var(--primary);
+  text-decoration: underline;
+  background: transparent;
+  outline: none;
+}
+
 .connector-count {
   margin: 0;
   color: var(--text);
@@ -272,19 +295,12 @@ main {
   overflow-wrap: anywhere;
 }
 
-.connector-links,
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.connector-links {
-  margin-top: auto;
-}
-
-.connector-links a,
-.connector-links button,
 .actions a,
 .actions button {
   color: var(--primary);
@@ -293,8 +309,6 @@ main {
   text-decoration: none;
 }
 
-.connector-links a:hover,
-.connector-links button:hover,
 .actions a:hover {
   text-decoration: underline;
 }
@@ -499,6 +513,18 @@ select:focus {
   background: linear-gradient(110deg, rgba(9, 31, 66, .9), rgba(23, 70, 139, .8));
 }
 
+button.asset-card-badge {
+  border: 0;
+  cursor: pointer;
+}
+
+button.asset-card-badge:hover,
+button.asset-card-badge:focus-visible {
+  background: linear-gradient(110deg, rgba(15, 50, 105, .98), rgba(37, 132, 90, .9));
+  outline: 2px solid rgba(255,255,255,.9);
+  outline-offset: 2px;
+}
+
 .asset-state-badge {
   left: 10px;
   color: var(--text);
@@ -659,27 +685,6 @@ select:focus {
 .actions button:hover {
   color: #fff;
   background: var(--primary);
-}
-
-.credential-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 34px;
-  padding: 7px 10px;
-  border: 1px solid #8ab4e6;
-  border-radius: 6px;
-  background: #eef6ff;
-  color: #0f3269 !important;
-  cursor: pointer;
-  font-size: .82rem;
-  font-weight: 900;
-  text-decoration: none;
-}
-
-.credential-link:hover {
-  background: #dcecff;
-  text-decoration: none !important;
 }
 
 .modal {
