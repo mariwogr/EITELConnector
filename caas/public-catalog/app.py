@@ -184,6 +184,39 @@ def _build_catalog(refresh: bool = False) -> dict[str, Any]:
     return payload
 
 
+def _find_connector(connector_id: str) -> dict[str, Any] | None:
+    requested = connector_id.strip().lower()
+    config = _load_config()
+    connectors = config.get("connectors", [])
+    if not isinstance(connectors, list):
+        return None
+    for connector in connectors:
+      if not isinstance(connector, dict):
+          continue
+      if not connector.get("enabled", True):
+          continue
+      candidates = {
+          str(connector.get("id") or "").strip().lower(),
+          str(connector.get("name") or "").strip().lower(),
+      }
+      if requested in candidates:
+          return connector
+    return None
+
+
+def _credential_response(connector_id: str) -> JSONResponse:
+    connector = _find_connector(connector_id)
+    if not connector:
+        return JSONResponse({"error": "Connector not configured"}, status_code=404)
+    credential_url = str(connector.get("credentialUrl") or "").strip()
+    if not credential_url:
+        return JSONResponse({"error": "Credential URL not configured"}, status_code=404)
+    data, error = _fetch_json(credential_url, connector)
+    if error or data is None:
+        return JSONResponse({"error": error or "Credential unavailable"}, status_code=502)
+    return JSONResponse(data)
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     return {"ok": True, "service": "eitel-public-catalog"}
@@ -202,6 +235,16 @@ def api_catalog(refresh: bool = Query(False)) -> JSONResponse:
 @app.get("/catalog/api/catalog")
 def api_catalog_prefixed(refresh: bool = Query(False)) -> JSONResponse:
     return JSONResponse(_build_catalog(refresh=refresh))
+
+
+@app.get("/api/credential/{connector_id}")
+def api_credential(connector_id: str) -> JSONResponse:
+    return _credential_response(connector_id)
+
+
+@app.get("/catalog/api/credential/{connector_id}")
+def api_credential_prefixed(connector_id: str) -> JSONResponse:
+    return _credential_response(connector_id)
 
 
 @app.get("/")
