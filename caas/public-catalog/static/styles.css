@@ -797,6 +797,14 @@ select:focus {
   font-size: .86rem;
 }
 
+.credential-panel a {
+  display: inline-flex;
+  margin-top: 8px;
+  color: var(--primary);
+  font-size: .86rem;
+  font-weight: 900;
+}
+
 .detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -853,14 +861,6 @@ select:focus {
   overflow: hidden;
 }
 
-.credential-json summary {
-  padding: 12px 14px;
-  cursor: pointer;
-  background: #172033;
-  color: #fff;
-  font-weight: 900;
-}
-
 .credential-json pre {
   max-height: 360px;
   margin: 0;
@@ -885,6 +885,15 @@ select:focus {
   border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
   background: #fff1f1;
   color: #9f3434;
+}
+
+.credential-fallback {
+  margin: 12px 0 0;
+}
+
+.credential-fallback a {
+  color: var(--primary);
+  font-weight: 900;
 }
 
 .empty {

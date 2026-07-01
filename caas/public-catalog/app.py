@@ -191,16 +191,16 @@ def _find_connector(connector_id: str) -> dict[str, Any] | None:
     if not isinstance(connectors, list):
         return None
     for connector in connectors:
-      if not isinstance(connector, dict):
-          continue
-      if not connector.get("enabled", True):
-          continue
-      candidates = {
-          str(connector.get("id") or "").strip().lower(),
-          str(connector.get("name") or "").strip().lower(),
-      }
-      if requested in candidates:
-          return connector
+        if not isinstance(connector, dict):
+            continue
+        if not connector.get("enabled", True):
+            continue
+        candidates = {
+            str(connector.get("id") or "").strip().lower(),
+            str(connector.get("name") or "").strip().lower(),
+        }
+        if requested in candidates:
+            return connector
     return None
 
 

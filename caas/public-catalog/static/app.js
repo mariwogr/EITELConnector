@@ -41,6 +41,11 @@ function normalize(value) {
   return String(value ?? '').toLowerCase();
 }
 
+function apiPath(path) {
+  const prefix = window.location.pathname.startsWith('/catalog') ? '/catalog' : '';
+  return `${prefix}/api/${String(path).replace(/^\/+/, '')}`;
+}
+
 function prettyConnectorLabel(value) {
   const text = String(value || '').trim();
   const lower = text.toLowerCase();
@@ -166,24 +171,11 @@ function credentialSubject(vpData) {
   return participantVc?.credentialSubject || {};
 }
 
-function asList(value) {
-  if (Array.isArray(value)) return value.filter(Boolean);
-  return value ? [value] : [];
+function credentialParticipant(subject, connectorLabel) {
+  return subject['gx:legalName'] || subject.legalName || subject.name || subject.id || subject['@id'] || connectorLabel;
 }
 
-function credentialSummaryRows(subject, connectorLabel) {
-  const legalName = subject['gx:legalName'] || subject.legalName || subject.name || subject.id || connectorLabel;
-  const did = subject.id || subject['@id'] || '';
-  const connectorIds = asList(subject['conector:id']);
-  return [
-    ['Participante', legalName, true],
-    ['Identificador', did, true],
-    ['Conector declarado', connectorIds.join(', '), true],
-    ['Tipo', subject.type],
-  ].filter(([, value]) => value);
-}
-
-async function openCredentialModal(connectorId, connectorLabel) {
+async function openCredentialModal(connectorId, connectorLabel, credentialUrl = '') {
   const title = `Credencial Gaia-X · ${connectorLabel}`;
   openSharedModal({
     eyebrow: 'Identidad del conector',
@@ -192,35 +184,29 @@ async function openCredentialModal(connectorId, connectorLabel) {
     body: '<div class="credential-loading">Obteniendo credencial Gaia-X…</div>',
   });
   try {
-    const response = await fetch(`api/credential/${encodeURIComponent(connectorId)}`, { headers: { Accept: 'application/json' } });
+    const response = await fetch(apiPath(`credential/${encodeURIComponent(connectorId)}`), { headers: { Accept: 'application/json' } });
     const vpData = await response.json();
     if (!response.ok) throw new Error(vpData?.error || `HTTP ${response.status}`);
     const subject = credentialSubject(vpData);
-    const rows = credentialSummaryRows(subject, connectorLabel);
+    const participant = credentialParticipant(subject, connectorLabel);
     const rawJson = JSON.stringify(vpData, null, 2);
     els.modalBody.innerHTML = `
       <div class="credential-panel">
         <div class="credential-seal">GX</div>
         <div>
-          <strong>${escapeHtml(rows[0]?.[1] || connectorLabel)}</strong>
-          <span>Verifiable Presentation publicada por el participante</span>
+          <strong>${escapeHtml(participant)}</strong>
+          ${credentialUrl ? `<a href="${escapeHtml(credentialUrl)}" target="_blank" rel="noopener">Abrir credencial original</a>` : ''}
         </div>
       </div>
-      <dl class="detail-grid credential-grid">
-        ${rows.map(([label, value, wide]) => `
-          <div class="detail-item${wide ? ' wide' : ''}">
-            <dt>${escapeHtml(label)}</dt>
-            <dd>${escapeHtml(value)}</dd>
-          </div>
-        `).join('')}
-      </dl>
-      <details class="credential-json">
-        <summary>Ver JSON completo de la credencial</summary>
+      <div class="credential-json">
         <pre>${escapeHtml(rawJson)}</pre>
-      </details>
+      </div>
     `;
   } catch (err) {
-    els.modalBody.innerHTML = `<div class="modal-error">No se pudo cargar la credencial: ${escapeHtml(err.message || String(err))}</div>`;
+    els.modalBody.innerHTML = `
+      <div class="modal-error">No se pudo cargar la credencial: ${escapeHtml(err.message || String(err))}</div>
+      ${credentialUrl ? `<p class="credential-fallback"><a href="${escapeHtml(credentialUrl)}" target="_blank" rel="noopener">Abrir credencial original</a></p>` : ''}
+    `;
   }
 }
 
@@ -242,7 +228,7 @@ function sortedAssets() {
 async function loadCatalog() {
   els.lastCheck.textContent = 'Comprobando conectores...';
   try {
-    const response = await fetch('api/catalog?refresh=true', { headers: { Accept: 'application/json' } });
+    const response = await fetch(apiPath('catalog?refresh=true'), { headers: { Accept: 'application/json' } });
     if (!response.ok) throw new Error(`No se pudo cargar el catálogo: ${response.status}`);
     catalog = await response.json();
     render();
@@ -291,7 +277,7 @@ function renderConnectors() {
         </div>
         <p class="connector-count">${Number(connector.assetCount || 0)} activos publicados</p>
         <div class="connector-links">
-          ${connector.credentialUrl ? `<button type="button" class="credential-link" data-credential-id="${escapeHtml(id)}" data-credential-label="${escapeHtml(connector.name || prettyConnectorLabel(id))}">Ver credencial Gaia-X</button>` : ''}
+          ${connector.credentialUrl ? `<button type="button" class="credential-link" data-credential-id="${escapeHtml(id)}" data-credential-label="${escapeHtml(connector.name || prettyConnectorLabel(id))}" data-credential-url="${escapeHtml(connector.credentialUrl)}">Ver credencial Gaia-X</button>` : ''}
         </div>
         ${connector.catalogError ? `<p class="connector-error">${escapeHtml(connector.catalogError)}</p>` : ''}
       </article>
@@ -310,7 +296,7 @@ function renderConnectors() {
 
   els.connectors.querySelectorAll('.credential-link[data-credential-id]').forEach((button) => {
     button.addEventListener('click', () => {
-      openCredentialModal(button.dataset.credentialId, button.dataset.credentialLabel || prettyConnectorLabel(button.dataset.credentialId));
+      openCredentialModal(button.dataset.credentialId, button.dataset.credentialLabel || prettyConnectorLabel(button.dataset.credentialId), button.dataset.credentialUrl || '');
     });
   });
 }
@@ -371,7 +357,7 @@ function renderAssetCard(asset, idx, state) {
         <div class="actions">
           <button type="button" class="details-button" data-asset-index="${idx}">Ver detalles</button>
           ${asset.accessFormUrl ? `<a class="primary" href="${escapeHtml(asset.accessFormUrl)}" target="_blank" rel="noopener">Solicitar acceso</a>` : ''}
-          ${asset.credentialUrl ? `<button type="button" class="credential-link" data-credential-id="${escapeHtml(asset.providerId || asset.providerName || '')}" data-credential-label="${escapeHtml(connector)}">Ver credencial</button>` : ''}
+          ${asset.credentialUrl ? `<button type="button" class="credential-link" data-credential-id="${escapeHtml(asset.providerId || asset.providerName || '')}" data-credential-label="${escapeHtml(connector)}" data-credential-url="${escapeHtml(asset.credentialUrl)}">Ver credencial</button>` : ''}
         </div>
       </div>
     </article>
@@ -421,7 +407,7 @@ function renderAssets() {
   });
   els.assets.querySelectorAll('.credential-link[data-credential-id]').forEach((button) => {
     button.addEventListener('click', () => {
-      openCredentialModal(button.dataset.credentialId, button.dataset.credentialLabel || prettyConnectorLabel(button.dataset.credentialId));
+      openCredentialModal(button.dataset.credentialId, button.dataset.credentialLabel || prettyConnectorLabel(button.dataset.credentialId), button.dataset.credentialUrl || '');
     });
   });
 }
