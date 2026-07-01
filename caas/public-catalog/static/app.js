@@ -60,14 +60,12 @@ function visibilityState(asset) {
   const visibility = normalize(asset.visibility);
   if (visibility.includes('private') || visibility.includes('restricted') || visibility.includes('limit')) return 'private';
   if (visibility.includes('pending')) return 'private';
-  if (visibility.includes('approved') || visibility.includes('available')) return 'available';
   return 'public';
 }
 
 function stateLabel(state) {
   return {
     public: 'Público',
-    available: 'Disponible',
     private: 'Restringido',
   }[state] || 'Público';
 }
@@ -75,7 +73,6 @@ function stateLabel(state) {
 function stateDescription(state) {
   return {
     public: 'Activos visibles publicados por los conectores proveedores.',
-    available: 'Activos indicados como disponibles por su proveedor.',
     private: 'Activos restringidos. Solicita acceso mediante el formulario de EITEL.',
   }[state] || '';
 }
@@ -431,7 +428,6 @@ function renderAssets() {
 
   const groups = [
     { key: 'public', title: 'Públicos', rows: [] },
-    { key: 'available', title: 'Disponibles', rows: [] },
     { key: 'private', title: 'Restringidos', rows: [] },
   ];
   const groupMap = new Map(groups.map((group) => [group.key, group]));

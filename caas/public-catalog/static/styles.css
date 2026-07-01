@@ -440,7 +440,6 @@ select:focus {
 }
 
 .catalog-group-public { border-color: color-mix(in srgb, var(--ok) 58%, var(--line)); }
-.catalog-group-available { border-color: color-mix(in srgb, var(--primary) 58%, var(--line)); }
 .catalog-group-private { border-color: color-mix(in srgb, var(--danger) 58%, var(--line)); }
 
 .catalog-group-head {
@@ -496,11 +495,6 @@ select:focus {
 .asset.catalog-state-public {
   border-color: color-mix(in srgb, var(--ok) 45%, var(--line));
   background: linear-gradient(180deg, #f0fbf5 0%, var(--surface) 42%);
-}
-
-.asset.catalog-state-available {
-  border-color: color-mix(in srgb, var(--primary) 45%, var(--line));
-  background: linear-gradient(180deg, #eef6ff 0%, var(--surface) 42%);
 }
 
 .asset.catalog-state-private {
@@ -575,8 +569,7 @@ button.asset-card-badge:focus-visible {
   border: 1px solid var(--line);
 }
 
-.catalog-state-public .asset-state-badge,
-.catalog-state-available .asset-state-badge {
+.catalog-state-public .asset-state-badge {
   color: #176f49;
   border-color: color-mix(in srgb, var(--ok) 45%, var(--line));
   background: #e9f8ef;
