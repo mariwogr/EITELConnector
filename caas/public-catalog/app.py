@@ -9,7 +9,7 @@ from typing import Any
 
 import yaml
 from fastapi import FastAPI, Query
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 
@@ -33,6 +33,7 @@ SAFE_ASSET_FIELDS = {
 
 app = FastAPI(title="EITEL Public Catalog", version="1.0.0")
 app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
+app.mount("/catalog/static", StaticFiles(directory=APP_DIR / "static"), name="catalog-static")
 
 _cache: dict[str, Any] = {"timestamp": 0.0, "payload": None}
 
@@ -186,11 +187,31 @@ def health() -> dict[str, Any]:
     return {"ok": True, "service": "eitel-public-catalog"}
 
 
+@app.get("/catalog/health")
+def health_prefixed() -> dict[str, Any]:
+    return {"ok": True, "service": "eitel-public-catalog"}
+
+
 @app.get("/api/catalog")
 def api_catalog(refresh: bool = Query(False)) -> JSONResponse:
     return JSONResponse(_build_catalog(refresh=refresh))
 
 
-@app.get("/", response_class=HTMLResponse)
-def index() -> HTMLResponse:
+@app.get("/catalog/api/catalog")
+def api_catalog_prefixed(refresh: bool = Query(False)) -> JSONResponse:
+    return JSONResponse(_build_catalog(refresh=refresh))
+
+
+@app.get("/")
+def index() -> RedirectResponse:
+    return RedirectResponse(url="/catalog/")
+
+
+@app.get("/catalog")
+def catalog_no_slash() -> RedirectResponse:
+    return RedirectResponse(url="/catalog/")
+
+
+@app.get("/catalog/", response_class=HTMLResponse)
+def catalog_index() -> HTMLResponse:
     return HTMLResponse((APP_DIR / "static" / "index.html").read_text(encoding="utf-8"))

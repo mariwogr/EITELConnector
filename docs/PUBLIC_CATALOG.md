@@ -37,7 +37,7 @@ docker compose up -d --build
 Open:
 
 ```text
-http://localhost:18080/
+http://localhost:18080/catalog/
 ```
 
 ## Publishing at `/catalog`
@@ -51,7 +51,7 @@ https://gis.eiteldata.eu/catalog/
 to the container port exposed on the host:
 
 ```text
-http://127.0.0.1:18080/
+http://127.0.0.1:18080/catalog/
 ```
 
 ## Connector configuration
