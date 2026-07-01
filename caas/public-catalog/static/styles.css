@@ -688,6 +688,10 @@ select:focus {
   background: rgba(10, 22, 40, .58);
 }
 
+.modal[hidden] {
+  display: none !important;
+}
+
 .modal.open {
   display: flex;
 }

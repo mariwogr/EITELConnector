@@ -135,6 +135,7 @@ function openAssetModal(index) {
     </dl>
     ${tags ? `<div class="detail-keywords"><strong>Palabras clave</strong><div class="tags">${tags}</div></div>` : ''}
   `;
+  els.modal.hidden = false;
   els.modal.classList.add('open');
   els.modal.setAttribute('aria-hidden', 'false');
   els.modalClose.focus();
@@ -143,6 +144,7 @@ function openAssetModal(index) {
 function closeAssetModal() {
   els.modal.classList.remove('open');
   els.modal.setAttribute('aria-hidden', 'true');
+  els.modal.hidden = true;
 }
 
 function sortedAssets() {
