@@ -26,7 +26,6 @@ const els = {
 };
 
 let visibleAssets = [];
-let credentialHoverTimer = null;
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -241,17 +240,6 @@ function bindCredentialTriggers(root) {
       event.stopPropagation();
       const payload = credentialPayloadFromElement(trigger);
       openCredentialModal(payload.id, payload.label, payload.url, payload.summary);
-    });
-    trigger.addEventListener('mouseenter', () => {
-      if (!window.matchMedia('(hover: hover)').matches) return;
-      window.clearTimeout(credentialHoverTimer);
-      credentialHoverTimer = window.setTimeout(() => {
-        const payload = credentialPayloadFromElement(trigger);
-        openCredentialModal(payload.id, payload.label, payload.url, payload.summary);
-      }, 180);
-    });
-    trigger.addEventListener('mouseleave', () => {
-      window.clearTimeout(credentialHoverTimer);
     });
   });
 }
