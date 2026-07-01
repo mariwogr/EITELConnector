@@ -243,11 +243,12 @@ function bindCredentialTriggers(root) {
       openCredentialModal(payload.id, payload.label, payload.url, payload.summary);
     });
     trigger.addEventListener('mouseenter', () => {
+      if (!window.matchMedia('(hover: hover)').matches) return;
       window.clearTimeout(credentialHoverTimer);
       credentialHoverTimer = window.setTimeout(() => {
         const payload = credentialPayloadFromElement(trigger);
         openCredentialModal(payload.id, payload.label, payload.url, payload.summary);
-      }, 520);
+      }, 180);
     });
     trigger.addEventListener('mouseleave', () => {
       window.clearTimeout(credentialHoverTimer);

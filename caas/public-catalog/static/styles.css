@@ -142,13 +142,13 @@ button.secondary:hover {
 }
 
 main {
-  width: min(1280px, calc(100% - 40px));
+  width: min(1800px, calc(100% - 40px));
   margin: 24px auto 56px;
 }
 
 .metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
   gap: 10px;
   align-self: stretch;
 }
@@ -182,7 +182,7 @@ main {
 
 .catalog-layout {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-columns: minmax(280px, 330px) minmax(0, 1fr);
   gap: 18px;
   align-items: start;
 }
@@ -230,6 +230,7 @@ main {
 
 .connectors {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: 12px;
 }
 
@@ -349,7 +350,7 @@ main {
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(260px, 1.35fr) minmax(180px, .8fr) minmax(150px, .6fr) auto;
+  grid-template-columns: minmax(min(100%, 280px), 1.35fr) minmax(min(100%, 180px), .8fr) minmax(min(100%, 150px), .6fr) auto;
   gap: 12px;
   align-items: end;
   padding: 14px;
@@ -437,7 +438,7 @@ select:focus {
 
 .asset-card-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 16px;
 }
 
@@ -977,16 +978,9 @@ button.asset-card-badge:focus-visible {
     position: static;
   }
 
-  .connectors {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 920px) {
-  .asset-card-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .toolbar {
     grid-template-columns: 1fr 1fr;
   }
@@ -1007,15 +1001,8 @@ button.asset-card-badge:focus-visible {
     flex-direction: column;
   }
 
-  .connectors,
-  .toolbar,
-  .asset-card-grid {
+  .toolbar {
     grid-template-columns: 1fr;
-  }
-
-  .metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
   }
 
   .metric {
@@ -1071,7 +1058,4 @@ button.asset-card-badge:focus-visible {
     height: 50px;
   }
 
-  .metrics {
-    grid-template-columns: 1fr;
-  }
 }
